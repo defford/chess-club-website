@@ -1,26 +1,53 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto:wght@300;400;500&display=swap');
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Chess Club Color Palette */
+  --primary: #2D5BE3;        /* Royal Blue */
+  --secondary: #FFD93D;      /* Bright Yellow */
+  --accent: #1C1F33;         /* Dark Navy */
+  --neutral-light: #F8F9FA;  /* Light Gray */
+  --neutral-white: #FFFFFF;  /* White */
+  --text-primary: #1C1F33;   /* Dark Navy for main text */
+  --text-secondary: #6B7280; /* Gray for secondary text */
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Custom color palette */
+  --color-primary: #2D5BE3;
+  --color-secondary: #FFD93D;
+  --color-accent: #1C1F33;
+  --color-neutral-light: #F8F9FA;
+  --color-neutral-white: #FFFFFF;
+  --color-text-primary: #1C1F33;
+  --color-text-secondary: #6B7280;
+  
+  /* Typography */
+  --font-heading: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+  --font-body: 'Roboto', ui-sans-serif, system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+/* Base styles */
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--neutral-white);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  line-height: 1.6;
+}
+
+/* Typography classes */
+.heading {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.heading-bold {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+.body-text {
+  font-family: var(--font-body);
+  font-weight: 400;
 }

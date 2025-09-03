@@ -1,36 +1,100 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Central NL Scholastic Chess Club Website
+
+A modern, responsive website for the Central NL Scholastic Chess Club built with Next.js, TypeScript, and Tailwind CSS.
+
+## Features
+
+- **Responsive Design**: Mobile-first approach that works perfectly on all devices
+- **Modern UI Components**: Custom component library with consistent design system
+- **Interactive Features**: 
+  - Sortable rankings table
+  - Event filtering and categorization
+  - Collapsible mobile navigation
+  - Dynamic registration forms
+- **Accessible**: Follows WCAG guidelines with proper ARIA labels and keyboard navigation
+- **SEO Optimized**: Meta tags, semantic HTML, and optimized for search engines
+
+## Pages
+
+- **Home**: Hero section, events preview, rankings preview, registration, and about sections
+- **Events**: Complete events listing with filtering by category
+- **Rankings**: Sortable club ladder with player statistics
+- **Register**: Comprehensive registration form with validation
+- **About**: Club information, mission, instructors, and programs
+
+## Design System
+
+### Color Palette
+- Primary: Royal Blue (#2D5BE3)
+- Secondary: Bright Yellow (#FFD93D)
+- Accent: Dark Navy (#1C1F33)
+- Neutrals: White (#FFFFFF), Light Gray (#F8F9FA)
+
+### Typography
+- Headings: Poppins Bold
+- Body: Roboto Regular
 
 ## Getting Started
 
-First, run the development server:
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+2. Run the development server:
+   ```bash
+   npm run dev
+   ```
+
+3. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Technology Stack
+
+- **Framework**: Next.js 15 with App Router
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS 4 with custom design tokens
+- **Icons**: Lucide React & Radix UI Icons
+- **Components**: Custom component library with class-variance-authority
+- **Forms**: Native HTML5 with custom validation
+
+## Project Structure
+
+```
+src/
+├── app/                 # Next.js app router pages
+│   ├── about/
+│   ├── events/
+│   ├── rankings/
+│   ├── register/
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── ui/             # Reusable UI components
+│   ├── layout/         # Header, Footer, Navigation
+│   └── sections/       # Page sections
+├── lib/                # Utilities
+└── styles/            # Global styles
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Future Enhancements
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Email integration for registration confirmations
+- Content Management System (CMS) integration
+- Online chess game integration
+- Player profile pages
+- Tournament bracket system
+- Photo gallery
+- Blog/news section
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment
 
-## Learn More
+This project is optimized for deployment on Vercel, but can be deployed to any platform that supports Next.js.
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+npm run start
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contributing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This website was built for the Central NL Scholastic Chess Club. For modifications or updates, please contact the club administrators.
