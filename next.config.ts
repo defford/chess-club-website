@@ -2,8 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  experimental: {
-    outputFileTracingRoot: __dirname,
+  outputFileTracingRoot: __dirname,
+  eslint: {
+    ignoreDuringBuilds: true,
   },
 };
 

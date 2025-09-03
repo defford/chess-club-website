@@ -239,9 +239,9 @@ export default function RankingsPage() {
                     <tr key={player.rank} className="hover:bg-[--color-neutral-light]/50 transition-colors">
                       <td className="p-4">
                         <span
-                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${getBadgeColor(player.rank)}`}
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${getBadgeColor(player.rank || 0)}`}
                         >
-                          {getBadgeIcon(player.rank)}
+                          {getBadgeIcon(player.rank || 0)}
                         </span>
                       </td>
                       <td className="p-4 font-medium text-[--color-text-primary]">

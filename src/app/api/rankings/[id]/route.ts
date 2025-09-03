@@ -2,14 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { googleSheetsService } from '@/lib/googleSheets';
 import type { PlayerData } from '@/lib/googleSheets';
 
-interface RouteParams {
-  params: {
-    id: string;
-  };
-}
-
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(
+  request: NextRequest, 
+  context: { params: Promise<{ id: string }> }
+) {
   try {
+    const params = await context.params;
     const { id } = params;
     const updates: Partial<PlayerData> = await request.json();
     

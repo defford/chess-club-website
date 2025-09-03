@@ -100,12 +100,12 @@ export default function RegisterPage() {
               </h1>
               <p className="text-lg text-[--color-text-secondary] mb-6">
                 Thank you for registering {formData.childName} for the Central NL Scholastic Chess Club. 
-                We'll be in touch within 24 hours with next steps and schedule information.
+                We&apos;ll be in touch within 24 hours with next steps and schedule information.
               </p>
               <div className="space-y-2 text-sm text-[--color-text-secondary]">
                 <p>📧 A confirmation email with all the details has been sent to {formData.parentEmail}</p>
                 <p>📋 Your registration has been recorded in our system</p>
-                <p>🕐 You'll receive schedule information within 24-48 hours</p>
+                <p>🕐 You&apos;ll receive schedule information within 24-48 hours</p>
                 <p>❓ Questions? Contact us at info@centralnlchess.ca</p>
               </div>
               <div className="mt-6">
@@ -259,7 +259,7 @@ export default function RegisterPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label htmlFor="childName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                          Child's Full Name *
+                          Child&apos;s Full Name *
                         </label>
                         <input
                           type="text"
@@ -406,7 +406,7 @@ export default function RegisterPage() {
                         className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                       />
                       <label htmlFor="consent" className="text-sm text-[--color-text-secondary]">
-                        I consent to my child participating in chess club activities and acknowledge that I have read and agree to the club's policies and waiver of liability. *
+                        I consent to my child participating in chess club activities and acknowledge that I have read and agree to the club&apos;s policies and waiver of liability. *
                       </label>
                     </div>
 
