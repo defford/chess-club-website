@@ -13,12 +13,15 @@ export default function RegisterPage() {
     childName: "",
     childAge: "",
     childGrade: "",
-    experience: "",
     emergencyContact: "",
     emergencyPhone: "",
     medicalInfo: "",
+    hearAboutUs: "",
+    provincialInterest: "",
+    volunteerInterest: "",
     consent: false,
     photoConsent: false,
+    valuesAcknowledgment: false,
     newsletter: true
   })
 
@@ -136,50 +139,7 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Benefits Sidebar */}
-          <div className="lg:col-span-1">
-            <Card className="sticky top-24">
-              <CardHeader>
-                <CardTitle>Why Join Our Club?</CardTitle>
-                <CardDescription>
-                  What your child will gain from membership
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {benefits.map((benefit, index) => (
-                  <div key={index} className="flex items-start space-x-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-[--color-primary] text-white rounded-lg flex items-center justify-center">
-                      {benefit.icon}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-[--color-text-primary] text-sm">
-                        {benefit.title}
-                      </h3>
-                      <p className="text-xs text-[--color-text-secondary]">
-                        {benefit.description}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Membership Info */}
-                <div className="pt-4 border-t">
-                  <h3 className="font-semibold text-[--color-text-primary] mb-2">
-                    Membership Details
-                  </h3>
-                  <ul className="text-sm text-[--color-text-secondary] space-y-1">
-                    <li>• $50/semester or $80/year</li>
-                    <li>• Family discount: 2nd child 25% off</li>
-                    <li>• Weekly sessions included</li>
-                    <li>• Tournament entry fees separate</li>
-                    <li>• No equipment needed - provided</li>
-                  </ul>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
+        <div>
           {/* Registration Form */}
           <div className="lg:col-span-2">
             <Card>
@@ -254,12 +214,12 @@ export default function RegisterPage() {
                   {/* Child Information */}
                   <div>
                     <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
-                      Child Information
+                      Player Information
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label htmlFor="childName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                          Child&apos;s Full Name *
+                          Player&apos;s Full Name *
                         </label>
                         <input
                           type="text"
@@ -318,25 +278,6 @@ export default function RegisterPage() {
                         </select>
                       </div>
                     </div>
-                    
-                    <div className="mt-4">
-                      <label htmlFor="experience" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                        Chess Experience
-                      </label>
-                      <select
-                        id="experience"
-                        name="experience"
-                        value={formData.experience}
-                        onChange={handleChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                      >
-                        <option value="">Select Experience Level</option>
-                        <option value="none">Complete Beginner</option>
-                        <option value="basic">Knows Basic Rules</option>
-                        <option value="casual">Casual Player</option>
-                        <option value="tournament">Tournament Experience</option>
-                      </select>
-                    </div>
                   </div>
 
                   {/* Emergency Contact */}
@@ -391,6 +332,80 @@ export default function RegisterPage() {
                       placeholder="Please list any allergies, medical conditions, or special needs we should be aware of..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                     />
+                    <p className="text-xs text-[--color-text-secondary] mt-1">
+                      Note: It is up to all players and guardians to ensure their own safety surrounding allergies.
+                    </p>
+                  </div>
+
+                  {/* Additional Information */}
+                  <div>
+                    <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
+                      Additional Information
+                    </h3>
+                    <div className="space-y-4">
+                      <div>
+                        <label htmlFor="hearAboutUs" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                          How did you hear about our chess club?
+                        </label>
+                        <select
+                          id="hearAboutUs"
+                          name="hearAboutUs"
+                          value={formData.hearAboutUs}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                        >
+                          <option value="">Select an option</option>
+                          <option value="school">School announcement</option>
+                          <option value="friend">Friend or family</option>
+                          <option value="social-media">Social media</option>
+                          <option value="website">Website search</option>
+                          <option value="flyer">Flyer or poster</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label htmlFor="provincialInterest" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                          Are you interested in travelling to compete provincially this scholastic year?
+                        </label>
+                        <select
+                          id="provincialInterest"
+                          name="provincialInterest"
+                          value={formData.provincialInterest}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                        >
+                          <option value="">Select an option</option>
+                          <option value="yes">Yes, very interested</option>
+                          <option value="maybe">Maybe, tell me more</option>
+                          <option value="no">No, local events only</option>
+                        </select>
+                        <p className="text-xs text-[--color-text-secondary] mt-1">
+                          Provincial competitions are open to new players! Travel expenses are at your own cost. Contact Daniel Efford for more information.
+                        </p>
+                      </div>
+
+                      <div>
+                        <label htmlFor="volunteerInterest" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                          Are you interested in volunteering with the chess club?
+                        </label>
+                        <select
+                          id="volunteerInterest"
+                          name="volunteerInterest"
+                          value={formData.volunteerInterest}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                        >
+                          <option value="">Select an option</option>
+                          <option value="yes">Yes, I'd like to help</option>
+                          <option value="maybe">Maybe, contact me with details</option>
+                          <option value="no">No, not at this time</option>
+                        </select>
+                        <p className="text-xs text-[--color-text-secondary] mt-1">
+                          This chess club is a community effort supported by volunteers, parents, and players.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Consent Checkboxes */}
@@ -406,7 +421,22 @@ export default function RegisterPage() {
                         className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                       />
                       <label htmlFor="consent" className="text-sm text-[--color-text-secondary]">
-                        I consent to my child participating in chess club activities and acknowledge that I have read and agree to the club&apos;s policies and waiver of liability. *
+                        I consent to my child participating in chess club activities and acknowledge the club&apos;s policies and waiver of liability. I understand that parents or guardians are required to attend if the player is under grade 7 to help facilitate a focused environment. *
+                      </label>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        id="valuesAcknowledgment"
+                        name="valuesAcknowledgment"
+                        required
+                        checked={formData.valuesAcknowledgment}
+                        onChange={handleChange}
+                        className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
+                      />
+                      <label htmlFor="valuesAcknowledgment" className="text-sm text-[--color-text-secondary]">
+                        I understand that Chess Club is a place to practice good sportsmanship, focus, and learn & teach. *
                       </label>
                     </div>
 
@@ -420,7 +450,7 @@ export default function RegisterPage() {
                         className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                       />
                       <label htmlFor="photoConsent" className="text-sm text-[--color-text-secondary]">
-                        I consent to photos of my child being taken and used for club promotional materials and social media.
+                        I consent to photos/videos of my child being taken during chess events and used for club promotional materials and social media. (Consent can be revoked at any time by contacting daniel@cnlscc.com)
                       </label>
                     </div>
 

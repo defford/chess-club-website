@@ -22,10 +22,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check consent checkbox
+    // Check required consent checkboxes
     if (!data.consent) {
       return NextResponse.json(
         { error: 'Participation consent is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!data.valuesAcknowledgment) {
+      return NextResponse.json(
+        { error: 'Acknowledgment of club values is required' },
         { status: 400 }
       );
     }

@@ -7,13 +7,19 @@ interface RegistrationData {
   childName: string;
   childAge: string;
   childGrade: string;
-  experience: string;
   emergencyContact: string;
   emergencyPhone: string;
   medicalInfo: string;
+  hearAboutUs: string;
+  provincialInterest: string;
+  volunteerInterest: string;
   consent: boolean;
   photoConsent: boolean;
+  valuesAcknowledgment: boolean;
   newsletter: boolean;
+  // Additional metadata
+  timestamp?: string;
+  rowIndex?: number;
 }
 
 interface EventData {
@@ -48,12 +54,34 @@ export class GoogleSheetsService {
   private auth;
 
   constructor() {
-    // Initialize Google Sheets API with Application Default Credentials (ADC)
-    // This will use gcloud credentials or service account when deployed
-    this.auth = new google.auth.GoogleAuth({
-      projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'poetic-chariot-470917-k3',
-      scopes: ['https://www.googleapis.com/auth/spreadsheets'],
-    });
+    // Initialize Google Sheets API with service account credentials for reliable authentication
+    if (process.env.GOOGLE_PRIVATE_KEY && process.env.GOOGLE_CLIENT_EMAIL) {
+      // Use service account credentials (recommended for production and reliable development)
+      const credentials = {
+        type: 'service_account',
+        project_id: process.env.GOOGLE_CLOUD_PROJECT_ID,
+        private_key_id: process.env.GOOGLE_PRIVATE_KEY_ID,
+        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+        token_uri: 'https://oauth2.googleapis.com/token',
+        auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+        client_x509_cert_url: process.env.GOOGLE_CLIENT_X509_CERT_URL,
+      };
+
+      this.auth = new google.auth.GoogleAuth({
+        credentials,
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    } else {
+      // Fallback to Application Default Credentials (ADC) - less reliable
+      console.warn('Service account credentials not found, falling back to ADC. Consider setting up service account for reliable authentication.');
+      this.auth = new google.auth.GoogleAuth({
+        projectId: process.env.GOOGLE_CLOUD_PROJECT_ID || 'poetic-chariot-470917-k3',
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+      });
+    }
 
     this.sheets = google.sheets({ version: 'v4', auth: this.auth });
   }
@@ -88,12 +116,15 @@ export class GoogleSheetsService {
         data.childName,
         data.childAge,
         data.childGrade,
-        data.experience,
         data.emergencyContact,
         data.emergencyPhone,
         data.medicalInfo,
+        data.hearAboutUs,
+        data.provincialInterest,
+        data.volunteerInterest,
         data.consent ? 'Yes' : 'No',
         data.photoConsent ? 'Yes' : 'No',
+        data.valuesAcknowledgment ? 'Yes' : 'No',
         data.newsletter ? 'Yes' : 'No'
       ]
     ];
@@ -101,7 +132,7 @@ export class GoogleSheetsService {
     try {
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'registrations!A:N', // Using the actual sheet name
+        range: 'registrations!A:Q', // Using the actual sheet name
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -378,7 +409,7 @@ export class GoogleSheetsService {
         grade: row[2] || '',
         wins: parseInt(row[3]) || 0,
         losses: parseInt(row[4]) || 0,
-        points: parseInt(row[5]) || 0,
+        points: parseFloat(row[5]) || 0,
         rank: parseInt(row[6]) || index + 1,
         lastActive: row[7] || new Date().toISOString(),
         email: row[8] || '',
@@ -530,6 +561,75 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Error initializing rankings sheet:', error);
       throw new Error('Failed to initialize rankings sheet');
+    }
+  }
+
+  // Members/Registration Management Methods
+  async getRegistrations(): Promise<RegistrationData[]> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'registrations!A:Q',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return [];
+      }
+
+      // Skip header row and convert to RegistrationData objects
+      return rows.slice(1).map((row, index) => {
+        // Helper function to parse boolean values more flexibly
+        const parseBoolean = (value: any) => {
+          if (value === undefined || value === null || value === '') return false;
+          
+          // Handle boolean true directly
+          if (value === true || value === 'TRUE' || value === 'True') return true;
+          
+          const normalized = value.toString().toLowerCase().trim();
+          // Handle various possible true values from Google Forms/Sheets
+          return normalized === 'yes' || 
+                 normalized === 'true' || 
+                 normalized === '1' ||
+                 normalized === 'on' ||
+                 normalized === 'checked' ||
+                 normalized === '✓' ||
+                 normalized === 'x' ||
+                 normalized === 'i understand';
+        };
+
+        return {
+          // Corrected mapping based on actual spreadsheet structure
+          parentName: row[1] || '',        // Column B
+          parentEmail: row[2] || '',       // Column C
+          parentPhone: row[3] || '',       // Column D
+          childName: row[4] || '',         // Column E
+          childAge: row[5] || '',          // Column F
+          childGrade: row[6] || '',        // Column G
+          emergencyContact: row[7] || '',  // Column H
+          emergencyPhone: row[8] || '',    // Column I
+          medicalInfo: row[9] || '',       // Column J
+          hearAboutUs: row[10] || '',      // Column K
+          provincialInterest: row[11] || '', // Column L
+          volunteerInterest: row[12] || '', // Column M
+          consent: parseBoolean(row[13]),      // Column N - "Consent to policies"
+          valuesAcknowledgment: parseBoolean(row[14]), // Column O - "Agree to values?"
+          photoConsent: parseBoolean(row[15]), // Column P - "Media clearance?" (was swapped)
+          newsletter: parseBoolean(row[16]),   // Column Q - "Subscribe to email?"
+          // Add metadata for better tracking
+          timestamp: row[0] || '',         // Column A - Registration timestamp
+          rowIndex: index + 2,             // Actual row number in spreadsheet (accounting for header)
+        };
+      }).filter(registration => registration.childName); // Only include registrations with child names
+    } catch (error) {
+      console.error('Error reading registrations from Google Sheets:', error);
+      throw new Error('Failed to retrieve registrations from Google Sheets');
     }
   }
 

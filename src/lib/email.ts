@@ -7,12 +7,15 @@ interface RegistrationData {
   childName: string;
   childAge: string;
   childGrade: string;
-  experience: string;
   emergencyContact: string;
   emergencyPhone: string;
   medicalInfo: string;
+  hearAboutUs: string;
+  provincialInterest: string;
+  volunteerInterest: string;
   consent: boolean;
   photoConsent: boolean;
+  valuesAcknowledgment: boolean;
   newsletter: boolean;
 }
 
@@ -44,8 +47,7 @@ class EmailService {
   }
 
   private generateConfirmationEmail(data: RegistrationData): string {
-    const experienceText = data.experience ? 
-      this.getExperienceText(data.experience) : 'Not specified';
+    const experienceText = 'Not specified'; // Remove reference to non-existent experience field
 
     return `
       <!DOCTYPE html>

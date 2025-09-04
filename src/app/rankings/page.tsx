@@ -204,7 +204,7 @@ export default function RankingsPage() {
           <CardHeader>
             <CardTitle>Current Ladder Standings</CardTitle>
             <CardDescription>
-              Click column headers to sort. Points are calculated as: Win = 2 points, Loss = 0 points.
+              Click column headers to sort. Points are calculated as: 1 point for playing + 1 point for winning (0.5 each for draw).
             </CardDescription>
           </CardHeader>
           

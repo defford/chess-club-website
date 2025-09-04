@@ -5,37 +5,33 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { isAuthenticated, refreshSession } from "@/lib/auth"
+import type { MemberData } from "@/app/api/members/route"
 import { 
-  getMembers, 
-  saveMember, 
-  updateMember, 
-  deleteMember, 
-  searchMembers,
-  getMemberStats,
-  type Member 
-} from "@/lib/members"
-import { 
-  Plus, 
   Search, 
-  Edit, 
-  Trash2, 
   ArrowLeft, 
   Users,
   Mail,
   Phone,
   Calendar,
-  GraduationCap
+  Shield,
+  Heart,
+  MapPin,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  Trophy
 } from "lucide-react"
 import Link from "next/link"
 
 export default function MemberManagement() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuth, setIsAuth] = useState(false)
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<MemberData[]>([])
+  const [filteredMembers, setFilteredMembers] = useState<MemberData[]>([])
   const [searchQuery, setSearchQuery] = useState("")
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [editingMember, setEditingMember] = useState<Member | null>(null)
-  const [stats, setStats] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -55,46 +51,76 @@ export default function MemberManagement() {
     checkAuth()
   }, [router])
 
-  const loadMembers = () => {
-    const memberList = getMembers()
-    setMembers(memberList)
-    setStats(getMemberStats())
+  const loadMembers = async () => {
+    try {
+      setLoading(true)
+      const response = await fetch('/api/members')
+      if (!response.ok) {
+        throw new Error('Failed to fetch members')
+      }
+      const membersList = await response.json()
+      setMembers(membersList)
+      setFilteredMembers(membersList)
+      setError(null)
+    } catch (err) {
+      console.error('Error fetching members:', err)
+      setError('Failed to load members')
+    } finally {
+      setLoading(false)
+    }
   }
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
     if (query.trim()) {
-      setMembers(searchMembers(query))
+      const lowercaseQuery = query.toLowerCase()
+      const filtered = members.filter(member =>
+        member.childName.toLowerCase().includes(lowercaseQuery) ||
+        member.parentName.toLowerCase().includes(lowercaseQuery) ||
+        member.parentEmail.toLowerCase().includes(lowercaseQuery) ||
+        member.childGrade.toLowerCase().includes(lowercaseQuery)
+      )
+      setFilteredMembers(filtered)
     } else {
-      setMembers(getMembers())
+      setFilteredMembers(members)
     }
   }
 
-  const handleAddMember = (memberData: Omit<Member, "id" | "joinDate">) => {
-    saveMember(memberData)
-    loadMembers()
-    setShowAddForm(false)
-  }
-
-  const handleUpdateMember = (id: string, updates: Partial<Member>) => {
-    updateMember(id, updates)
-    loadMembers()
-    setEditingMember(null)
-  }
-
-  const handleDeleteMember = (id: string) => {
-    if (confirm("Are you sure you want to delete this member?")) {
-      deleteMember(id)
-      loadMembers()
+  // Calculate enhanced stats from loaded members
+  const getMemberStats = () => {
+    const fullyConsented = members.filter(m => m.consent && m.valuesAcknowledgment)
+    const hasEmergencyInfo = members.filter(m => m.emergencyContact && m.emergencyPhone)
+    const interestedInProvincial = members.filter(m => m.provincialInterest?.toLowerCase() === 'yes')
+    const willingToVolunteer = members.filter(m => m.volunteerInterest?.toLowerCase() === 'yes')
+    const subscribedToNewsletter = members.filter(m => m.newsletter)
+    const hasMedicalInfo = members.filter(m => m.medicalInfo && m.medicalInfo.trim() !== '')
+    
+    const gradeDistribution = members.reduce((acc, member) => {
+      const grade = member.childGrade || 'Unknown'
+      acc[grade] = (acc[grade] || 0) + 1
+      return acc
+    }, {} as Record<string, number>)
+    
+    return {
+      total: members.length,
+      fullyConsented: fullyConsented.length,
+      hasEmergencyInfo: hasEmergencyInfo.length,
+      interestedInProvincial: interestedInProvincial.length,
+      willingToVolunteer: willingToVolunteer.length,
+      subscribedToNewsletter: subscribedToNewsletter.length,
+      hasMedicalInfo: hasMedicalInfo.length,
+      gradeDistribution,
+      // Calculate completion percentage
+      completionRate: Math.round((fullyConsented.length / members.length) * 100) || 0,
     }
   }
 
-  if (isLoading) {
+  if (isLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[--color-primary] mx-auto"></div>
-          <p className="mt-2 text-[--color-text-primary]">Loading...</p>
+          <p className="mt-2 text-[--color-text-primary]">Loading members...</p>
         </div>
       </div>
     )
@@ -103,6 +129,9 @@ export default function MemberManagement() {
   if (!isAuth) {
     return null
   }
+
+  // Get current stats
+  const stats = getMemberStats()
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -122,66 +151,114 @@ export default function MemberManagement() {
                 Member Management
               </h1>
               <p className="text-[--color-text-primary] mt-1">
-                Manage club member information and records
+                View registered members from the registration system
               </p>
             </div>
           </div>
           
-          {/* Add Member Button - Always visible */}
+          {/* Refresh Button */}
           <div className="flex justify-end">
             <Button
-              onClick={() => setShowAddForm(true)}
+              onClick={loadMembers}
               className="flex items-center gap-2 bg-black text-white"
             >
-              <Plus className="h-4 w-4 text-white" />
-              Add New Member
+              <Search className="h-4 w-4 text-white" />
+              Refresh Data
             </Button>
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Enhanced Stats Cards */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <Card className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[--color-text-primary]">Total Members</p>
+                  <p className="text-sm text-[--color-text-primary]">Total Registrations</p>
                   <p className="text-2xl font-bold text-[--color-accent]">{stats.total}</p>
                 </div>
                 <Users className="h-8 w-8 text-[--color-primary]" />
               </div>
             </Card>
+            
             <Card className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[--color-text-primary]">Active</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.active}</p>
+                  <p className="text-sm text-[--color-text-primary]">Fully Consented</p>
+                  <p className="text-2xl font-bold text-green-600">{stats.fullyConsented}</p>
+                  <p className="text-xs text-gray-500">{stats.completionRate}% complete</p>
                 </div>
-                <div className="h-8 w-8 bg-green-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-green-600 rounded-full"></div>
-                </div>
+                <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
             </Card>
+            
             <Card className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[--color-text-primary]">Inactive</p>
-                  <p className="text-2xl font-bold text-gray-500">{stats.inactive}</p>
-                </div>
-                <div className="h-8 w-8 bg-gray-100 rounded-full flex items-center justify-center">
-                  <div className="h-4 w-4 bg-gray-500 rounded-full"></div>
-                </div>
-              </div>
-            </Card>
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">This Month</p>
-                  <p className="text-lg font-bold text-[--color-accent]">
-                    {new Date().toLocaleDateString('en-US', { month: 'short' })}
+                  <p className="text-sm text-[--color-text-primary]">Emergency Info</p>
+                  <p className="text-2xl font-bold text-blue-600">{stats.hasEmergencyInfo}</p>
+                  <p className="text-xs text-gray-500">
+                    {Math.round((stats.hasEmergencyInfo / stats.total) * 100)}% provided
                   </p>
                 </div>
-                <Calendar className="h-8 w-8 text-[--color-primary]" />
+                <Shield className="h-8 w-8 text-blue-600" />
+              </div>
+            </Card>
+            
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[--color-text-primary]">Medical Alerts</p>
+                  <p className="text-2xl font-bold text-yellow-600">{stats.hasMedicalInfo}</p>
+                  <p className="text-xs text-gray-500">require attention</p>
+                </div>
+                <AlertTriangle className="h-8 w-8 text-yellow-600" />
+              </div>
+            </Card>
+            
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[--color-text-primary]">Provincial Interest</p>
+                  <p className="text-2xl font-bold text-purple-600">{stats.interestedInProvincial}</p>
+                  <p className="text-xs text-gray-500">want to compete</p>
+                </div>
+                <Trophy className="h-8 w-8 text-purple-600" />
+              </div>
+            </Card>
+            
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[--color-text-primary]">Volunteers</p>
+                  <p className="text-2xl font-bold text-indigo-600">{stats.willingToVolunteer}</p>
+                  <p className="text-xs text-gray-500">willing to help</p>
+                </div>
+                <Heart className="h-8 w-8 text-indigo-600" />
+              </div>
+            </Card>
+            
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[--color-text-primary]">Newsletter</p>
+                  <p className="text-2xl font-bold text-teal-600">{stats.subscribedToNewsletter}</p>
+                  <p className="text-xs text-gray-500">subscribed</p>
+                </div>
+                <Mail className="h-8 w-8 text-teal-600" />
+              </div>
+            </Card>
+            
+            <Card className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[--color-text-primary]">Updated</p>
+                  <p className="text-lg font-bold text-[--color-accent]">
+                    {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </p>
+                  <p className="text-xs text-gray-500">last refresh</p>
+                </div>
+                <Clock className="h-8 w-8 text-[--color-primary]" />
               </div>
             </Card>
           </div>
@@ -201,9 +278,21 @@ export default function MemberManagement() {
           </div>
         </Card>
 
+        {/* Error State */}
+        {error && (
+          <Card className="p-8 text-center mb-6">
+            <div className="text-6xl text-[--color-text-secondary] mb-4">⚠️</div>
+            <h3 className="font-semibold text-xl text-[--color-text-primary] mb-2">
+              Error loading members
+            </h3>
+            <p className="text-[--color-text-secondary] mb-4">{error}</p>
+            <Button onClick={loadMembers}>Try Again</Button>
+          </Card>
+        )}
+
         {/* Members List */}
         <div className="space-y-4">
-          {members.length === 0 ? (
+          {!error && filteredMembers.length === 0 ? (
             <Card className="p-8 text-center">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-[--color-accent] mb-2">
@@ -212,264 +301,243 @@ export default function MemberManagement() {
               <p className="text-[--color-text-primary] mb-4">
                 {searchQuery 
                   ? "Try adjusting your search terms"
-                  : "Start by adding your first club member"
+                  : "No registrations found in the system"
                 }
               </p>
-              {!searchQuery && (
-                <Button className="bg-black text-white" onClick={() => setShowAddForm(true)}>
-                  Add First Member
-                </Button>
-              )}
             </Card>
           ) : (
-            members.map((member) => (
-              <Card key={member.id} className="p-6">
-                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mb-3">
-                      <h3 className="text-lg font-semibold text-[--color-accent]">
-                        {member.childName}
-                      </h3>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          member.isActive 
-                            ? "bg-green-100 text-green-800" 
-                            : "bg-gray-100 text-gray-800"
+            filteredMembers.map((member) => {
+              const registrationDate = member.joinDate ? new Date(member.joinDate) : null;
+              const hasConsent = member.consent && member.valuesAcknowledgment;
+              const hasEmergencyInfo = member.emergencyContact && member.emergencyPhone;
+              
+              return (
+                <Card key={member.id} className="overflow-hidden">
+                  {/* Header Section */}
+                  <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 border-b">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-bold text-[--color-accent]">
+                            {member.childName}
+                          </h3>
+                          {member.rowIndex && (
+                            <span className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-mono">
+                              Row {member.rowIndex}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                            <Users className="h-3 w-3 mr-1" />
+                            Grade {member.childGrade}
+                          </span>
+                          <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
+                            <Calendar className="h-3 w-3 mr-1" />
+                            Age {member.childAge}
+                          </span>
+                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                            hasConsent 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {hasConsent ? (
+                              <><CheckCircle className="h-3 w-3 mr-1" />Fully Consented</>
+                            ) : (
+                              <><AlertTriangle className="h-3 w-3 mr-1" />Incomplete Consent</>
+                            )}
+                          </span>
+                          {registrationDate && (
+                            <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                              <Clock className="h-3 w-3 mr-1" />
+                              Registered {registrationDate.toLocaleDateString()}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Content Section */}
+                  <div className="p-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      {/* Primary Contact Information */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
+                          <Users className="h-4 w-4" />
+                          Parent/Guardian Information
+                        </h4>
+                        <div className="space-y-3 pl-6">
+                          <div className="flex items-center gap-3">
+                            <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div>
+                              <p className="font-medium text-[--color-text-primary]">{member.parentName}</p>
+                              <p className="text-xs text-[--color-text-secondary]">Parent/Guardian</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div>
+                              <p className="text-[--color-text-primary]">{member.parentEmail}</p>
+                              <p className="text-xs text-[--color-text-secondary]">Primary Email</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div>
+                              <p className="text-[--color-text-primary]">{member.parentPhone}</p>
+                              <p className="text-xs text-[--color-text-secondary]">Primary Phone</p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Emergency Contact Information */}
+                      <div className="space-y-4">
+                        <h4 className={`font-semibold flex items-center gap-2 ${
+                          hasEmergencyInfo ? 'text-[--color-accent]' : 'text-gray-400'
                         }`}>
-                          {member.isActive ? "Active" : "Inactive"}
-                        </span>
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                          Grade {member.grade}
-                        </span>
+                          <Shield className="h-4 w-4" />
+                          Emergency Contact
+                          {!hasEmergencyInfo && (
+                            <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
+                              Missing Info
+                            </span>
+                          )}
+                        </h4>
+                        <div className="space-y-3 pl-6">
+                          <div className="flex items-center gap-3">
+                            <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div>
+                              <p className={`font-medium ${
+                                member.emergencyContact ? 'text-[--color-text-primary]' : 'text-gray-400'
+                              }`}>
+                                {member.emergencyContact || 'Not provided'}
+                              </p>
+                              <p className="text-xs text-[--color-text-secondary]">Emergency Contact</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                            <div>
+                              <p className={`${
+                                member.emergencyPhone ? 'text-[--color-text-primary]' : 'text-gray-400'
+                              }`}>
+                                {member.emergencyPhone || 'Not provided'}
+                              </p>
+                              <p className="text-xs text-[--color-text-secondary]">Emergency Phone</p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                      <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        <span className="text-[--color-text-primary]">{member.parentName}</span>
+
+                    {/* Additional Information */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pt-6 border-t">
+                      {/* Interests & Preferences */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
+                          <Heart className="h-4 w-4" />
+                          Interests & Preferences
+                        </h4>
+                        <div className="space-y-2 pl-6">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-[--color-text-secondary]">Provincial Competitions:</span>
+                            <span className={`text-sm font-medium ${
+                              member.provincialInterest?.toLowerCase() === 'yes' 
+                                ? 'text-green-600' 
+                                : member.provincialInterest?.toLowerCase() === 'no'
+                                ? 'text-gray-500'
+                                : 'text-yellow-600'
+                            }`}>
+                              {member.provincialInterest || 'Not specified'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-[--color-text-secondary]">Volunteer Interest:</span>
+                            <span className={`text-sm font-medium ${
+                              member.volunteerInterest?.toLowerCase() === 'yes' 
+                                ? 'text-green-600' 
+                                : member.volunteerInterest?.toLowerCase() === 'no'
+                                ? 'text-gray-500'
+                                : 'text-yellow-600'
+                            }`}>
+                              {member.volunteerInterest || 'Not specified'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-[--color-text-secondary]">Newsletter:</span>
+                            <span className={`text-sm font-medium ${
+                              member.newsletter ? 'text-green-600' : 'text-gray-500'
+                            }`}>
+                              {member.newsletter ? 'Subscribed' : 'Not subscribed'}
+                            </span>
+                          </div>
+                          {member.hearAboutUs && (
+                            <div className="pt-2">
+                              <p className="text-xs text-[--color-text-secondary] mb-1">How they heard about us:</p>
+                              <p className="text-sm text-[--color-text-primary]">{member.hearAboutUs}</p>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Mail className="h-4 w-4 text-gray-400" />
-                        <span className="text-[--color-text-primary]">{member.email}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <span className="text-[--color-text-primary]">{member.phone}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-gray-400" />
-                        <span className="text-[--color-text-primary]">
-                          Joined {new Date(member.joinDate).toLocaleDateString()}
-                        </span>
+
+                      {/* Medical & Consent Information */}
+                      <div className="space-y-4">
+                        <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
+                          <Shield className="h-4 w-4" />
+                          Medical & Consent
+                        </h4>
+                        <div className="space-y-3 pl-6">
+                          {member.medicalInfo && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                              <p className="text-xs text-yellow-700 font-medium mb-1 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" />
+                                Medical Information:
+                              </p>
+                              <p className="text-sm text-yellow-800">{member.medicalInfo}</p>
+                            </div>
+                          )}
+                          <div className="grid grid-cols-1 gap-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-[--color-text-secondary]">General Consent:</span>
+                              <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                member.consent ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {member.consent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                {member.consent ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-[--color-text-secondary]">Photo Consent:</span>
+                              <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                member.photoConsent ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {member.photoConsent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                {member.photoConsent ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-[--color-text-secondary]">Values Acknowledgment:</span>
+                              <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                member.valuesAcknowledgment ? 'text-green-600' : 'text-red-600'
+                              }`}>
+                                {member.valuesAcknowledgment ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                {member.valuesAcknowledgment ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditingMember(member)}
-                      className="flex items-center gap-2"
-                    >
-                      <Edit className="h-4 w-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteMember(member.id)}
-                      className="flex items-center gap-2 text-red-600 hover:bg-red-50"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </Card>
-            ))
+                </Card>
+              );
+            })
           )}
         </div>
       </div>
 
-      {/* Add/Edit Member Modal */}
-      {(showAddForm || editingMember) && (
-        <MemberForm
-          member={editingMember}
-          onSave={editingMember ? 
-            (data) => handleUpdateMember(editingMember.id, data) : 
-            handleAddMember
-          }
-          onCancel={() => {
-            setShowAddForm(false)
-            setEditingMember(null)
-          }}
-        />
-      )}
-    </div>
-  )
-}
-
-// Member Form Component
-interface MemberFormProps {
-  member?: Member | null
-  onSave: (data: any) => void
-  onCancel: () => void
-}
-
-function MemberForm({ member, onSave, onCancel }: MemberFormProps) {
-  const [formData, setFormData] = useState({
-    childName: member?.childName || "",
-    parentName: member?.parentName || "",
-    email: member?.email || "",
-    phone: member?.phone || "",
-    grade: member?.grade || "",
-    age: member?.age || 6,
-    isActive: member?.isActive ?? true,
-    notes: member?.notes || "",
-  })
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onSave(formData)
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-screen overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-[--color-accent] mb-6">
-            {member ? "Edit Member" : "Add New Member"}
-          </h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Child's Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.childName}
-                  onChange={(e) => setFormData({ ...formData, childName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Parent/Guardian Name *
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.parentName}
-                  onChange={(e) => setFormData({ ...formData, parentName: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Email *
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Phone *
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Grade *
-                </label>
-                <select
-                  required
-                  value={formData.grade}
-                  onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
-                >
-                  <option value="">Select Grade</option>
-                  <option value="K">Kindergarten</option>
-                  {Array.from({ length: 12 }, (_, i) => (
-                    <option key={i + 1} value={i + 1}>
-                      Grade {i + 1}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Age *
-                </label>
-                <input
-                  type="number"
-                  required
-                  min="5"
-                  max="18"
-                  value={formData.age}
-                  onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
-                />
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="rounded border-gray-300 text-[--color-primary] focus:ring-[--color-primary]"
-              />
-              <label htmlFor="isActive" className="text-sm font-medium text-[--color-text-primary]">
-                Active Member
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                Notes (Optional)
-              </label>
-              <textarea
-                rows={3}
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
-                placeholder="Any additional notes about the member..."
-              />
-            </div>
-            
-            <div className="flex justify-end gap-3 pt-4">
-              <Button className="border-white hover:border-black hover:text-black" type="button" variant="outline" onClick={onCancel}>
-                Cancel
-              </Button>
-              <Button className="bg-black text-white hover:bg-white hover:text-black hover:border-black hover:border-2" type="submit">
-                {member ? "Update Member" : "Add Member"}
-              </Button>
-            </div>
-          </form>
-        </div>
-      </Card>
     </div>
   )
 }

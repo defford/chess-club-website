@@ -74,7 +74,7 @@ export default function AdminDashboard() {
       description: "Update player rankings and ladder positions",
       icon: Trophy,
       href: "/admin/rankings",
-      count: "Coming soon",
+      count: "Manage games",
     },
     {
       title: "Settings",

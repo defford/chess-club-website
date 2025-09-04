@@ -1,0 +1,263 @@
+
+> chess-club-website@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.2
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.2.16:3000
+   - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 2.3s
+ ○ Compiling /api/members ...
+ ✓ Compiled /api/members in 2.9s (1371 modules)
+Spreadsheet headers: [
+  'Date',
+  'Parent Name',
+  'Email',
+  'Phone Number',
+  'Player Name',
+  'Age',
+  'Grade',
+  'Emergency Contact',
+  'Emergency Phone Number',
+  'Allergies',
+  'How did you hear?',
+  'Willing to travel?',
+  'Volunteer?',
+  'Consent to policies',
+  'Agree to values?',
+  'Media clearance?',
+  'Subscribe to email?'
+]
+Row 2 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: false,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 3 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: false,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 4 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: false,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 5 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: false,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 6 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: false,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+ GET /api/members 200 in 9173ms
+ ✓ Compiled in 1295ms (1177 modules)
+ ✓ Compiled in 864ms (1177 modules)
+Spreadsheet headers: [
+  'Date',
+  'Parent Name',
+  'Email',
+  'Phone Number',
+  'Player Name',
+  'Age',
+  'Grade',
+  'Emergency Contact',
+  'Emergency Phone Number',
+  'Allergies',
+  'How did you hear?',
+  'Willing to travel?',
+  'Volunteer?',
+  'Consent to policies',
+  'Agree to values?',
+  'Media clearance?',
+  'Subscribe to email?'
+]
+Row 2 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 3 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 4 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 5 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 6 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+ GET /api/members 200 in 2811ms
+ ○ Compiling /admin/members ...
+ ✓ Compiled /admin/members in 3.9s (1776 modules)
+ GET /admin/members 200 in 4874ms
+ ✓ Compiled /favicon.ico in 452ms (1509 modules)
+ GET /favicon.ico 200 in 1359ms
+ ✓ Compiled in 408ms (1778 modules)
+ GET /admin/members 200 in 129ms
+Spreadsheet headers: [
+  'Date',
+  'Parent Name',
+  'Email',
+  'Phone Number',
+  'Player Name',
+  'Age',
+  'Grade',
+  'Emergency Contact',
+  'Emergency Phone Number',
+  'Allergies',
+  'How did you hear?',
+  'Willing to travel?',
+  'Volunteer?',
+  'Consent to policies',
+  'Agree to values?',
+  'Media clearance?',
+  'Subscribe to email?'
+]
+Row 2 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 3 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 4 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 5 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+Row 6 consent debug: {
+  consent: '"Yes" (type: string)',
+  photoConsent: '"I Understand" (type: string)',
+  valuesAcknowledgment: '"Yes" (type: string)',
+  newsletter: '"Yes" (type: string)',
+  parsed: {
+    consent: true,
+    photoConsent: true,
+    valuesAcknowledgment: true,
+    newsletter: true
+  }
+}
+ GET /api/members 200 in 5459ms
+ ✓ Compiled in 2.3s (1778 modules)
