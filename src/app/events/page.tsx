@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Users, Clock } from "lucide-react"
+import { Calendar, MapPin, Users, Clock, User } from "lucide-react"
 import { useState, useEffect } from "react"
 import type { EventData } from "@/lib/googleSheets"
 
@@ -11,6 +11,20 @@ export default function EventsPage() {
   const [allEvents, setAllEvents] = useState<EventData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
+  const [registrationLoading, setRegistrationLoading] = useState(false)
+  const [registrationData, setRegistrationData] = useState({
+    parentName: '',
+    parentEmail: '',
+    parentPhone: '',
+    childName: '',
+    childAge: '',
+    childGrade: '',
+    emergencyContact: '',
+    emergencyPhone: '',
+    medicalInfo: ''
+  })
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -45,6 +59,70 @@ export default function EventsPage() {
     { value: "training", label: "Training" },
     { value: "social", label: "Social" }
   ]
+
+  const handleRegisterClick = (event: EventData) => {
+    setSelectedEvent(event)
+    setShowRegistrationModal(true)
+  }
+
+  const handleRegistrationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEvent) return
+
+    setRegistrationLoading(true)
+    try {
+      const response = await fetch('/api/events/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId: selectedEvent.id,
+          eventName: selectedEvent.name,
+          ...registrationData
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to register for event')
+      }
+
+      // Success - close modal and reset form
+      setShowRegistrationModal(false)
+      setRegistrationData({
+        parentName: '',
+        parentEmail: '',
+        parentPhone: '',
+        childName: '',
+        childAge: '',
+        childGrade: '',
+        emergencyContact: '',
+        emergencyPhone: '',
+        medicalInfo: ''
+      })
+      
+      // Refresh events to show updated participant count
+      const eventsResponse = await fetch('/api/events')
+      if (eventsResponse.ok) {
+        const updatedEvents = await eventsResponse.json()
+        setAllEvents(updatedEvents)
+      }
+      
+      alert('Successfully registered for the event!')
+    } catch (error) {
+      console.error('Registration error:', error)
+      alert('Failed to register for event. Please try again.')
+    } finally {
+      setRegistrationLoading(false)
+    }
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    setRegistrationData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -133,33 +211,43 @@ export default function EventsPage() {
                     <span>{event.date}</span>
                   </div>
                   
-                  <div className="flex items-center text-sm text-[--color-text-secondary]">
-                    <Clock className="h-4 w-4 mr-2" />
-                    <span>{event.time}</span>
-                  </div>
+                  {event.time && (
+                    <div className="flex items-center text-sm text-[--color-text-secondary]">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span>{event.time}</span>
+                    </div>
+                  )}
                   
-                  <div className="flex items-center text-sm text-[--color-text-secondary]">
-                    <MapPin className="h-4 w-4 mr-2" />
-                    <span>{event.location}</span>
-                  </div>
+                  {event.location && (
+                    <div className="flex items-center text-sm text-[--color-text-secondary]">
+                      <MapPin className="h-4 w-4 mr-2" />
+                      <span>{event.location}</span>
+                    </div>
+                  )}
                   
                   <div className="flex items-center text-sm text-[--color-text-secondary]">
                     <Users className="h-4 w-4 mr-2" />
-                    <span>{event.participants}/{event.maxParticipants} registered</span>
+                    <span>
+                      {event.participants || 0}
+                      {event.maxParticipants > 0 ? `/${event.maxParticipants}` : ''} registered
+                    </span>
                   </div>
 
                   <div className="pt-2 border-t">
-                    <p className="text-sm font-medium text-[--color-text-primary] mb-2">
-                      Age Groups: {event.ageGroups}
-                    </p>
+                    {event.ageGroups && (
+                      <p className="text-sm font-medium text-[--color-text-primary] mb-2">
+                        Age Groups: {event.ageGroups}
+                      </p>
+                    )}
                     
                     <Button 
                       variant="secondary" 
                       size="sm" 
                       className="w-full"
-                      disabled={event.participants >= event.maxParticipants}
+                      disabled={event.maxParticipants > 0 && event.participants >= event.maxParticipants}
+                      onClick={() => handleRegisterClick(event)}
                     >
-                      {event.participants >= event.maxParticipants ? "Event Full" : "Register for Event"}
+                      {(event.maxParticipants > 0 && event.participants >= event.maxParticipants) ? "Event Full" : "Register for Event"}
                     </Button>
                   </div>
                 </div>
@@ -178,6 +266,179 @@ export default function EventsPage() {
             <p className="text-[--color-text-secondary]">
               Try selecting a different category or check back later for new events.
             </p>
+          </div>
+        )}
+
+        {/* Registration Modal */}
+        {showRegistrationModal && selectedEvent && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="font-heading font-bold text-2xl text-[--color-accent]">
+                    Register for {selectedEvent.name}
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowRegistrationModal(false)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center text-sm text-[--color-text-secondary] mb-2">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>{selectedEvent.date} at {selectedEvent.time}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-[--color-text-secondary]">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    <span>{selectedEvent.location}</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleRegistrationSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Parent/Guardian Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.parentName}
+                        onChange={(e) => handleInputChange('parentName', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Parent Email *
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.parentEmail}
+                        onChange={(e) => handleInputChange('parentEmail', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Parent Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.parentPhone}
+                        onChange={(e) => handleInputChange('parentPhone', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Child Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.childName}
+                        onChange={(e) => handleInputChange('childName', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Child Age *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.childAge}
+                        onChange={(e) => handleInputChange('childAge', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Child Grade *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.childGrade}
+                        onChange={(e) => handleInputChange('childGrade', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Emergency Contact *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.emergencyContact}
+                        onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                        Emergency Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                        value={registrationData.emergencyPhone}
+                        onChange={(e) => handleInputChange('emergencyPhone', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                      Medical Information (Optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                      placeholder="Any allergies, medical conditions, or special requirements..."
+                      value={registrationData.medicalInfo}
+                      onChange={(e) => handleInputChange('medicalInfo', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowRegistrationModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      className="flex-1"
+                      disabled={registrationLoading}
+                    >
+                      {registrationLoading ? 'Registering...' : 'Register'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
           </div>
         )}
       </div>

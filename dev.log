@@ -283,3 +283,90 @@ Row 6 consent debug: {
  GET /admin/members 200 in 418ms
  ✓ Compiled in 644ms (281 modules)
  GET /admin/members 200 in 879ms
+ ✓ Compiled in 501ms (281 modules)
+ GET /admin/members 200 in 120ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/client-development/1.pack.gz_' -> '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/client-development/1.pack.gz'
+ ○ Compiling /events ...
+ ✓ Compiled /events in 1010ms (710 modules)
+ GET /events 200 in 1224ms
+ ○ Compiling /api/events ...
+ ✓ Compiled /api/events in 595ms (1801 modules)
+ GET /api/events 200 in 4216ms
+ GET /api/events 200 in 286ms
+ GET /api/events 200 in 404ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1818ms (1559 modules)
+ GET / 200 in 2027ms
+ GET /events 200 in 62ms
+ GET /api/events 200 in 2874ms
+ GET /api/events 200 in 248ms
+ ✓ Compiled in 6.5s (753 modules)
+ GET /events 200 in 7064ms
+ GET / 200 in 443ms
+ GET / 200 in 156ms
+ GET /events 200 in 115ms
+ ○ Compiling /api/events ...
+ ✓ Compiled /api/events in 1177ms (1559 modules)
+ GET /api/events 200 in 5472ms
+ GET /api/events 200 in 199ms
+ ✓ Compiled in 8s (1844 modules)
+ GET /events 200 in 177ms
+ ✓ Compiled in 2.6s (1844 modules)
+ GET /events 200 in 156ms
+ ✓ Compiled in 9.7s (1844 modules)
+ GET /events 200 in 212ms
+ GET /events 200 in 1046ms
+ ✓ Compiled in 831ms (753 modules)
+ ✓ Compiled in 1164ms (753 modules)
+ ✓ Compiled in 827ms (753 modules)
+ GET /events 200 in 931ms
+ ✓ Compiled /api/events in 464ms (1559 modules)
+ GET /api/events 200 in 5519ms
+ GET / 200 in 222ms
+ GET /events 200 in 30ms
+ GET /api/events 200 in 348ms
+ GET /api/events 200 in 265ms
+ ✓ Compiled in 842ms (1844 modules)
+ GET /events 200 in 81ms
+ GET /events 200 in 312ms
+ GET /api/events 200 in 2676ms
+ GET / 200 in 166ms
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ ✓ Compiled in 3.3s (1844 modules)
+ GET /events 200 in 2155ms
+ GET / 200 in 4200ms
+ GET / 200 in 4150ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /register in 5.4s (1561 modules)
+ ✓ Compiled in 678ms (275 modules)
+ GET /favicon.ico 200 in 6496ms
+ GET /events 200 in 5296ms
+ GET /register 200 in 1768ms
+ GET /events 200 in 21ms
+ GET /api/events 200 in 5410ms
+ ✓ Compiled in 1618ms (1857 modules)
+ GET /events 200 in 1338ms
+ GET /api/events 200 in 2107ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 877ms (1848 modules)
+ GET /events/register 404 in 1143ms
+ GET /events 200 in 117ms
+ GET /api/events 200 in 1409ms
+ GET /api/events 200 in 242ms
+ ✓ Compiled in 1498ms (1853 modules)
+ GET /events 200 in 106ms
+ GET /api/events 200 in 2011ms
+ GET /api/events 200 in 252ms
+ ✓ Compiled in 1037ms (1853 modules)
+ GET /events 200 in 90ms
+ ✓ Compiled in 1201ms (1853 modules)
+ GET /events 200 in 101ms
+ ✓ Compiled in 958ms (1848 modules)
+ GET /events 200 in 71ms
+ GET /events 200 in 1701ms
+ GET /api/events 200 in 2330ms
+ GET / 200 in 175ms
+ GET /events 200 in 56ms
+ GET /api/events 200 in 536ms
+ GET /api/events 200 in 257ms

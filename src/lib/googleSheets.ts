@@ -37,6 +37,21 @@ interface EventData {
   lastUpdated?: string;
 }
 
+interface EventRegistrationData {
+  eventId: string;
+  eventName: string;
+  parentName: string;
+  parentEmail: string;
+  parentPhone: string;
+  childName: string;
+  childAge: string;
+  childGrade: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalInfo: string;
+  timestamp?: string;
+}
+
 interface PlayerData {
   id?: string;
   name: string;
@@ -636,6 +651,135 @@ export class GoogleSheetsService {
     }
   }
 
+  // Event Registration Methods
+  async addEventRegistration(data: EventRegistrationData): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    // Convert form data to row format for event registrations sheet
+    const timestamp = new Date().toISOString();
+    const values = [
+      [
+        timestamp,
+        data.eventId,
+        data.eventName,
+        data.parentName,
+        data.parentEmail,
+        data.parentPhone,
+        data.childName,
+        data.childAge,
+        data.childGrade,
+        data.emergencyContact,
+        data.emergencyPhone,
+        data.medicalInfo || ''
+      ]
+    ];
+
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'event registrations!A:L', // Using the new sheet name
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+    } catch (error) {
+      console.error('Error writing event registration to Google Sheets:', error);
+      throw new Error('Failed to save event registration to Google Sheets');
+    }
+  }
+
+  async incrementEventParticipants(eventId: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('events');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets events ID not configured');
+    }
+
+    try {
+      // Find the event and increment participants count
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'events!A:F',
+      });
+
+      const rows = response.data.values;
+      if (!rows) {
+        throw new Error('No events found');
+      }
+
+      const rowIndex = rows.findIndex(row => row[0] === eventId);
+      if (rowIndex === -1) {
+        throw new Error(`Event with ID ${eventId} not found`);
+      }
+
+      // Get current participant count and increment it
+      const currentParticipants = parseInt(rows[rowIndex][5]) || 0;
+      const newParticipants = currentParticipants + 1;
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `events!F${rowIndex + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[newParticipants]],
+        },
+      });
+    } catch (error) {
+      console.error('Error updating event participants:', error);
+      throw new Error('Failed to update event participants count');
+    }
+  }
+
+  async initializeEventRegistrationsSheet(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'event registrations!A1:L1',
+      });
+
+      if (!response.data.values || response.data.values.length === 0) {
+        const headers = [
+          'Timestamp',
+          'Event ID',
+          'Event Name',
+          'Parent Name',
+          'Parent Email',
+          'Parent Phone',
+          'Child Name',
+          'Child Age',
+          'Child Grade',
+          'Emergency Contact',
+          'Emergency Phone',
+          'Medical Info'
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: 'event registrations!A1:L1',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [headers],
+          },
+        });
+      }
+    } catch (error) {
+      console.error('Error initializing event registrations sheet:', error);
+      throw new Error('Failed to initialize event registrations sheet');
+    }
+  }
+
   // Helper method to recalculate all player rankings based on points
   async recalculateRankings(): Promise<void> {
     const players = await this.getPlayers();
@@ -661,4 +805,4 @@ export class GoogleSheetsService {
 export const googleSheetsService = new GoogleSheetsService();
 
 // Export interfaces for use in other files
-export type { RegistrationData, EventData, PlayerData };
+export type { RegistrationData, EventData, EventRegistrationData, PlayerData };
