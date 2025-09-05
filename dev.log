@@ -261,3 +261,25 @@ Row 6 consent debug: {
 }
  GET /api/members 200 in 5459ms
  ✓ Compiled in 2.3s (1778 modules)
+ ✓ Compiled in 1750ms (685 modules)
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/server-development/2.pack.gz_' -> '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/server-development/2.pack.gz'
+ ✓ Compiled in 2.6s (685 modules)
+ ✓ Compiled in 451ms (269 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 892ms (702 modules)
+ GET / 200 in 1552ms
+ ✓ Compiled /admin in 349ms (717 modules)
+ GET /admin 200 in 470ms
+ ✓ Compiled /admin/login in 408ms (728 modules)
+ GET /admin/login 200 in 526ms
+ GET /admin/login 200 in 32ms
+ GET /admin 200 in 64ms
+ GET /admin/members 200 in 39ms
+ ○ Compiling /api/members ...
+ ✓ Compiled /api/members in 7.5s (1552 modules)
+ GET /api/members 200 in 12829ms
+ GET /api/members 200 in 187ms
+ ✓ Compiled in 3.1s (713 modules)
+ GET /admin/members 200 in 418ms
+ ✓ Compiled in 644ms (281 modules)
+ GET /admin/members 200 in 879ms
