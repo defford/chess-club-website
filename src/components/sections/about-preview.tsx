@@ -29,32 +29,7 @@ export function AboutPreview() {
   return (
     <section className="py-16 bg-white">
       <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left Column - Photo Collage Placeholder */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-[--color-primary] to-[--color-accent] rounded-lg h-48 flex items-center justify-center text-white text-6xl">
-                ♛
-              </div>
-              <div className="bg-gradient-to-br from-[--color-secondary] to-orange-400 rounded-lg h-48 flex items-center justify-center text-[--color-accent] text-6xl">
-                ♞
-              </div>
-            </div>
-            <div className="bg-gradient-to-r from-[--color-neutral-light] to-gray-200 rounded-lg h-32 flex items-center justify-center text-[--color-text-secondary] text-lg font-medium">
-              Chess Club Photo Collage
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-green-400 to-blue-500 rounded-lg h-24 flex items-center justify-center text-white text-3xl">
-                ♜
-              </div>
-              <div className="bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg h-24 flex items-center justify-center text-white text-3xl">
-                ♝
-              </div>
-              <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg h-24 flex items-center justify-center text-white text-3xl">
-                ♟
-              </div>
-            </div>
-          </div>
+        <div>
 
           {/* Right Column - Content */}
           <div>
@@ -64,8 +39,8 @@ export function AboutPreview() {
             
             <div className="space-y-6 mb-8">
               <p className="text-lg text-[--color-text-secondary] leading-relaxed">
-                <strong className="text-[--color-primary]">Founded in 2019</strong>, Central NL Scholastic Chess Club has helped over 
-                <strong className="text-[--color-primary]"> 200 students</strong> learn the game and grow as strategic thinkers.
+                <strong className="text-[--color-primary]">Founded in 2023</strong>, Central NL Scholastic Chess Club has helped over 
+                <strong className="text-[--color-primary]"> 30+ students</strong> learn the game and grow as strategic thinkers.
               </p>
               
               <p className="text-[--color-text-secondary] leading-relaxed">

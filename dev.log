@@ -431,3 +431,11 @@ Row 6 consent debug: {
  ✓ Compiled /_not-found in 374ms (1846 modules)
  GET /api/rankings 404 in 581ms
  GET /api/events 404 in 581ms
+ ✓ Compiled in 5.3s (760 modules)
+ GET / 200 in 279ms
+ ✓ Compiled in 5.1s (760 modules)
+ GET / 200 in 305ms
+ ✓ Compiled in 3.4s (760 modules)
+ GET / 200 in 135ms
+ ✓ Compiled in 14.9s (757 modules)
+ GET / 200 in 342ms

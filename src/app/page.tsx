@@ -10,7 +10,7 @@ export default function Home() {
       <HeroSection />
       <EventsPreview />
       <RankingsPreview />
-      <RegistrationPreview />
+      {/* <RegistrationPreview /> */}
       <AboutPreview />
     </div>
   )
