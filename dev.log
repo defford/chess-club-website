@@ -439,3 +439,75 @@ Row 6 consent debug: {
  GET / 200 in 135ms
  ✓ Compiled in 14.9s (757 modules)
  GET / 200 in 342ms
+ ⨯ ./src/components/layout/header.tsx
+Error:   [31mx[0m Expected '</', got 'jsx text (
+  [31m|[0m           )'
+    ,-[[36;1;4m/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/src/components/layout/header.tsx[0m:40:1]
+ [2m37[0m |                   <path d="M8 6h8" />
+ [2m38[0m |                   <path d="M8 10h8" />
+ [2m39[0m |                   <path d="M8 14h8" />
+ [2m40[0m | [35;1m,[0m[35;1m-[0m[35;1m>[0m             </svg>
+ [2m41[0m | [35;1m`[0m[35;1m-[0m[35;1m>[0m           </div>
+ [2m42[0m |               <span className="font-heading font-bold text-lg text-[--color-accent]">
+ [2m43[0m |                 Central NL Scholastic Chess Club
+ [2m44[0m |               </span>
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/header.tsx
+./src/app/layout.tsx
+ ○ Compiling /_error ...
+ ⨯ ./src/components/layout/header.tsx
+Error:   [31mx[0m Expected '</', got 'jsx text (
+  [31m|[0m           )'
+    ,-[[36;1;4m/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/src/components/layout/header.tsx[0m:40:1]
+ [2m37[0m |                   <path d="M8 6h8" />
+ [2m38[0m |                   <path d="M8 10h8" />
+ [2m39[0m |                   <path d="M8 14h8" />
+ [2m40[0m | [35;1m,[0m[35;1m-[0m[35;1m>[0m             </svg>
+ [2m41[0m | [35;1m`[0m[35;1m-[0m[35;1m>[0m           </div>
+ [2m42[0m |               <span className="font-heading font-bold text-lg text-[--color-accent]">
+ [2m43[0m |                 Central NL Scholastic Chess Club
+ [2m44[0m |               </span>
+    `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/layout/header.tsx
+./src/app/layout.tsx
+ GET / 500 in 5157ms
+ GET / 500 in 22ms
+ GET / 500 in 21ms
+ GET / 500 in 20ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled /_error in 5.6s (1097 modules)
+ GET / 200 in 323ms
+ GET / 200 in 950ms
+ ○ Compiling /api/rankings ...
+ ✓ Compiled /api/rankings in 5s (1744 modules)
+ ✓ Compiled (1746 modules)
+ GET /api/events 200 in 9917ms
+ GET /api/rankings 200 in 9917ms
+ ✓ Compiled in 1798ms (2190 modules)
+ GET / 200 in 338ms
+ ✓ Compiled in 20.5s (1097 modules)
+ GET /events 200 in 1423ms
+ GET /events 200 in 452ms
+ ○ Compiling /api/events ...
+ ✓ Compiled /api/events in 2.4s (2188 modules)
+ GET /events 200 in 2238ms
+ GET / 200 in 165ms
+ ○ Compiling /api/rankings ...
+ GET /api/events 200 in 9362ms
+ ✓ Compiled /api/rankings in 5.3s (1746 modules)
+ GET /api/events 200 in 3843ms
+ GET /api/rankings 200 in 9204ms
+ GET /api/events 200 in 216ms
+ GET /api/rankings 200 in 263ms
+ GET /api/events 200 in 245ms
