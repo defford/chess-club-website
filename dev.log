@@ -370,3 +370,64 @@ Row 6 consent debug: {
  GET /events 200 in 56ms
  GET /api/events 200 in 536ms
  GET /api/events 200 in 257ms
+ GET /events 200 in 213ms
+ GET /api/events 200 in 700ms
+ GET / 200 in 89ms
+ ✓ Compiled in 1906ms (289 modules)
+ GET / 200 in 132ms
+ ✓ Compiled in 338ms (289 modules)
+ GET / 200 in 84ms
+ GET / 200 in 292ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/client-development/2.pack.gz_' -> '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/client-development/2.pack.gz'
+ ✓ Compiled in 3.7s (746 modules)
+ GET / 200 in 213ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 717ms (760 modules)
+ ⨯ ReferenceError: topPlayers is not defined
+    at RankingsPreview (src/components/sections/rankings-preview.tsx:81:16)
+  79 |             
+  80 |             <div className="divide-y">
+> 81 |               {topPlayers.map((player) => (
+     |                ^
+  82 |                 <div key={player.rank} className="px-6 py-4 hover:bg-[--color-neutral-light]/50 transition-colors">
+  83 |                   <div className="grid grid-cols-5 gap-4 items-center">
+  84 |                     <div className="flex items-center"> {
+  digest: '3828291807'
+}
+ GET / 500 in 620ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 556ms (486 modules)
+ GET /favicon.ico 200 in 647ms
+ GET /favicon.ico 200 in 5ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 516ms (777 modules)
+ GET / 200 in 534ms
+ GET /favicon.ico 200 in 21ms
+ ○ Compiling /api/rankings ...
+ ✓ Compiled /api/rankings in 2.3s (1839 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET /api/rankings 200 in 5073ms
+ GET / 200 in 245ms
+ GET /favicon.ico 200 in 77ms
+ GET /api/rankings 200 in 429ms
+ ✓ Compiled in 710ms (1853 modules)
+ GET / 200 in 76ms
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/client-development/0.pack.gz_' -> '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/client-development/0.pack.gz'
+<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/server-development/2.pack.gz_' -> '/Users/danielefford/Documents/Fun/ChessClubWebsite2/chess-club-website/.next/cache/webpack/server-development/2.pack.gz'
+ ✓ Compiled in 7.7s (760 modules)
+ GET / 200 in 308ms
+ ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+ ✓ Compiled in 1357ms (760 modules)
+ GET / 200 in 847ms
+ ✓ Compiled /api/rankings in 328ms (484 modules)
+ ✓ Compiled (1562 modules)
+ GET /favicon.ico 200 in 11063ms
+ GET /api/rankings 200 in 11982ms
+ GET /api/events 200 in 11984ms
+ ✓ Compiled in 859ms (1855 modules)
+ ⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+ GET / 200 in 125ms
+ GET / 200 in 267ms
+ ✓ Compiled /_not-found in 374ms (1846 modules)
+ GET /api/rankings 404 in 581ms
+ GET /api/events 404 in 581ms

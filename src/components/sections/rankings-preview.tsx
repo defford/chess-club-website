@@ -1,20 +1,38 @@
+"use client"
+
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Trophy } from "lucide-react"
-
-// Mock data - in a real app this would come from a database or API
-const topPlayers = [
-  { rank: 1, name: "Emily Chen", grade: "8th", wins: 15, losses: 2 },
-  { rank: 2, name: "Marcus Johnson", grade: "7th", wins: 13, losses: 4 },
-  { rank: 3, name: "Sofia Rodriguez", grade: "9th", wins: 12, losses: 3 },
-  { rank: 4, name: "Alex Thompson", grade: "6th", wins: 11, losses: 5 },
-  { rank: 5, name: "Jordan Lee", grade: "8th", wins: 10, losses: 4 },
-  { rank: 6, name: "Maya Patel", grade: "7th", wins: 9, losses: 6 },
-  { rank: 7, name: "Ryan O'Connor", grade: "9th", wins: 8, losses: 5 },
-  { rank: 8, name: "Zoe Williams", grade: "6th", wins: 8, losses: 7 }
-]
+import { useState, useEffect } from "react"
+import type { PlayerData } from "@/lib/googleSheets"
 
 export function RankingsPreview() {
+  const [players, setPlayers] = useState<PlayerData[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch('/api/rankings')
+        if (response.ok) {
+          const playersData = await response.json()
+          // Filter players with points > 0 and take top 8
+          const filteredPlayers = playersData
+            .filter((player: PlayerData) => player.points > 0)
+            .slice(0, 8)
+          setPlayers(filteredPlayers)
+        }
+      } catch (error) {
+        console.error('Error loading players:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchPlayers()
+  }, [])
+
   const getBadgeColor = (rank: number) => {
     switch (rank) {
       case 1:
@@ -60,31 +78,43 @@ export function RankingsPreview() {
             </div>
             
             <div className="divide-y">
-              {topPlayers.map((player) => (
-                <div key={player.rank} className="px-6 py-4 hover:bg-[--color-neutral-light]/50 transition-colors">
-                  <div className="grid grid-cols-5 gap-4 items-center">
-                    <div className="flex items-center">
-                      <span
-                        className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${getBadgeColor(player.rank)}`}
-                      >
-                        {getBadgeIcon(player.rank)}
-                      </span>
-                    </div>
-                    <div className="font-medium text-[--color-text-primary]">
-                      {player.name}
-                    </div>
-                    <div className="text-[--color-text-secondary]">
-                      {player.grade}
-                    </div>
-                    <div className="font-medium text-green-600">
-                      {player.wins}
-                    </div>
-                    <div className="font-medium text-red-600">
-                      {player.losses}
+              {loading ? (
+                <div className="px-6 py-8 text-center">
+                  <div className="text-2xl text-[--color-text-secondary] mb-2">♟️</div>
+                  <p className="text-[--color-text-secondary]">Loading rankings...</p>
+                </div>
+              ) : players.length === 0 ? (
+                <div className="px-6 py-8 text-center">
+                  <div className="text-2xl text-[--color-text-secondary] mb-2">🏆</div>
+                  <p className="text-[--color-text-secondary]">No active players yet</p>
+                </div>
+              ) : (
+                players.map((player) => (
+                  <div key={player.rank} className="px-6 py-4 hover:bg-[--color-neutral-light]/50 transition-colors">
+                    <div className="grid grid-cols-5 gap-4 items-center">
+                      <div className="flex items-center">
+                        <span
+                          className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium ${getBadgeColor(player.rank || 0)}`}
+                        >
+                          {getBadgeIcon(player.rank || 0)}
+                        </span>
+                      </div>
+                      <div className="font-medium text-[--color-text-primary]">
+                        {player.name}
+                      </div>
+                      <div className="text-[--color-text-secondary]">
+                        {player.grade}
+                      </div>
+                      <div className="font-medium text-green-600">
+                        {player.wins}
+                      </div>
+                      <div className="font-medium text-red-600">
+                        {player.losses}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </div>
 
