@@ -8,11 +8,11 @@ import { Menu, X } from "lucide-react"
 
 const navigation = [
   { name: "Home", href: "/" },
-  { name: "Register", href: "/register" },
   { name: "Events", href: "/events" },
   // { name: "Rankings", href: "/rankings" },
   { name: "About", href: "/about" },
-  { name: "Parent Login", href: "/parent/login" },
+  { name: "Register", href: "/register" },
+  { name: "Login", href: "/parent/login" },
   // { name: "Admin", href: "/admin" },
 ]
 
@@ -26,7 +26,7 @@ export function Header() {
         <Link href="/" className="flex items-center space-x-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[--color-primary] text-white">
           </div>
-          <span className="font-heading font-bold text-lg text-[--color-accent]">
+          <span className="font-heading font-bold text-lg text-[#1C1F33]">
             Central NL Scholastic Chess Club
           </span>
         </Link>
@@ -43,13 +43,6 @@ export function Header() {
             </Link>
           ))}
         </nav>
-
-        {/* Desktop CTA */}
-        <div className="hidden md:flex">
-          <Button variant="secondary" size="sm">
-            Join Now
-          </Button>
-        </div>
 
         {/* Mobile menu button */}
         <button

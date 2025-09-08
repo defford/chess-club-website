@@ -172,20 +172,6 @@ export default function EventsPage() {
           </p>
         </div>
 
-        {/* Category Filter */}
-        <div className="flex flex-wrap justify-center gap-2 mb-8">
-          {categories.map((category) => (
-            <Button
-              key={category.value}
-              variant={selectedCategory === category.value ? "primary" : "outline"}
-              size="sm"
-              onClick={() => setSelectedCategory(category.value)}
-            >
-              {category.label}
-            </Button>
-          ))}
-        </div>
-
         {/* Loading State */}
         {loading && (
           <div className="text-center py-12">

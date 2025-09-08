@@ -43,6 +43,25 @@ interface StudentRegistrationData {
   medicalInfo: string;
 }
 
+interface SelfRegistrationData {
+  playerName: string;
+  playerAge: string;
+  playerGrade: string;
+  playerEmail: string;
+  playerPhone: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalInfo: string;
+  hearAboutUs: string;
+  provincialInterest: string;
+  volunteerInterest: string;
+  consent: boolean;
+  photoConsent: boolean;
+  valuesAcknowledgment: boolean;
+  newsletter: boolean;
+  createAccount?: boolean;
+}
+
 class EmailService {
   private resend: Resend;
 
@@ -97,6 +116,22 @@ class EmailService {
     } catch (error) {
       console.error('Error sending student confirmation email:', error);
       throw new Error('Failed to send student confirmation email');
+    }
+  }
+
+  async sendSelfRegistrationConfirmation(data: SelfRegistrationData): Promise<void> {
+    const emailHtml = this.generateSelfConfirmationEmail(data);
+    
+    try {
+      await this.resend.emails.send({
+        from: 'Central NL Chess Club <daniel@cnlscc.com>',
+        to: [data.playerEmail],
+        subject: `Registration Confirmation - ${data.playerName}`,
+        html: emailHtml,
+      });
+    } catch (error) {
+      console.error('Error sending self-registration confirmation email:', error);
+      throw new Error('Failed to send self-registration confirmation email');
     }
   }
 
@@ -360,6 +395,126 @@ class EmailService {
                 <li style="margin-bottom: 8px;">Payment details will be sent separately</li>
               </ul>
             </div>
+
+            <!-- Contact -->
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0;">
+              <p style="margin-bottom: 15px;">
+                Questions? We're here to help!
+              </p>
+              <p style="margin: 0;">
+                📧 <a href="mailto:info@centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">info@centralnlchess.ca</a><br>
+                🌐 <a href="https://centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">centralnlchess.ca</a>
+              </p>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="text-align: center; margin-top: 20px; padding: 20px; font-size: 12px; color: #666;">
+            <p style="margin: 0;">
+              Central NL Scholastic Chess Club<br>
+              Building strategic minds, one move at a time.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private generateSelfConfirmationEmail(data: SelfRegistrationData): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Self-Registration Confirmation</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: bold;">
+              ♟️ Registration Confirmed!
+            </h1>
+            <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">
+              Central NL Scholastic Chess Club
+            </p>
+          </div>
+
+          <!-- Main Content -->
+          <div style="background: #ffffff; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <p style="font-size: 18px; margin-bottom: 20px;">
+              Dear ${data.playerName},
+            </p>
+
+            <p style="margin-bottom: 20px;">
+              Thank you for registering yourself for the Central NL Scholastic Chess Club! 
+              We're excited to welcome you to our chess community.
+            </p>
+
+            <!-- Registration Details -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 6px; margin: 25px 0;">
+              <h3 style="margin: 0 0 15px; color: #1a365d; font-size: 18px;">Your Registration Details</h3>
+              
+              <div style="display: grid; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Name:</span>
+                  <span>${data.playerName}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Age:</span>
+                  <span>${data.playerAge} years old</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Grade:</span>
+                  <span>${data.playerGrade}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Email:</span>
+                  <span>${data.playerEmail}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Phone:</span>
+                  <span>${data.playerPhone}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                  <span style="font-weight: 600;">Emergency Contact:</span>
+                  <span>${data.emergencyContact}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Next Steps -->
+            <div style="background: #e6fffa; border-left: 4px solid #38b2ac; padding: 20px; margin: 25px 0;">
+              <h3 style="margin: 0 0 15px; color: #234e52;">What's Next?</h3>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
+                <li style="margin-bottom: 8px;">Sessions typically run weekly during the school year</li>
+                <li style="margin-bottom: 8px;">All chess equipment is provided - no need to bring anything</li>
+                <li style="margin-bottom: 8px;">Payment details will be sent separately</li>
+                ${data.createAccount ? '<li style="margin-bottom: 8px;">Check your email for your player account magic link</li>' : ''}
+              </ul>
+            </div>
+
+            <!-- Club Info -->
+            <div style="margin: 25px 0;">
+              <h3 style="color: #1a365d; margin-bottom: 15px;">Club Information</h3>
+              <p style="margin-bottom: 10px;">
+                <strong>Membership:</strong> $50/semester or $80/year<br>
+                <strong>Family Discount:</strong> 2nd player 25% off<br>
+                <strong>Contact:</strong> info@centralnlchess.ca
+              </p>
+            </div>
+
+            ${data.medicalInfo ? `
+            <div style="background: #fff5f5; border-left: 4px solid #fc8181; padding: 20px; margin: 25px 0;">
+              <h4 style="margin: 0 0 10px; color: #c53030;">Medical Information Noted</h4>
+              <p style="margin: 0; font-size: 14px;">
+                We have recorded the medical information you provided and will ensure our staff are aware of any special considerations.
+              </p>
+            </div>
+            ` : ''}
 
             <!-- Contact -->
             <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 2px solid #e2e8f0;">

@@ -35,7 +35,7 @@ export function EventsPreview() {
   }, [])
 
   return (
-    <section className="relative py-16 bg-gradient-to-br from-blue-600 to-blue-800 overflow-hidden">
+    <section className="relative py-16 bg-gradient-to-br from-blue-800 to-[#1C1F33] overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="font-heading font-bold text-3xl md:text-4xl text-white mb-4">
@@ -111,7 +111,7 @@ export function EventsPreview() {
 
         <div className="text-center">
           <Link href="/events">
-            <Button variant="outline" size="lg" className="text-white hover:bg-white hover:text-blue-700">
+            <Button variant="outline" size="lg" className="text-white hover:bg-white hover:text-[#1C1F33]">
               View All Events
             </Button>
           </Link>

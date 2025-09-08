@@ -111,6 +111,25 @@ interface StudentRegistrationData {
   medicalInfo: string;
 }
 
+interface SelfRegistrationData {
+  playerName: string;
+  playerAge: string;
+  playerGrade: string;
+  playerEmail: string;
+  playerPhone: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalInfo: string;
+  hearAboutUs: string;
+  provincialInterest: string;
+  volunteerInterest: string;
+  consent: boolean;
+  photoConsent: boolean;
+  valuesAcknowledgment: boolean;
+  newsletter: boolean;
+  createAccount?: boolean;
+}
+
 // New interfaces for separate sheets
 interface ParentData {
   id: string;
@@ -358,6 +377,81 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Error writing student registration to Google Sheets:', error);
       throw new Error('Failed to save student registration to Google Sheets');
+    }
+  }
+
+  async addSelfRegistration(data: SelfRegistrationData): Promise<string> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    // Generate a unique player ID
+    const playerId = `player_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = new Date().toISOString();
+    
+    // Create self-registration data object
+    const selfRegistrationData = {
+      id: playerId,
+      playerName: data.playerName,
+      playerAge: data.playerAge,
+      playerGrade: data.playerGrade,
+      playerEmail: data.playerEmail,
+      playerPhone: data.playerPhone,
+      emergencyContact: data.emergencyContact,
+      emergencyPhone: data.emergencyPhone,
+      medicalInfo: data.medicalInfo,
+      hearAboutUs: data.hearAboutUs,
+      provincialInterest: data.provincialInterest,
+      volunteerInterest: data.volunteerInterest,
+      consent: data.consent,
+      photoConsent: data.photoConsent,
+      valuesAcknowledgment: data.valuesAcknowledgment,
+      newsletter: data.newsletter,
+      createAccount: data.createAccount || false,
+      timestamp: timestamp
+    };
+
+    // Write to registrations sheet (same as regular registrations)
+    const values = [
+      [
+        selfRegistrationData.id,
+        selfRegistrationData.playerName, // parentName field
+        selfRegistrationData.playerEmail, // parentEmail field  
+        selfRegistrationData.playerPhone, // parentPhone field
+        selfRegistrationData.playerName, // playerName field
+        selfRegistrationData.playerAge, // playerAge field
+        selfRegistrationData.playerGrade, // playerGrade field
+        selfRegistrationData.emergencyContact, // emergencyContact field
+        selfRegistrationData.emergencyPhone, // emergencyPhone field
+        selfRegistrationData.medicalInfo, // medicalInfo field
+        selfRegistrationData.hearAboutUs, // hearAboutUs field
+        selfRegistrationData.provincialInterest, // provincialInterest field
+        selfRegistrationData.volunteerInterest, // volunteerInterest field
+        selfRegistrationData.consent, // consent field
+        selfRegistrationData.photoConsent, // photoConsent field
+        selfRegistrationData.valuesAcknowledgment, // valuesAcknowledgment field
+        selfRegistrationData.newsletter, // newsletter field
+        selfRegistrationData.timestamp // timestamp field
+      ]
+    ];
+
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'registrations!A:Q',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+      
+      return playerId;
+    } catch (error) {
+      console.error('Error writing self-registration to Google Sheets:', error);
+      throw new Error('Failed to save self-registration to Google Sheets');
     }
   }
 

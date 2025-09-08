@@ -172,154 +172,20 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Achievements */}
-        {/* <div className="bg-[--color-neutral-light] rounded-lg p-8 mb-16">
-          <h2 className="font-heading font-bold text-3xl text-[--color-accent] text-center mb-8">
-            Our Achievements
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {achievements.map((achievement, index) => (
-              <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-heading font-bold text-[--color-primary] mb-2">
-                  {achievement.number}
-                </div>
-                <div className="font-semibold text-[--color-text-primary] mb-1">
-                  {achievement.label}
-                </div>
-                <div className="text-sm text-[--color-text-secondary]">
-                  {achievement.description}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div> */}
-
-        {/* Instructors
-        <div className="mb-16">
-          <h2 className="font-heading font-bold text-3xl text-[--color-accent] text-center mb-12">
-            Meet Our Instructors
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {instructors.map((instructor, index) => (
-              <Card key={index}>
-                <CardHeader className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-[--color-primary] to-[--color-accent] rounded-full flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4">
-                    {instructor.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <CardTitle className="text-lg">{instructor.name}</CardTitle>
-                  <CardDescription>{instructor.title}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 text-sm">
-                    <p><strong>Experience:</strong> {instructor.experience}</p>
-                    <p><strong>Credentials:</strong> {instructor.credentials}</p>
-                    <p className="text-[--color-text-secondary] italic">{instructor.bio}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div> */}
-
-        {/* Programs
-        <div className="mb-16">
-          <h2 className="font-heading font-bold text-3xl text-[--color-accent] text-center mb-12">
-            Our Programs
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <BookOpen className="h-5 w-5 mr-2 text-[--color-primary]" />
-                  Beginner Program (K-6)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-[--color-text-secondary]">
-                  <li>• Learn basic rules and piece movements</li>
-                  <li>• Fun games and puzzles to reinforce learning</li>
-                  <li>• Small group instruction (max 8 students)</li>
-                  <li>• Focus on fun and building confidence</li>
-                  <li>• Weekly 90-minute sessions</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Award className="h-5 w-5 mr-2 text-[--color-primary]" />
-                  Intermediate Program (Grades 4-8)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-[--color-text-secondary]">
-                  <li>• Opening principles and basic strategy</li>
-                  <li>• Tactical pattern recognition</li>
-                  <li>• Introduction to tournament play</li>
-                  <li>• Ladder system for friendly competition</li>
-                  <li>• Weekly 2-hour sessions</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Trophy className="h-5 w-5 mr-2 text-[--color-primary]" />
-                  Advanced Program (Grades 6-12)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-[--color-text-secondary]">
-                  <li>• Advanced opening theory and preparation</li>
-                  <li>• Complex tactical and strategic concepts</li>
-                  <li>• Tournament preparation and analysis</li>
-                  <li>• Individual coaching available</li>
-                  <li>• Flexible scheduling for serious players</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Calendar className="h-5 w-5 mr-2 text-[--color-primary]" />
-                  Special Programs
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2 text-[--color-text-secondary]">
-                  <li>• Summer chess camps</li>
-                  <li>• Parent-player workshops</li>
-                  <li>• School visit programs</li>
-                  <li>• Birthday party chess instruction</li>
-                  <li>• Private and semi-private lessons</li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </div> */}
-
         {/* Call to Action */}
         <div className="text-center">
           <Card className="max-w-2xl mx-auto">
             <CardContent className="p-8">
               <h3 className="font-heading font-semibold text-2xl text-[--color-text-primary] mb-4">
-                Ready to Join Our Chess Family?
+                Ready to Join?
               </h3>
               <p className="text-[--color-text-secondary] mb-6">
-                Give your player the gift of chess. Register today and watch them develop skills that will last a lifetime.
+                Register today and develop skills that will last a lifetime.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/register">
-                  <Button variant="secondary" size="lg">
-                    Register Your Player
-                  </Button>
-                </Link>
-                <Link href="/events">
                   <Button variant="outline" size="lg">
-                    View Upcoming Events
+                    Register Now
                   </Button>
                 </Link>
               </div>
