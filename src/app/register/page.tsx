@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { CheckCircle, Users, Calendar, Trophy, DollarSign, Plus, X } from "lucide-react"
 
@@ -16,7 +16,7 @@ interface Student {
   medicalInfo: string;
 }
 
-export default function RegisterPage() {
+function RegisterPageContent() {
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
   const [parentData, setParentData] = useState({
@@ -758,5 +758,36 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h1 className="font-heading font-bold text-4xl md:text-5xl text-[--color-accent] mb-4">
+              Join Our Chess Club
+            </h1>
+            <p className="text-lg text-[--color-text-secondary] max-w-2xl mx-auto">
+              Loading registration form...
+            </p>
+          </div>
+          <div className="max-w-2xl mx-auto">
+            <Card>
+              <CardContent className="p-8 text-center">
+                <div className="animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto mb-4"></div>
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mx-auto"></div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    }>
+      <RegisterPageContent />
+    </Suspense>
   )
 }

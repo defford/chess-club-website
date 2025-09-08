@@ -1,13 +1,13 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, XCircle, Loader2, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 
-export default function ParentVerify() {
+function ParentVerifyContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
@@ -218,5 +218,38 @@ export default function ParentVerify() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function ParentVerify() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="max-w-md mx-auto px-4">
+          <Link 
+            href="/" 
+            className="flex items-center text-[--color-primary] hover:text-[--color-primary]/80 transition-colors mb-6"
+          >
+            <ChevronLeft className="w-4 h-4 mr-1" />
+            Back to Home
+          </Link>
+
+          <Card>
+            <CardHeader className="text-center">
+              <CardTitle className="text-2xl font-bold">Verification</CardTitle>
+              <CardDescription>Loading verification...</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <div className="flex flex-col items-center space-y-4">
+                <Loader2 className="w-8 h-8 animate-spin text-[--color-primary]" />
+                <p className="text-gray-600">Loading...</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    }>
+      <ParentVerifyContent />
+    </Suspense>
   )
 }
