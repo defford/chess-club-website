@@ -35,13 +35,13 @@ export function EventsPreview() {
   }, [])
 
   return (
-    <section className="py-16 bg-[--color-neutral-light]">
+    <section className="relative py-16 bg-gradient-to-br from-blue-600 to-blue-800 overflow-hidden">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="font-heading font-bold text-3xl md:text-4xl text-[--color-accent] mb-4">
+          <h2 className="font-heading font-bold text-3xl md:text-4xl text-white mb-4">
             What's Coming Up
           </h2>
-          <p className="text-lg text-[--color-text-secondary] max-w-2xl mx-auto">
+          <p className="text-lg text-white max-w-2xl mx-auto">
             Join us for exciting tournaments, workshops, and social events designed to improve your chess skills and have fun.
           </p>
         </div>
@@ -49,15 +49,15 @@ export function EventsPreview() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           {loading ? (
             <div className="col-span-full text-center py-12">
-              <div className="text-6xl text-[--color-text-secondary] mb-4">♟️</div>
-              <h3 className="font-heading font-semibold text-xl text-[--color-text-primary] mb-2">
+              <div className="text-6xl text-white mb-4">♟️</div>
+              <h3 className="font-heading font-semibold text-xl text-white mb-2">
                 Loading events...
               </h3>
             </div>
           ) : events.length === 0 ? (
             <div className="col-span-full text-center py-12">
-              <div className="text-6xl text-[--color-text-secondary] mb-4">📅</div>
-              <h3 className="font-heading font-semibold text-xl text-[--color-text-primary] mb-2">
+              <div className="text-6xl text-white mb-4">📅</div>
+              <h3 className="font-heading font-semibold text-xl text-white mb-2">
                 No upcoming events
               </h3>
               <p className="text-[--color-text-secondary]">
@@ -111,7 +111,7 @@ export function EventsPreview() {
 
         <div className="text-center">
           <Link href="/events">
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" className="text-white hover:bg-white hover:text-blue-700">
               View All Events
             </Button>
           </Link>

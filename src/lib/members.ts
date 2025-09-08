@@ -2,7 +2,7 @@
 
 export interface Member {
   id: string
-  childName: string
+  playerName: string
   parentName: string
   email: string
   phone: string
@@ -70,7 +70,7 @@ export function searchMembers(query: string): Member[] {
   const lowercaseQuery = query.toLowerCase()
   
   return members.filter(member =>
-    member.childName.toLowerCase().includes(lowercaseQuery) ||
+    member.playerName.toLowerCase().includes(lowercaseQuery) ||
     member.parentName.toLowerCase().includes(lowercaseQuery) ||
     member.email.toLowerCase().includes(lowercaseQuery) ||
     member.grade.toLowerCase().includes(lowercaseQuery)

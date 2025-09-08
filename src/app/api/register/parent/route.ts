@@ -6,11 +6,9 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json();
     
-    // Validate required fields
+    // Validate required fields for parent registration
     const requiredFields = [
-      'parentName', 'parentEmail', 'parentPhone',
-      'playerName', 'playerAge', 'playerGrade',
-      'emergencyContact', 'emergencyPhone'
+      'parentName', 'parentEmail', 'parentPhone'
     ];
     
     for (const field of requiredFields) {
@@ -37,26 +35,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Add registration to Google Sheets
-    await googleSheetsService.addRegistration(data);
+    // Add parent registration to Google Sheets
+    const parentId = await googleSheetsService.addParentRegistration(data);
 
     // Send confirmation email
     try {
-      await emailService.sendRegistrationConfirmation(data);
+      await emailService.sendParentRegistrationConfirmation(data);
     } catch (emailError) {
       console.error('Failed to send confirmation email:', emailError);
       // Don't fail the entire registration if email fails
-      // Just log the error and continue
     }
 
     return NextResponse.json(
-      { message: 'Registration submitted successfully' },
+      { 
+        message: 'Parent registration submitted successfully',
+        parentId: parentId
+      },
       { status: 200 }
     );
   } catch (error) {
-    console.error('Registration API error:', error);
+    console.error('Parent registration API error:', error);
     return NextResponse.json(
-      { error: 'Failed to submit registration. Please try again.' },
+      { error: 'Failed to submit parent registration. Please try again.' },
       { status: 500 }
     );
   }

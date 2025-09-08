@@ -2,68 +2,190 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { useState } from "react"
-import { CheckCircle, Users, Calendar, Trophy, DollarSign } from "lucide-react"
+import { useState, useEffect } from "react"
+import { useSearchParams } from "next/navigation"
+import { CheckCircle, Users, Calendar, Trophy, DollarSign, Plus, X } from "lucide-react"
+
+interface Student {
+  id: string;
+  playerName: string;
+  playerAge: string;
+  playerGrade: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalInfo: string;
+}
 
 export default function RegisterPage() {
-  const [formData, setFormData] = useState({
+  const searchParams = useSearchParams()
+  const [currentStep, setCurrentStep] = useState(1)
+  const [parentData, setParentData] = useState({
     parentName: "",
     parentEmail: "",
     parentPhone: "",
-    childName: "",
-    childAge: "",
-    childGrade: "",
-    emergencyContact: "",
-    emergencyPhone: "",
-    medicalInfo: "",
     hearAboutUs: "",
     provincialInterest: "",
     volunteerInterest: "",
     consent: false,
     photoConsent: false,
     valuesAcknowledgment: false,
-    newsletter: true
+    newsletter: true,
+    createAccount: false
+  })
+  
+  const [students, setStudents] = useState<Student[]>([])
+  const [currentStudent, setCurrentStudent] = useState<Student>({
+    id: "",
+    playerName: "",
+    playerAge: "",
+    playerGrade: "",
+    emergencyContact: "",
+    emergencyPhone: "",
+    medicalInfo: ""
   })
 
   const [submitted, setSubmitted] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [parentId, setParentId] = useState("")
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Pre-fill email from URL params if coming from parent login
+  useEffect(() => {
+    const email = searchParams.get('email')
+    if (email) {
+      setParentData(prev => ({
+        ...prev,
+        parentEmail: email,
+        createAccount: true // Auto-check create account since they came from parent login
+      }))
+    }
+  }, [searchParams])
+
+  const handleParentSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
     setError("")
 
     try {
-      const response = await fetch('/api/register', {
+      const response = await fetch('/api/register/parent', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(parentData),
       })
 
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to submit registration')
+        throw new Error(result.error || 'Failed to submit parent registration')
       }
 
-      setSubmitted(true)
+      setParentId(result.parentId)
+      setCurrentStep(2)
+
+      // If user opted to create an account, send magic link
+      if (parentData.createAccount) {
+        try {
+          const authResponse = await fetch('/api/parent/auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: parentData.parentEmail
+            }),
+          })
+
+          if (!authResponse.ok) {
+            console.error('Failed to create parent account, but registration was successful')
+          }
+        } catch (accountError) {
+          console.error('Account creation error:', accountError)
+        }
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit registration')
+      setError(err instanceof Error ? err.message : 'Failed to submit parent registration')
     } finally {
       setLoading(false)
     }
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleAddStudent = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch('/api/register/student', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...currentStudent,
+          parentId: parentId
+        }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to add student')
+      }
+
+      // Add student to the list
+      const newStudent = { ...currentStudent, id: result.studentId }
+      setStudents(prev => [...prev, newStudent])
+
+      // Reset current student form
+      setCurrentStudent({
+        id: "",
+        playerName: "",
+        playerAge: "",
+        playerGrade: "",
+        emergencyContact: "",
+        emergencyPhone: "",
+        medicalInfo: ""
+      })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add student')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleCompleteRegistration = () => {
+    setSubmitted(true)
+  }
+
+  const handleUseSameContact = () => {
+    setCurrentStudent(prev => ({
+      ...prev,
+      emergencyContact: parentData.parentName,
+      emergencyPhone: parentData.parentPhone
+    }))
+  }
+
+  const handleParentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value, type } = e.target
     const checked = (e.target as HTMLInputElement).checked
-    setFormData(prev => ({
+    setParentData(prev => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value
     }))
+  }
+
+  const handleStudentChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target
+    setCurrentStudent(prev => ({
+      ...prev,
+      [name]: value
+    }))
+  }
+
+  const removeStudent = (studentId: string) => {
+    setStudents(prev => prev.filter(student => student.id !== studentId))
   }
 
   const benefits = [
@@ -102,21 +224,40 @@ export default function RegisterPage() {
                 Registration Successful!
               </h1>
               <p className="text-lg text-[--color-text-secondary] mb-6">
-                Thank you for registering {formData.childName} for the Central NL Scholastic Chess Club. 
+                Thank you for registering {students.length} student{students.length !== 1 ? 's' : ''} for the Central NL Scholastic Chess Club. 
                 We&apos;ll be in touch within 24 hours with next steps and schedule information.
               </p>
+              
+              {parentData.createAccount && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-medium text-blue-800 mb-2">🔐 Parent Account Created!</h3>
+                  <p className="text-sm text-blue-700">
+                    A magic link has been sent to <strong>{parentData.parentEmail}</strong>. 
+                    Click the link in your email to access your parent dashboard and track your players&apos; progress.
+                  </p>
+                </div>
+              )}
+              
               <div className="space-y-2 text-sm text-[--color-text-secondary]">
-                <p>📧 A confirmation email with all the details has been sent to {formData.parentEmail}</p>
+                <p>📧 A confirmation email with all the details has been sent to {parentData.parentEmail}</p>
                 <p>📋 Your registration has been recorded in our system</p>
                 <p>🕐 You&apos;ll receive schedule information within 24-48 hours</p>
+                {parentData.createAccount && (
+                  <p>🔑 Check your email for the parent account magic link</p>
+                )}
                 <p>❓ Questions? Contact us at info@centralnlchess.ca</p>
               </div>
               <div className="mt-6">
                 <Button 
                   variant="primary" 
-                  onClick={() => setSubmitted(false)}
+                  onClick={() => {
+                    setSubmitted(false)
+                    setCurrentStep(1)
+                    setStudents([])
+                    setParentId("")
+                  }}
                 >
-                  Register Another Child
+                  Register Another Family
                 </Button>
               </div>
             </Card>
@@ -135,18 +276,36 @@ export default function RegisterPage() {
             Join Our Chess Club
           </h1>
           <p className="text-lg text-[--color-text-secondary] max-w-2xl mx-auto">
-            Register your child today for an exciting journey into the world of chess. All skill levels welcome!
+            Register your family today for an exciting journey into the world of chess. All skill levels welcome!
           </p>
         </div>
 
-        <div>
-          {/* Registration Form */}
-          <div className="lg:col-span-2">
+        {/* Progress Indicator */}
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="flex items-center justify-center space-x-4">
+            <div className={`flex items-center space-x-2 ${currentStep >= 1 ? 'text-[--color-primary]' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 1 ? 'bg-[--color-primary] text-white' : 'bg-gray-200'}`}>
+                1
+              </div>
+              <span className="text-sm font-medium">Parent Info</span>
+            </div>
+            <div className={`w-16 h-1 ${currentStep >= 2 ? 'bg-[--color-primary]' : 'bg-gray-200'}`}></div>
+            <div className={`flex items-center space-x-2 ${currentStep >= 2 ? 'text-[--color-primary]' : 'text-gray-400'}`}>
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 2 ? 'bg-[--color-primary] text-white' : 'bg-gray-200'}`}>
+                2
+              </div>
+              <span className="text-sm font-medium">Add Students</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="max-w-2xl mx-auto">
+          {currentStep === 1 && (
             <Card>
               <CardHeader>
-                <CardTitle>Registration Form</CardTitle>
+                <CardTitle>Step 1: Parent Information</CardTitle>
                 <CardDescription>
-                  Please fill out all required fields to register your child for the chess club.
+                  Please provide your information and consent to continue with student registration.
                 </CardDescription>
               </CardHeader>
               
@@ -157,7 +316,7 @@ export default function RegisterPage() {
                   </div>
                 )}
                 
-                <form onSubmit={handleSubmit} className="space-y-6">
+                <form onSubmit={handleParentSubmit} className="space-y-6">
                   {/* Parent Information */}
                   <div>
                     <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
@@ -173,8 +332,8 @@ export default function RegisterPage() {
                           id="parentName"
                           name="parentName"
                           required
-                          value={formData.parentName}
-                          onChange={handleChange}
+                          value={parentData.parentName}
+                          onChange={handleParentChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                         />
                       </div>
@@ -188,8 +347,8 @@ export default function RegisterPage() {
                           id="parentEmail"
                           name="parentEmail"
                           required
-                          value={formData.parentEmail}
-                          onChange={handleChange}
+                          value={parentData.parentEmail}
+                          onChange={handleParentChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                         />
                       </div>
@@ -203,138 +362,12 @@ export default function RegisterPage() {
                           id="parentPhone"
                           name="parentPhone"
                           required
-                          value={formData.parentPhone}
-                          onChange={handleChange}
+                          value={parentData.parentPhone}
+                          onChange={handleParentChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                         />
                       </div>
                     </div>
-                  </div>
-
-                  {/* Child Information */}
-                  <div>
-                    <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
-                      Player Information
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label htmlFor="childName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                          Player&apos;s Full Name *
-                        </label>
-                        <input
-                          type="text"
-                          id="childName"
-                          name="childName"
-                          required
-                          value={formData.childName}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="childAge" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                          Age *
-                        </label>
-                        <input
-                          type="number"
-                          id="childAge"
-                          name="childAge"
-                          required
-                          min="5"
-                          max="18"
-                          value={formData.childAge}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="childGrade" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                          Grade *
-                        </label>
-                        <select
-                          id="childGrade"
-                          name="childGrade"
-                          required
-                          value={formData.childGrade}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                        >
-                          <option value="">Select Grade</option>
-                          <option value="K">Kindergarten</option>
-                          <option value="1">Grade 1</option>
-                          <option value="2">Grade 2</option>
-                          <option value="3">Grade 3</option>
-                          <option value="4">Grade 4</option>
-                          <option value="5">Grade 5</option>
-                          <option value="6">Grade 6</option>
-                          <option value="7">Grade 7</option>
-                          <option value="8">Grade 8</option>
-                          <option value="9">Grade 9</option>
-                          <option value="10">Grade 10</option>
-                          <option value="11">Grade 11</option>
-                          <option value="12">Grade 12</option>
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Emergency Contact */}
-                  <div>
-                    <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
-                      Emergency Contact
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label htmlFor="emergencyContact" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                          Emergency Contact Name *
-                        </label>
-                        <input
-                          type="text"
-                          id="emergencyContact"
-                          name="emergencyContact"
-                          required
-                          value={formData.emergencyContact}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label htmlFor="emergencyPhone" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                          Emergency Phone *
-                        </label>
-                        <input
-                          type="tel"
-                          id="emergencyPhone"
-                          name="emergencyPhone"
-                          required
-                          value={formData.emergencyPhone}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Medical Information */}
-                  <div>
-                    <label htmlFor="medicalInfo" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                      Medical Information or Allergies
-                    </label>
-                    <textarea
-                      id="medicalInfo"
-                      name="medicalInfo"
-                      rows={3}
-                      value={formData.medicalInfo}
-                      onChange={handleChange}
-                      placeholder="Please list any allergies, medical conditions, or special needs we should be aware of..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                    />
-                    <p className="text-xs text-[--color-text-secondary] mt-1">
-                      Note: It is up to all players and guardians to ensure their own safety surrounding allergies.
-                    </p>
                   </div>
 
                   {/* Additional Information */}
@@ -350,8 +383,8 @@ export default function RegisterPage() {
                         <select
                           id="hearAboutUs"
                           name="hearAboutUs"
-                          value={formData.hearAboutUs}
-                          onChange={handleChange}
+                          value={parentData.hearAboutUs}
+                          onChange={handleParentChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                         >
                           <option value="">Select an option</option>
@@ -371,8 +404,8 @@ export default function RegisterPage() {
                         <select
                           id="provincialInterest"
                           name="provincialInterest"
-                          value={formData.provincialInterest}
-                          onChange={handleChange}
+                          value={parentData.provincialInterest}
+                          onChange={handleParentChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                         >
                           <option value="">Select an option</option>
@@ -392,8 +425,8 @@ export default function RegisterPage() {
                         <select
                           id="volunteerInterest"
                           name="volunteerInterest"
-                          value={formData.volunteerInterest}
-                          onChange={handleChange}
+                          value={parentData.volunteerInterest}
+                          onChange={handleParentChange}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                         >
                           <option value="">Select an option</option>
@@ -416,12 +449,12 @@ export default function RegisterPage() {
                         id="consent"
                         name="consent"
                         required
-                        checked={formData.consent}
-                        onChange={handleChange}
+                        checked={parentData.consent}
+                        onChange={handleParentChange}
                         className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                       />
                       <label htmlFor="consent" className="text-sm text-[--color-text-secondary]">
-                        I consent to my child participating in chess club activities and acknowledge the club&apos;s policies and waiver of liability. I understand that parents or guardians are required to attend if the player is under grade 7 to help facilitate a focused environment. *
+                        I consent to my player participating in chess club activities and acknowledge the club&apos;s policies and waiver of liability. I understand that parents or guardians are required to attend if the player is under grade 7 to help facilitate a focused environment. *
                       </label>
                     </div>
 
@@ -431,8 +464,8 @@ export default function RegisterPage() {
                         id="valuesAcknowledgment"
                         name="valuesAcknowledgment"
                         required
-                        checked={formData.valuesAcknowledgment}
-                        onChange={handleChange}
+                        checked={parentData.valuesAcknowledgment}
+                        onChange={handleParentChange}
                         className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                       />
                       <label htmlFor="valuesAcknowledgment" className="text-sm text-[--color-text-secondary]">
@@ -445,12 +478,12 @@ export default function RegisterPage() {
                         type="checkbox"
                         id="photoConsent"
                         name="photoConsent"
-                        checked={formData.photoConsent}
-                        onChange={handleChange}
+                        checked={parentData.photoConsent}
+                        onChange={handleParentChange}
                         className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                       />
                       <label htmlFor="photoConsent" className="text-sm text-[--color-text-secondary]">
-                        I consent to photos/videos of my child being taken during chess events and used for club promotional materials and social media. (Consent can be revoked at any time by contacting daniel@cnlscc.com)
+                        I consent to photos/videos of my player being taken during chess events and used for club promotional materials and social media. (Consent can be revoked at any time by contacting daniel@cnlscc.com)
                       </label>
                     </div>
 
@@ -459,13 +492,34 @@ export default function RegisterPage() {
                         type="checkbox"
                         id="newsletter"
                         name="newsletter"
-                        checked={formData.newsletter}
-                        onChange={handleChange}
+                        checked={parentData.newsletter}
+                        onChange={handleParentChange}
                         className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                       />
                       <label htmlFor="newsletter" className="text-sm text-[--color-text-secondary]">
                         Subscribe to our newsletter for club updates, event announcements, and chess tips.
                       </label>
+                    </div>
+
+                    <div className="border border-[--color-primary]/20 rounded-lg p-4 bg-blue-50">
+                      <div className="flex items-start space-x-3">
+                        <input
+                          type="checkbox"
+                          id="createAccount"
+                          name="createAccount"
+                          checked={parentData.createAccount}
+                          onChange={handleParentChange}
+                          className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
+                        />
+                        <div>
+                          <label htmlFor="createAccount" className="text-sm font-medium text-[--color-primary]">
+                            Create a parent account to track your players' progress
+                          </label>
+                          <p className="text-xs text-gray-600 mt-1">
+                            With a parent account, you can view rankings, register for events, and track tournament performance. A magic link will be sent to your email.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
@@ -476,12 +530,231 @@ export default function RegisterPage() {
                     className="w-full"
                     disabled={loading}
                   >
-                    {loading ? "Submitting..." : "Complete Registration"}
+                    {loading ? "Submitting..." : "Continue to Add Students"}
                   </Button>
                 </form>
               </CardContent>
             </Card>
-          </div>
+          )}
+
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              {/* Students List */}
+              {students.length > 0 && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registered Students</CardTitle>
+                    <CardDescription>
+                      Students you have successfully registered.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {students.map((student) => (
+                        <div key={student.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <h4 className="font-medium">{student.playerName}</h4>
+                            <p className="text-sm text-gray-600">Age: {student.playerAge} | Grade: {student.playerGrade}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => removeStudent(student.id)}
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Add Student Form */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Add a Student</CardTitle>
+                  <CardDescription>
+                    Add your player's information to register them for the chess club.
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  {error && (
+                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-red-600 text-sm">{error}</p>
+                    </div>
+                  )}
+                  
+                  <form onSubmit={handleAddStudent} className="space-y-6">
+                    {/* Student Information */}
+                    <div>
+                      <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
+                        Student Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label htmlFor="playerName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                            Player&apos;s Full Name *
+                          </label>
+                          <input
+                            type="text"
+                            id="playerName"
+                            name="playerName"
+                            required
+                            value={currentStudent.playerName}
+                            onChange={handleStudentChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="playerAge" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                            Age *
+                          </label>
+                          <input
+                            type="number"
+                            id="playerAge"
+                            name="playerAge"
+                            required
+                            min="5"
+                            max="18"
+                            value={currentStudent.playerAge}
+                            onChange={handleStudentChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="playerGrade" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                            Grade *
+                          </label>
+                          <select
+                            id="playerGrade"
+                            name="playerGrade"
+                            required
+                            value={currentStudent.playerGrade}
+                            onChange={handleStudentChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                          >
+                            <option value="">Select Grade</option>
+                            <option value="K">Kindergarten</option>
+                            <option value="1">Grade 1</option>
+                            <option value="2">Grade 2</option>
+                            <option value="3">Grade 3</option>
+                            <option value="4">Grade 4</option>
+                            <option value="5">Grade 5</option>
+                            <option value="6">Grade 6</option>
+                            <option value="7">Grade 7</option>
+                            <option value="8">Grade 8</option>
+                            <option value="9">Grade 9</option>
+                            <option value="10">Grade 10</option>
+                            <option value="11">Grade 11</option>
+                            <option value="12">Grade 12</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Emergency Contact */}
+                    <div>
+                      <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
+                        Emergency Contact
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label htmlFor="emergencyContact" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                            Emergency Contact Name *
+                          </label>
+                          <input
+                            type="text"
+                            id="emergencyContact"
+                            name="emergencyContact"
+                            required
+                            value={currentStudent.emergencyContact}
+                            onChange={handleStudentChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                          />
+                        </div>
+                        
+                        <div>
+                          <label htmlFor="emergencyPhone" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                            Emergency Phone *
+                          </label>
+                          <input
+                            type="tel"
+                            id="emergencyPhone"
+                            name="emergencyPhone"
+                            required
+                            value={currentStudent.emergencyPhone}
+                            onChange={handleStudentChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                      
+                      {/* Use Same Contact Button */}
+                      <div className="mt-3">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handleUseSameContact}
+                          className="text-[--color-primary] border-[--color-primary] hover:bg-[--color-primary] hover:text-white"
+                        >
+                          Use the same contact information as this account
+                        </Button>
+                      </div>
+                    </div>
+
+                    {/* Medical Information */}
+                    <div>
+                      <label htmlFor="medicalInfo" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                        Medical Information or Allergies
+                      </label>
+                      <textarea
+                        id="medicalInfo"
+                        name="medicalInfo"
+                        rows={3}
+                        value={currentStudent.medicalInfo}
+                        onChange={handleStudentChange}
+                        placeholder="Please list any allergies, medical conditions, or special needs we should be aware of..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                      />
+                      <p className="text-xs text-[--color-text-secondary] mt-1">
+                        Note: It is up to all players and guardians to ensure their own safety surrounding allergies.
+                      </p>
+                    </div>
+
+                    <div className="flex space-x-4">
+                      <Button 
+                        type="submit" 
+                        variant="secondary" 
+                        size="lg" 
+                        className="flex-1"
+                        disabled={loading}
+                      >
+                        {loading ? "Adding..." : "Add Student"}
+                      </Button>
+                      
+                      {students.length > 0 && (
+                        <Button 
+                          type="button" 
+                          variant="primary" 
+                          size="lg" 
+                          onClick={handleCompleteRegistration}
+                          className="flex-1"
+                        >
+                          Complete Registration
+                        </Button>
+                      )}
+                    </div>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
     </div>

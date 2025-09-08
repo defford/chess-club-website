@@ -28,7 +28,7 @@ export function HeroSection() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Link href="/register">
               <Button variant="primary" size="xl" className="w-full sm:w-auto bg-white text-[#2D5BE3] hover:bg-gray-100">
-                Register Your Child
+                Register Your Player
               </Button>
             </Link>
             <Link href="/events">

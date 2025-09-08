@@ -4,9 +4,9 @@ interface RegistrationData {
   parentName: string;
   parentEmail: string;
   parentPhone: string;
-  childName: string;
-  childAge: string;
-  childGrade: string;
+  playerName: string;
+  playerAge: string;
+  playerGrade: string;
   emergencyContact: string;
   emergencyPhone: string;
   medicalInfo: string;
@@ -43,9 +43,9 @@ interface EventRegistrationData {
   parentName: string;
   parentEmail: string;
   parentPhone: string;
-  childName: string;
-  childAge: string;
-  childGrade: string;
+  playerName: string;
+  playerAge: string;
+  playerGrade: string;
   emergencyContact: string;
   emergencyPhone: string;
   medicalInfo: string;
@@ -62,6 +62,82 @@ interface PlayerData {
   rank?: number;
   lastActive: string;
   email?: string;
+}
+
+interface ParentAccount {
+  id: string;
+  email: string;
+  createdDate: string;
+  lastLogin: string;
+  isActive: boolean;
+}
+
+interface PlayerOwnership {
+  playerId: string;
+  playerName: string;
+  playerEmail: string;
+  ownerParentId: string;
+  pendingParentId?: string;
+  approvalStatus: 'none' | 'pending' | 'approved' | 'denied';
+  claimDate: string;
+}
+
+interface PlayerOwnershipData extends RegistrationData {
+  playerId: string;
+  parentAccountId?: string;
+}
+
+interface ParentRegistrationData {
+  parentName: string;
+  parentEmail: string;
+  parentPhone: string;
+  hearAboutUs: string;
+  provincialInterest: string;
+  volunteerInterest: string;
+  consent: boolean;
+  photoConsent: boolean;
+  valuesAcknowledgment: boolean;
+  newsletter: boolean;
+  createAccount?: boolean;
+}
+
+interface StudentRegistrationData {
+  parentId: string;
+  playerName: string;
+  playerAge: string;
+  playerGrade: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalInfo: string;
+}
+
+// New interfaces for separate sheets
+interface ParentData {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  hearAboutUs: string;
+  provincialInterest: string;
+  volunteerInterest: string;
+  consent: boolean;
+  photoConsent: boolean;
+  valuesAcknowledgment: boolean;
+  newsletter: boolean;
+  createAccount: boolean;
+  timestamp: string;
+}
+
+interface StudentData {
+  id: string;
+  parentId: string;
+  name: string;
+  age: string;
+  grade: string;
+  emergencyContact: string;
+  emergencyPhone: string;
+  medicalInfo: string;
+  timestamp: string;
 }
 
 export class GoogleSheetsService {
@@ -131,9 +207,9 @@ export class GoogleSheetsService {
         data.parentName,
         data.parentEmail,
         data.parentPhone,
-        data.childName,
-        data.childAge,
-        data.childGrade,
+        data.playerName,
+        data.playerAge,
+        data.playerGrade,
         data.emergencyContact,
         data.emergencyPhone,
         data.medicalInfo,
@@ -163,6 +239,172 @@ export class GoogleSheetsService {
     }
   }
 
+  async addParentRegistration(data: ParentRegistrationData): Promise<string> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    // Generate a unique parent ID
+    const parentId = `parent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = new Date().toISOString();
+    
+    // Create parent data object
+    const parentData: ParentData = {
+      id: parentId,
+      name: data.parentName,
+      email: data.parentEmail,
+      phone: data.parentPhone,
+      hearAboutUs: data.hearAboutUs,
+      provincialInterest: data.provincialInterest,
+      volunteerInterest: data.volunteerInterest,
+      consent: data.consent,
+      photoConsent: data.photoConsent,
+      valuesAcknowledgment: data.valuesAcknowledgment,
+      newsletter: data.newsletter,
+      createAccount: data.createAccount || false,
+      timestamp: timestamp
+    };
+
+    // Write to parents sheet
+    const values = [
+      [
+        parentData.id,
+        parentData.name,
+        parentData.email,
+        parentData.phone,
+        parentData.hearAboutUs,
+        parentData.provincialInterest,
+        parentData.volunteerInterest,
+        parentData.consent ? 'Yes' : 'No',
+        parentData.photoConsent ? 'Yes' : 'No',
+        parentData.valuesAcknowledgment ? 'Yes' : 'No',
+        parentData.newsletter ? 'Yes' : 'No',
+        parentData.createAccount ? 'Yes' : 'No',
+        parentData.timestamp
+      ]
+    ];
+
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'parents!A:M',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+      
+      return parentId;
+    } catch (error) {
+      console.error('Error writing parent registration to Google Sheets:', error);
+      throw new Error('Failed to save parent registration to Google Sheets');
+    }
+  }
+
+  async addStudentRegistration(data: StudentRegistrationData): Promise<string> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    // Generate a unique student ID
+    const studentId = `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const timestamp = new Date().toISOString();
+    
+    // Create student data object
+    const studentData: StudentData = {
+      id: studentId,
+      parentId: data.parentId,
+      name: data.playerName,
+      age: data.playerAge,
+      grade: data.playerGrade,
+      emergencyContact: data.emergencyContact,
+      emergencyPhone: data.emergencyPhone,
+      medicalInfo: data.medicalInfo,
+      timestamp: timestamp
+    };
+
+    // Write to students sheet
+    const values = [
+      [
+        studentData.id,
+        studentData.parentId,
+        studentData.name,
+        studentData.age,
+        studentData.grade,
+        studentData.emergencyContact,
+        studentData.emergencyPhone,
+        studentData.medicalInfo,
+        studentData.timestamp
+      ]
+    ];
+
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'students!A:I',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+      
+      return studentId;
+    } catch (error) {
+      console.error('Error writing student registration to Google Sheets:', error);
+      throw new Error('Failed to save student registration to Google Sheets');
+    }
+  }
+
+  async getParentRegistration(parentId: string): Promise<ParentRegistrationData | null> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'parents!A:M',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length < 2) {
+        return null;
+      }
+
+      // Find the parent registration by parent ID
+      const parentRow = rows.find(row => row[0] === parentId); // Column A contains parent ID
+      
+      if (!parentRow) {
+        return null;
+      }
+
+      return {
+        parentName: parentRow[1] || '',
+        parentEmail: parentRow[2] || '',
+        parentPhone: parentRow[3] || '',
+        hearAboutUs: parentRow[4] || '',
+        provincialInterest: parentRow[5] || '',
+        volunteerInterest: parentRow[6] || '',
+        consent: parentRow[7] === 'Yes',
+        photoConsent: parentRow[8] === 'Yes',
+        valuesAcknowledgment: parentRow[9] === 'Yes',
+        newsletter: parentRow[10] === 'Yes',
+        createAccount: parentRow[11] === 'Yes'
+      };
+    } catch (error) {
+      console.error('Error reading parent registration from Google Sheets:', error);
+      throw new Error('Failed to retrieve parent registration from Google Sheets');
+    }
+  }
+
   async initializeSheet(): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
@@ -184,9 +426,9 @@ export class GoogleSheetsService {
           'Parent Name',
           'Parent Email',
           'Parent Phone',
-          'Child Name',
-          'Child Age',
-          'Child Grade',
+          'Player Name',
+          'Player Age',
+          'Player Grade',
           'Chess Experience',
           'Emergency Contact',
           'Emergency Phone',
@@ -627,9 +869,9 @@ export class GoogleSheetsService {
           parentName: row[1] || '',        // Column B
           parentEmail: row[2] || '',       // Column C
           parentPhone: row[3] || '',       // Column D
-          childName: row[4] || '',         // Column E
-          childAge: row[5] || '',          // Column F
-          childGrade: row[6] || '',        // Column G
+          playerName: row[4] || '',         // Column E
+          playerAge: row[5] || '',          // Column F
+          playerGrade: row[6] || '',        // Column G
           emergencyContact: row[7] || '',  // Column H
           emergencyPhone: row[8] || '',    // Column I
           medicalInfo: row[9] || '',       // Column J
@@ -644,7 +886,7 @@ export class GoogleSheetsService {
           timestamp: row[0] || '',         // Column A - Registration timestamp
           rowIndex: index + 2,             // Actual row number in spreadsheet (accounting for header)
         };
-      }).filter(registration => registration.childName); // Only include registrations with child names
+      }).filter(registration => registration.playerName); // Only include registrations with player names
     } catch (error) {
       console.error('Error reading registrations from Google Sheets:', error);
       throw new Error('Failed to retrieve registrations from Google Sheets');
@@ -669,9 +911,9 @@ export class GoogleSheetsService {
         data.parentName,
         data.parentEmail,
         data.parentPhone,
-        data.childName,
-        data.childAge,
-        data.childGrade,
+        data.playerName,
+        data.playerAge,
+        data.playerGrade,
         data.emergencyContact,
         data.emergencyPhone,
         data.medicalInfo || ''
@@ -757,9 +999,9 @@ export class GoogleSheetsService {
           'Parent Name',
           'Parent Email',
           'Parent Phone',
-          'Child Name',
-          'Child Age',
-          'Child Grade',
+          'Player Name',
+          'Player Age',
+          'Player Grade',
           'Emergency Contact',
           'Emergency Phone',
           'Medical Info'
@@ -800,9 +1042,654 @@ export class GoogleSheetsService {
       }
     }
   }
+
+  // Parent Account Management Methods
+  async getParentAccount(email: string): Promise<ParentAccount | null> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'parent_accounts!A:E',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return null;
+      }
+
+      // Find account by email
+      const accountRow = rows.slice(1).find(row => row[1] === email);
+      if (!accountRow) {
+        return null;
+      }
+
+      return {
+        id: accountRow[0] || '',
+        email: accountRow[1] || '',
+        createdDate: accountRow[2] || '',
+        lastLogin: accountRow[3] || '',
+        isActive: accountRow[4] === 'true'
+      };
+    } catch (error) {
+      console.error('Error reading parent account from Google Sheets:', error);
+      return null;
+    }
+  }
+
+  async addParentAccount(account: ParentAccount): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    const values = [
+      [
+        account.id,
+        account.email,
+        account.createdDate,
+        account.lastLogin,
+        account.isActive ? 'true' : 'false'
+      ]
+    ];
+
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'parent_accounts!A:E',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+    } catch (error) {
+      console.error('Error adding parent account to Google Sheets:', error);
+      throw new Error('Failed to add parent account to Google Sheets');
+    }
+  }
+
+  async updateParentAccount(parentId: string, updates: Partial<ParentAccount>): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'parent_accounts!A:E',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        throw new Error('Parent account not found');
+      }
+
+      // Find the row to update
+      const rowIndex = rows.slice(1).findIndex(row => row[0] === parentId);
+      if (rowIndex === -1) {
+        throw new Error('Parent account not found');
+      }
+
+      const actualRowIndex = rowIndex + 2; // Account for header row and 0-based index
+      const currentRow = rows[rowIndex + 1];
+
+      // Apply updates
+      const updatedRow = [
+        currentRow[0], // id (never changes)
+        updates.email !== undefined ? updates.email : currentRow[1],
+        updates.createdDate !== undefined ? updates.createdDate : currentRow[2],
+        updates.lastLogin !== undefined ? updates.lastLogin : currentRow[3],
+        updates.isActive !== undefined ? (updates.isActive ? 'true' : 'false') : currentRow[4]
+      ];
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `parent_accounts!A${actualRowIndex}:E${actualRowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [updatedRow],
+        },
+      });
+    } catch (error) {
+      console.error('Error updating parent account in Google Sheets:', error);
+      throw new Error('Failed to update parent account in Google Sheets');
+    }
+  }
+
+  // Player Ownership Management Methods
+  async getPlayerOwnership(playerId: string): Promise<PlayerOwnership | null> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'player_ownership!A:G',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return null;
+      }
+
+      // Find ownership by player ID
+      const ownershipRow = rows.slice(1).find(row => row[0] === playerId);
+      if (!ownershipRow) {
+        return null;
+      }
+
+      return {
+        playerId: ownershipRow[0] || '',
+        playerName: ownershipRow[1] || '',
+        playerEmail: ownershipRow[2] || '',
+        ownerParentId: ownershipRow[3] || '',
+        pendingParentId: ownershipRow[4] || undefined,
+        approvalStatus: (ownershipRow[5] as 'none' | 'pending' | 'approved' | 'denied') || 'none',
+        claimDate: ownershipRow[6] || ''
+      };
+    } catch (error) {
+      console.error('Error reading player ownership from Google Sheets:', error);
+      return null;
+    }
+  }
+
+  async addPlayerOwnership(ownership: PlayerOwnership): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    const values = [
+      [
+        ownership.playerId,
+        ownership.playerName,
+        ownership.playerEmail,
+        ownership.ownerParentId,
+        ownership.pendingParentId || '',
+        ownership.approvalStatus,
+        ownership.claimDate
+      ]
+    ];
+
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'player_ownership!A:G',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+    } catch (error) {
+      console.error('Error adding player ownership to Google Sheets:', error);
+      throw new Error('Failed to add player ownership to Google Sheets');
+    }
+  }
+
+  async updatePlayerOwnership(playerId: string, updates: Partial<PlayerOwnership>): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'player_ownership!A:G',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        throw new Error('Player ownership not found');
+      }
+
+      // Find the row to update
+      const rowIndex = rows.slice(1).findIndex(row => row[0] === playerId);
+      if (rowIndex === -1) {
+        throw new Error('Player ownership not found');
+      }
+
+      const actualRowIndex = rowIndex + 2; // Account for header row and 0-based index
+      const currentRow = rows[rowIndex + 1];
+
+      // Apply updates
+      const updatedRow = [
+        currentRow[0], // playerId (never changes)
+        updates.playerName !== undefined ? updates.playerName : currentRow[1],
+        updates.playerEmail !== undefined ? updates.playerEmail : currentRow[2],
+        updates.ownerParentId !== undefined ? updates.ownerParentId : currentRow[3],
+        updates.pendingParentId !== undefined ? (updates.pendingParentId || '') : currentRow[4],
+        updates.approvalStatus !== undefined ? updates.approvalStatus : currentRow[5],
+        updates.claimDate !== undefined ? updates.claimDate : currentRow[6]
+      ];
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `player_ownership!A${actualRowIndex}:G${actualRowIndex}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [updatedRow],
+        },
+      });
+    } catch (error) {
+      console.error('Error updating player ownership in Google Sheets:', error);
+      throw new Error('Failed to update player ownership in Google Sheets');
+    }
+  }
+
+  async getStudentsByParentId(parentId: string): Promise<StudentData[]> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'students!A:I',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length < 2) {
+        return [];
+      }
+
+      return rows.slice(1)
+        .filter(row => row[1] === parentId) // parentId matches
+        .map(row => ({
+          id: row[0] || '',
+          parentId: row[1] || '',
+          name: row[2] || '',
+          age: row[3] || '',
+          grade: row[4] || '',
+          emergencyContact: row[5] || '',
+          emergencyPhone: row[6] || '',
+          medicalInfo: row[7] || '',
+          timestamp: row[8] || ''
+        }));
+    } catch (error) {
+      console.error('Error getting students by parent ID from Google Sheets:', error);
+      throw new Error('Failed to get students by parent ID from Google Sheets');
+    }
+  }
+
+  async getParentByEmail(email: string): Promise<ParentData | null> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'parents!A:M',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length < 2) {
+        return null;
+      }
+
+      // Find parent by email
+      const parentRow = rows.slice(1).find(row => 
+        row[2] && row[2].toLowerCase() === email.toLowerCase()
+      );
+      
+      if (!parentRow) {
+        return null;
+      }
+
+      return {
+        id: parentRow[0] || '',
+        name: parentRow[1] || '',
+        email: parentRow[2] || '',
+        phone: parentRow[3] || '',
+        hearAboutUs: parentRow[4] || '',
+        provincialInterest: parentRow[5] || '',
+        volunteerInterest: parentRow[6] || '',
+        consent: parentRow[7] === 'Yes',
+        photoConsent: parentRow[8] === 'Yes',
+        valuesAcknowledgment: parentRow[9] === 'Yes',
+        newsletter: parentRow[10] === 'Yes',
+        createAccount: parentRow[11] === 'Yes',
+        timestamp: parentRow[12] || ''
+      };
+    } catch (error) {
+      console.error('Error getting parent by email from Google Sheets:', error);
+      throw new Error('Failed to get parent by email from Google Sheets');
+    }
+  }
+
+  async getParentPlayers(parentAccountId: string): Promise<PlayerOwnershipData[]> {
+    // Get all players owned by this parent account
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const ownershipResponse = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'player_ownership!A:G',
+      });
+
+      const ownershipRows = ownershipResponse.data.values;
+      if (!ownershipRows || ownershipRows.length <= 1) {
+        return [];
+      }
+
+      // Find all players owned by this parent account
+      const ownedPlayers = ownershipRows.slice(1)
+        .filter(row => row[3] === parentAccountId) // ownerParentId matches parent account ID
+        .map(row => ({
+          playerId: row[0],
+          playerName: row[1],
+          parentEmail: row[2]
+        }));
+
+      if (ownedPlayers.length === 0) {
+        return [];
+      }
+
+      // Get student data for these players from the students sheet
+      const studentsResponse = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'students!A:I',
+      });
+
+      const studentRows = studentsResponse.data.values;
+      if (!studentRows || studentRows.length < 2) {
+        return [];
+      }
+
+      // Map student data by player ID
+      const studentDataMap = new Map();
+      studentRows.slice(1).forEach(row => {
+        if (row[0]) { // playerId
+          studentDataMap.set(row[0], {
+            id: row[0],
+            parentId: row[1],
+            name: row[2],
+            age: row[3],
+            grade: row[4],
+            emergencyContact: row[5],
+            emergencyPhone: row[6],
+            medicalInfo: row[7],
+            timestamp: row[8]
+          });
+        }
+      });
+
+      // Combine ownership data with student data
+      return ownedPlayers
+        .map(ownedPlayer => {
+          const studentData = studentDataMap.get(ownedPlayer.playerId);
+          if (!studentData) {
+            console.warn(`Student data not found for player ${ownedPlayer.playerId}`);
+            return null;
+          }
+
+          return {
+            parentName: '', // Will be filled from parent data if needed
+            parentEmail: ownedPlayer.parentEmail,
+            parentPhone: '', // Will be filled from parent data if needed
+            playerName: studentData.name,
+            playerAge: studentData.age,
+            playerGrade: studentData.grade,
+            emergencyContact: studentData.emergencyContact,
+            emergencyPhone: studentData.emergencyPhone,
+            medicalInfo: studentData.medicalInfo,
+            hearAboutUs: '', // Will be filled from parent data if needed
+            provincialInterest: '', // Will be filled from parent data if needed
+            volunteerInterest: '', // Will be filled from parent data if needed
+            consent: false, // Will be filled from parent data if needed
+            photoConsent: false, // Will be filled from parent data if needed
+            valuesAcknowledgment: false, // Will be filled from parent data if needed
+            newsletter: false, // Will be filled from parent data if needed
+            timestamp: studentData.timestamp,
+            playerId: studentData.id,
+            parentAccountId: parentAccountId
+          };
+        })
+        .filter(player => player !== null);
+    } catch (error) {
+      console.error('Error getting parent players from Google Sheets:', error);
+      throw new Error('Failed to get parent players from Google Sheets');
+    }
+  }
+
+  async autoLinkExistingStudentsToParent(parentAccountId: string, parentEmail: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // First, get the parent ID from the parents sheet using the email
+      const parent = await this.getParentByEmail(parentEmail);
+      if (!parent) {
+        console.log(`No parent found with email ${parentEmail} in parents sheet`);
+        return; // No parent found in parents sheet
+      }
+
+      const parentId = parent.id;
+      
+      // Get all students for this parent from the students sheet
+      const students = await this.getStudentsByParentId(parentId);
+      
+      if (students.length === 0) {
+        console.log(`No students found for parent ${parentId}`);
+        return; // No players to link
+      }
+
+      console.log(`Found ${students.length} students for parent ${parentId}, linking to parent account ${parentAccountId}`);
+
+      // For each student, create or update ownership record
+      for (const student of students) {
+        const playerId = student.id;
+        
+        // Check if ownership record already exists
+        const existingOwnership = await this.getPlayerOwnership(playerId);
+        
+        if (!existingOwnership) {
+          // Create new ownership record
+          const now = new Date().toISOString();
+          await this.sheets.spreadsheets.values.append({
+            spreadsheetId,
+            range: 'player_ownership!A:G',
+            valueInputOption: 'RAW',
+            insertDataOption: 'INSERT_ROWS',
+            requestBody: {
+              values: [[
+                playerId,
+                student.name,
+                parentEmail,
+                parentAccountId, // Use parent account ID for ownership
+                '', // pendingParentId
+                'approved', // approvalStatus
+                now // claimDate
+              ]]
+            }
+          });
+          console.log(`Created ownership record for player ${playerId} (${student.name})`);
+        } else if (!existingOwnership.ownerParentId || existingOwnership.ownerParentId === '') {
+          // Update existing record to assign ownership
+          await this.updatePlayerOwnership(playerId, {
+            ownerParentId: parentAccountId, // Use parent account ID for ownership
+            approvalStatus: 'approved'
+          });
+          console.log(`Updated ownership record for player ${playerId} (${student.name})`);
+        } else {
+          console.log(`Player ${playerId} (${student.name}) already has owner ${existingOwnership.ownerParentId}`);
+        }
+        // If player already has an owner, don't override it
+      }
+    } catch (error) {
+      console.error('Error auto-linking students to parent:', error);
+      throw new Error('Failed to auto-link students to parent');
+    }
+  }
+
+  // Player ID Migration Method
+  async generatePlayerIdsForExistingRegistrations(): Promise<void> {
+    try {
+      const registrations = await this.getRegistrations();
+      
+      for (const registration of registrations) {
+        // Generate unique player ID based on registration data
+        const playerId = `plyr_${registration.playerName}_${registration.parentEmail}_${registration.timestamp}`.replace(/[^a-zA-Z0-9_]/g, '_');
+        
+        // Check if player ownership already exists
+        const existingOwnership = await this.getPlayerOwnership(playerId);
+        
+        if (!existingOwnership) {
+          // Create ownership record with the registering parent as initial owner
+          const ownership: PlayerOwnership = {
+            playerId,
+            playerName: registration.playerName,
+            playerEmail: registration.parentEmail,
+            ownerParentId: '', // Will be set when parent creates account
+            approvalStatus: 'none',
+            claimDate: registration.timestamp || new Date().toISOString()
+          };
+          
+          await this.addPlayerOwnership(ownership);
+        }
+      }
+    } catch (error) {
+      console.error('Error generating player IDs for existing registrations:', error);
+      throw new Error('Failed to generate player IDs for existing registrations');
+    }
+  }
+
+  // Initialize parent account and player ownership sheets
+  async initializeParentAccountsSheet(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Create the parent_accounts sheet with headers
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: 'parent_accounts'
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      // Add header row
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'parent_accounts!A1:E1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [['Parent ID', 'Email', 'Created Date', 'Last Login', 'Is Active']]
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing parent accounts sheet:', error);
+      throw new Error('Failed to initialize parent accounts sheet');
+    }
+  }
+
+  async initializePlayerOwnershipSheet(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Create the player_ownership sheet with headers
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: 'player_ownership'
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      // Add header row
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'player_ownership!A1:G1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [['Player ID', 'Player Name', 'Player Email', 'Owner Parent ID', 'Pending Parent ID', 'Approval Status', 'Claim Date']]
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing player ownership sheet:', error);
+      throw new Error('Failed to initialize player ownership sheet');
+    }
+  }
+
+  async initializeParentsSheet(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Create the parents sheet with headers
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: 'parents'
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      // Add header row
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'parents!A1:M1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[
+            'ID', 'Name', 'Email', 'Phone', 'Hear About Us', 'Provincial Interest', 
+            'Volunteer Interest', 'Consent', 'Photo Consent', 'Values Acknowledgment', 
+            'Newsletter', 'Create Account', 'Timestamp'
+          ]]
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing parents sheet:', error);
+      throw new Error('Failed to initialize parents sheet');
+    }
+  }
+
+  async initializeStudentsSheet(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Create the students sheet with headers
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [
+            {
+              addSheet: {
+                properties: {
+                  title: 'students'
+                }
+              }
+            }
+          ]
+        }
+      });
+
+      // Add header row
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'students!A1:I1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [[
+            'ID', 'Parent ID', 'Name', 'Age', 'Grade', 'Emergency Contact', 
+            'Emergency Phone', 'Medical Info', 'Timestamp'
+          ]]
+        }
+      });
+    } catch (error) {
+      console.error('Error initializing students sheet:', error);
+      throw new Error('Failed to initialize students sheet');
+    }
+  }
 }
 
 export const googleSheetsService = new GoogleSheetsService();
 
 // Export interfaces for use in other files
-export type { RegistrationData, EventData, EventRegistrationData, PlayerData };
+export type { RegistrationData, EventData, EventRegistrationData, PlayerData, ParentAccount, PlayerOwnership, PlayerOwnershipData };

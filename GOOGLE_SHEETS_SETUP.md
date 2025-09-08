@@ -180,9 +180,9 @@ The integration will automatically create columns in your sheets:
 | B | Parent Name |
 | C | Parent Email |
 | D | Parent Phone |
-| E | Child Name |
-| F | Child Age |
-| G | Child Grade |
+| E | Player Name |
+| F | Player Age |
+| G | Player Grade |
 | H | Chess Experience |
 | I | Emergency Contact |
 | J | Emergency Phone |

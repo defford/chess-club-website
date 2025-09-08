@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import Link from "next/link"
 import { Users, Award, Calendar, BookOpen, Target, Heart, Star, Trophy } from "lucide-react"
+import Image from "next/image"
 
 export default function AboutPage() {
   const benefits = [
@@ -77,7 +78,7 @@ export default function AboutPage() {
             About Our Club
           </h1>
           <p className="text-xl text-[--color-text-secondary] max-w-3xl mx-auto">
-            Founded in 2019, the Central NL Scholastic Chess Club has become a cornerstone of youth chess education in Newfoundland and Labrador.
+            Founded in 2023, the Central NL Scholastic Chess Club has become a cornerstone of youth chess education in Newfoundland and Labrador.
           </p>
         </div>
 
@@ -94,40 +95,55 @@ export default function AboutPage() {
                 environment where students from kindergarten through grade 12 can learn, grow, and excel.
               </p>
               <p>
-                <strong className="text-[--color-primary]">Founded in 2019</strong> by a group of passionate educators 
-                and chess enthusiasts, we've grown from a small group of 8 students meeting in a church basement to a 
-                thriving community of over <strong className="text-[--color-primary]">50 active members</strong> with 
-                our own dedicated space at the Community Center.
+                <strong className="text-[--color-primary]">Founded in 2023</strong> by a group of passionate educators 
+                and chess enthusiasts, we've grown from a small group of students meeting in a classroom to a 
+                thriving community of over <strong className="text-[--color-primary]">30 active members</strong> with 
+                our own dedicated space at Exploits Valley Intermediate School.
               </p>
               <p>
-                Our approach combines structured learning with fun, competitive play. Whether your child is a complete 
+                Our approach combines structured learning with fun, competitive play. Whether your player is a complete 
                 beginner or an experienced tournament player, we have programs designed to meet them where they are 
                 and help them reach their full potential.
               </p>
             </div>
           </div>
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gradient-to-br from-[--color-primary] to-[--color-accent] rounded-lg h-40 flex items-center justify-center text-white text-6xl">
-                ♛
+          
+          {/* Image Collage */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-4">
+              <div className="relative h-48 rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src="/images/491381142_10171354577070165_4202854025260736222_n.jpg"
+                  alt="One-on-one chess instruction"
+                  fill
+                  className="object-cover"
+                />
               </div>
-              <div className="bg-gradient-to-br from-[--color-secondary] to-orange-400 rounded-lg h-40 flex items-center justify-center text-[--color-accent] text-6xl">
-                ♞
+              <div className="relative h-32 rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src="/images/505370465_10171743782025165_7321635704409433236_n.jpg"
+                  alt="Focused young chess player"
+                  fill
+                  className="object-cover"
+                />
               </div>
             </div>
-            <div className="bg-gradient-to-r from-[--color-neutral-light] to-gray-200 rounded-lg h-24 flex items-center justify-center text-[--color-text-secondary] text-lg font-medium">
-              Students in Action - Tournament Day 2024
-            </div>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-gradient-to-br from-green-400 to-blue-500 rounded-lg h-20 flex items-center justify-center text-white text-2xl">
-                ♜
+            <div className="space-y-4 pt-8">
+              <div className="relative h-32 rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src="/images/505375007_10171743785350165_6065070256048518759_n.jpg"
+                  alt="Another focused chess player"
+                  fill
+                  className="object-cover"
+                />
               </div>
-              <div className="bg-gradient-to-br from-purple-400 to-pink-500 rounded-lg h-20 flex items-center justify-center text-white text-2xl">
-                ♝
-              </div>
-              <div className="bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg h-20 flex items-center justify-center text-white text-2xl">
-                ♟
+              <div className="relative h-48 rounded-lg overflow-hidden shadow-lg">
+                <Image
+                  src="/images/508412988_10171823093405165_6219559043861325087_n.jpg"
+                  alt="Awards ceremony with certificates"
+                  fill
+                  className="object-cover"
+                />
               </div>
             </div>
           </div>
@@ -143,9 +159,6 @@ export default function AboutPage() {
               <Card key={index} className="h-full">
                 <CardContent className="p-6">
                   <div className="flex items-center mb-4">
-                    <div className="w-10 h-10 bg-[--color-primary] text-white rounded-lg flex items-center justify-center mr-3">
-                      {benefit.icon}
-                    </div>
                     <h3 className="font-heading font-semibold text-lg text-[--color-text-primary]">
                       {benefit.title}
                     </h3>
@@ -160,7 +173,7 @@ export default function AboutPage() {
         </div>
 
         {/* Achievements */}
-        <div className="bg-[--color-neutral-light] rounded-lg p-8 mb-16">
+        {/* <div className="bg-[--color-neutral-light] rounded-lg p-8 mb-16">
           <h2 className="font-heading font-bold text-3xl text-[--color-accent] text-center mb-8">
             Our Achievements
           </h2>
@@ -179,9 +192,9 @@ export default function AboutPage() {
               </div>
             ))}
           </div>
-        </div>
+        </div> */}
 
-        {/* Instructors */}
+        {/* Instructors
         <div className="mb-16">
           <h2 className="font-heading font-bold text-3xl text-[--color-accent] text-center mb-12">
             Meet Our Instructors
@@ -206,9 +219,9 @@ export default function AboutPage() {
               </Card>
             ))}
           </div>
-        </div>
+        </div> */}
 
-        {/* Programs */}
+        {/* Programs
         <div className="mb-16">
           <h2 className="font-heading font-bold text-3xl text-[--color-accent] text-center mb-12">
             Our Programs
@@ -278,7 +291,7 @@ export default function AboutPage() {
               <CardContent>
                 <ul className="space-y-2 text-[--color-text-secondary]">
                   <li>• Summer chess camps</li>
-                  <li>• Parent-child workshops</li>
+                  <li>• Parent-player workshops</li>
                   <li>• School visit programs</li>
                   <li>• Birthday party chess instruction</li>
                   <li>• Private and semi-private lessons</li>
@@ -286,7 +299,7 @@ export default function AboutPage() {
               </CardContent>
             </Card>
           </div>
-        </div>
+        </div> */}
 
         {/* Call to Action */}
         <div className="text-center">
@@ -296,12 +309,12 @@ export default function AboutPage() {
                 Ready to Join Our Chess Family?
               </h3>
               <p className="text-[--color-text-secondary] mb-6">
-                Give your child the gift of chess. Register today and watch them develop skills that will last a lifetime.
+                Give your player the gift of chess. Register today and watch them develop skills that will last a lifetime.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link href="/register">
                   <Button variant="secondary" size="lg">
-                    Register Your Child
+                    Register Your Player
                   </Button>
                 </Link>
                 <Link href="/events">

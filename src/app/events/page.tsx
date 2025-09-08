@@ -18,12 +18,13 @@ export default function EventsPage() {
     parentName: '',
     parentEmail: '',
     parentPhone: '',
-    childName: '',
-    childAge: '',
-    childGrade: '',
+    playerName: '',
+    playerAge: '',
+    playerGrade: '',
     emergencyContact: '',
     emergencyPhone: '',
-    medicalInfo: ''
+    medicalInfo: '',
+    createAccount: false
   })
 
   useEffect(() => {
@@ -87,18 +88,37 @@ export default function EventsPage() {
         throw new Error('Failed to register for event')
       }
 
+      // If user opted to create an account, send magic link
+      if (registrationData.createAccount) {
+        try {
+          await fetch('/api/parent/auth', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: registrationData.parentEmail
+            }),
+          })
+        } catch (accountError) {
+          console.error('Account creation error:', accountError)
+          // Don't fail the event registration if account creation fails
+        }
+      }
+
       // Success - close modal and reset form
       setShowRegistrationModal(false)
       setRegistrationData({
         parentName: '',
         parentEmail: '',
         parentPhone: '',
-        childName: '',
-        childAge: '',
-        childGrade: '',
+        playerName: '',
+        playerAge: '',
+        playerGrade: '',
         emergencyContact: '',
         emergencyPhone: '',
-        medicalInfo: ''
+        medicalInfo: '',
+        createAccount: false
       })
       
       // Refresh events to show updated participant count
@@ -117,7 +137,7 @@ export default function EventsPage() {
     }
   }
 
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: string, value: string | boolean) => {
     setRegistrationData(prev => ({
       ...prev,
       [field]: value
@@ -341,40 +361,40 @@ export default function EventsPage() {
                     
                     <div>
                       <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Child Name *
+                        Player Name *
                       </label>
                       <input
                         type="text"
                         required
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.childName}
-                        onChange={(e) => handleInputChange('childName', e.target.value)}
+                        value={registrationData.playerName}
+                        onChange={(e) => handleInputChange('playerName', e.target.value)}
                       />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Child Age *
+                        Player Age *
                       </label>
                       <input
                         type="text"
                         required
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.childAge}
-                        onChange={(e) => handleInputChange('childAge', e.target.value)}
+                        value={registrationData.playerAge}
+                        onChange={(e) => handleInputChange('playerAge', e.target.value)}
                       />
                     </div>
                     
                     <div>
                       <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Child Grade *
+                        Player Grade *
                       </label>
                       <input
                         type="text"
                         required
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.childGrade}
-                        onChange={(e) => handleInputChange('childGrade', e.target.value)}
+                        value={registrationData.playerGrade}
+                        onChange={(e) => handleInputChange('playerGrade', e.target.value)}
                       />
                     </div>
                     
@@ -416,6 +436,26 @@ export default function EventsPage() {
                       value={registrationData.medicalInfo}
                       onChange={(e) => handleInputChange('medicalInfo', e.target.value)}
                     />
+                  </div>
+
+                  <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                    <div className="flex items-start space-x-3">
+                      <input
+                        type="checkbox"
+                        id="createAccountEvent"
+                        checked={registrationData.createAccount}
+                        onChange={(e) => handleInputChange('createAccount', e.target.checked)}
+                        className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
+                      />
+                      <div>
+                        <label htmlFor="createAccountEvent" className="text-sm font-medium text-blue-800">
+                          Create a parent account to track your player's progress
+                        </label>
+                        <p className="text-xs text-blue-600 mt-1">
+                          With a parent account, you can view rankings, register for events, and track tournament performance. A link will be sent to your email.
+                        </p>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex gap-3 pt-4">

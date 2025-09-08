@@ -7,8 +7,8 @@ import { useState } from "react"
 export function RegistrationPreview() {
   const [formData, setFormData] = useState({
     parentName: "",
-    childName: "",
-    childAge: "",
+    playerName: "",
+    playerAge: "",
     email: "",
     phone: "",
     consent: false
@@ -38,7 +38,7 @@ export function RegistrationPreview() {
               Ready to Join?
             </h2>
             <p className="text-lg text-[--color-text-secondary]">
-              Register your child today and let them grow through strategy, confidence, and fun.
+              Register your player today and let them grow through strategy, confidence, and fun.
             </p>
           </div>
 
@@ -46,7 +46,7 @@ export function RegistrationPreview() {
             <CardHeader>
               <CardTitle>Club Registration</CardTitle>
               <CardDescription>
-                Fill out the form below to register your child for the Central NL Scholastic Chess Club.
+                Fill out the form below to register your player for the Central NL Scholastic Chess Club.
               </CardDescription>
             </CardHeader>
             
@@ -69,32 +69,32 @@ export function RegistrationPreview() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label htmlFor="childName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                      Child's Name *
+                    <label htmlFor="playerName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                      Player's Name *
                     </label>
                     <input
                       type="text"
-                      id="childName"
-                      name="childName"
+                      id="playerName"
+                      name="playerName"
                       required
-                      value={formData.childName}
+                      value={formData.playerName}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                     />
                   </div>
                   
                   <div>
-                    <label htmlFor="childAge" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                      Child's Age *
+                    <label htmlFor="playerAge" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                      Player's Age *
                     </label>
                     <input
                       type="number"
-                      id="childAge"
-                      name="childAge"
+                      id="playerAge"
+                      name="playerAge"
                       required
                       min="5"
                       max="18"
-                      value={formData.childAge}
+                      value={formData.playerAge}
                       onChange={handleChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
                     />
@@ -143,7 +143,7 @@ export function RegistrationPreview() {
                     className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
                   />
                   <label htmlFor="consent" className="text-sm text-[--color-text-secondary]">
-                    I consent to my child participating in chess club activities and acknowledge that I have read and agree to the club's policies. *
+                    I consent to my player participating in chess club activities and acknowledge that I have read and agree to the club's policies. *
                   </label>
                 </div>
 

@@ -47,7 +47,7 @@ RESEND_API_KEY=re_your_actual_api_key_here
 
 The system is pre-configured with:
 - **From Address**: `Central NL Chess Club <registration@centralnlchess.ca>`
-- **Subject**: `Registration Confirmation - [Child Name]`
+- **Subject**: `Registration Confirmation - [Player Name]`
 - **Template**: Professional HTML email with club branding
 
 ### Customizing the "From" Address
@@ -86,7 +86,7 @@ from: 'Central NL Chess Club <registration@yourdomain.com>',
 The confirmation email includes:
 
 ### 📋 **Registration Summary**
-- Child's name, age, grade
+- Player's name, age, grade
 - Chess experience level
 - Parent contact info
 - Emergency contact
@@ -134,9 +134,9 @@ import { emailService } from './src/lib/email';
 const testData = {
   parentName: "John Doe",
   parentEmail: "your-email@example.com",
-  childName: "Jane Doe",
-  childAge: "10",
-  childGrade: "5",
+  playerName: "Jane Doe",
+  playerAge: "10",
+  playerGrade: "5",
   // ... other required fields
 };
 

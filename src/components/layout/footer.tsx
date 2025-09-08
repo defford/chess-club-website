@@ -34,7 +34,7 @@ export function Footer() {
           <div>
             <h3 className="font-heading font-semibold text-lg mb-4">Contact Info</h3>
             <div className="space-y-2 text-gray-300">
-              <p>Email: defford@gmail.com</p>
+              <p>Email: daniel@cnlscc.com</p>
               <p>Phone: (709) 727-0484</p>
             </div>
           </div>

@@ -8,6 +8,8 @@ export async function POST() {
       googleSheetsService.initializeSheet(), // Registration sheet
       googleSheetsService.initializeEventsSheet(),
       googleSheetsService.initializeRankingsSheet(),
+      googleSheetsService.initializeParentAccountsSheet(),
+      googleSheetsService.initializePlayerOwnershipSheet(),
     ]);
     
     return NextResponse.json(

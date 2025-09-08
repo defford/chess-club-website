@@ -75,10 +75,10 @@ export default function MemberManagement() {
     if (query.trim()) {
       const lowercaseQuery = query.toLowerCase()
       const filtered = members.filter(member =>
-        member.childName.toLowerCase().includes(lowercaseQuery) ||
+        member.playerName.toLowerCase().includes(lowercaseQuery) ||
         member.parentName.toLowerCase().includes(lowercaseQuery) ||
         member.parentEmail.toLowerCase().includes(lowercaseQuery) ||
-        member.childGrade.toLowerCase().includes(lowercaseQuery)
+        member.playerGrade.toLowerCase().includes(lowercaseQuery)
       )
       setFilteredMembers(filtered)
     } else {
@@ -92,11 +92,12 @@ export default function MemberManagement() {
     const hasEmergencyInfo = members.filter(m => m.emergencyContact && m.emergencyPhone)
     const interestedInProvincial = members.filter(m => m.provincialInterest?.toLowerCase() === 'yes')
     const willingToVolunteer = members.filter(m => m.volunteerInterest?.toLowerCase() === 'yes')
+    const photoConsent = members.filter(m => m.photoConsent)
     const subscribedToNewsletter = members.filter(m => m.newsletter)
     const hasMedicalInfo = members.filter(m => m.medicalInfo && m.medicalInfo.trim() !== '')
     
     const gradeDistribution = members.reduce((acc, member) => {
-      const grade = member.childGrade || 'Unknown'
+      const grade = member.playerGrade || 'Unknown'
       acc[grade] = (acc[grade] || 0) + 1
       return acc
     }, {} as Record<string, number>)
@@ -109,6 +110,7 @@ export default function MemberManagement() {
       willingToVolunteer: willingToVolunteer.length,
       subscribedToNewsletter: subscribedToNewsletter.length,
       hasMedicalInfo: hasMedicalInfo.length,
+      photoConsent: photoConsent.length,
       gradeDistribution,
       // Calculate completion percentage
       completionRate: Math.round((fullyConsented.length / members.length) * 100) || 0,
@@ -319,7 +321,7 @@ export default function MemberManagement() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-xl font-bold text-[--color-accent]">
-                            {member.childName}
+                            {member.playerName}
                           </h3>
                           {member.rowIndex && (
                             <span className="px-2 py-1 bg-gray-200 text-gray-700 rounded text-xs font-mono">
@@ -330,11 +332,11 @@ export default function MemberManagement() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
                             <Users className="h-3 w-3 mr-1" />
-                            Grade {member.childGrade}
+                            Grade {member.playerGrade}
                           </span>
                           <span className="inline-flex items-center px-2 py-1 bg-purple-100 text-purple-800 rounded-full text-xs font-medium">
                             <Calendar className="h-3 w-3 mr-1" />
-                            Age {member.childAge}
+                            Age {member.playerAge}
                           </span>
                           <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
                             hasConsent 

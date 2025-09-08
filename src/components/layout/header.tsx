@@ -10,9 +10,10 @@ const navigation = [
   { name: "Home", href: "/" },
   { name: "Register", href: "/register" },
   { name: "Events", href: "/events" },
-  { name: "Rankings", href: "/rankings" },
+  // { name: "Rankings", href: "/rankings" },
   { name: "About", href: "/about" },
-  { name: "Admin", href: "/admin" },
+  { name: "Parent Login", href: "/parent/login" },
+  // { name: "Admin", href: "/admin" },
 ]
 
 export function Header() {

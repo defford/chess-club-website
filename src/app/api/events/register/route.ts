@@ -7,9 +7,9 @@ interface EventRegistrationData {
   parentName: string;
   parentEmail: string;
   parentPhone: string;
-  childName: string;
-  childAge: string;
-  childGrade: string;
+  playerName: string;
+  playerAge: string;
+  playerGrade: string;
   emergencyContact: string;
   emergencyPhone: string;
   medicalInfo: string;
@@ -27,9 +27,9 @@ export async function POST(request: NextRequest) {
       'parentName',
       'parentEmail',
       'parentPhone',
-      'childName',
-      'childAge',
-      'childGrade',
+      'playerName',
+      'playerAge',
+      'playerGrade',
       'emergencyContact',
       'emergencyPhone'
     ];
