@@ -3,16 +3,9 @@ import { googleSheetsService } from '@/lib/googleSheets';
 
 interface EventRegistrationData {
   eventId: string;
-  eventName: string;
-  parentName: string;
-  parentEmail: string;
-  parentPhone: string;
   playerName: string;
-  playerAge: string;
   playerGrade: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
+  additionalNotes: string;
   timestamp?: string;
 }
 
@@ -23,15 +16,8 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     const requiredFields = [
       'eventId',
-      'eventName', 
-      'parentName',
-      'parentEmail',
-      'parentPhone',
       'playerName',
-      'playerAge',
-      'playerGrade',
-      'emergencyContact',
-      'emergencyPhone'
+      'playerGrade'
     ];
     
     for (const field of requiredFields) {

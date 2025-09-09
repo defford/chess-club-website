@@ -231,13 +231,13 @@ export default function EventsPage() {
                     </div>
                   )}
                   
-                  <div className="flex items-center text-sm text-[--color-text-secondary]">
+                  {/* <div className="flex items-center text-sm text-[--color-text-secondary]">
                     <Users className="h-4 w-4 mr-2" />
                     <span>
                       {event.participants || 0}
                       {event.maxParticipants > 0 ? `/${event.maxParticipants}` : ''} registered
                     </span>
-                  </div>
+                  </div> */}
 
                   <div className="pt-2 border-t">
                     {event.ageGroups && (
@@ -246,7 +246,7 @@ export default function EventsPage() {
                       </p>
                     )}
                     
-                    <Button 
+                    {/* <Button 
                       variant="secondary" 
                       size="sm" 
                       className="w-full"
@@ -254,7 +254,7 @@ export default function EventsPage() {
                       onClick={() => handleRegisterClick(event)}
                     >
                       {(event.maxParticipants > 0 && event.participants >= event.maxParticipants) ? "Event Full" : "Register for Event"}
-                    </Button>
+                    </Button> */}
                   </div>
                 </div>
               </CardContent>

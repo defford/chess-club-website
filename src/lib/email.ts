@@ -96,7 +96,7 @@ class EmailService {
       await this.resend.emails.send({
         from: 'Central NL Chess Club <daniel@cnlscc.com>',
         to: [data.parentEmail],
-        subject: `Parent Registration Confirmation - ${data.parentName}`,
+        subject: `Parent Account Created - Next: Add Your Students - ${data.parentName}`,
         html: emailHtml,
       });
     } catch (error) {
@@ -126,7 +126,7 @@ class EmailService {
       await this.resend.emails.send({
         from: 'Central NL Chess Club <daniel@cnlscc.com>',
         to: [data.playerEmail],
-        subject: `Registration Confirmation - ${data.playerName}`,
+        subject: `Student Registration Complete - ${data.playerName}`,
         html: emailHtml,
       });
     } catch (error) {
@@ -150,7 +150,6 @@ class EmailService {
   }
 
   private generateConfirmationEmail(data: RegistrationData): string {
-    const experienceText = 'Not specified'; // Remove reference to non-existent experience field
 
     return `
       <!DOCTYPE html>
@@ -201,10 +200,6 @@ class EmailService {
                   <span>${data.playerGrade}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
-                  <span style="font-weight: 600;">Chess Experience:</span>
-                  <span>${experienceText}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
                   <span style="font-weight: 600;">Parent Contact:</span>
                   <span>${data.parentEmail}</span>
                 </div>
@@ -248,7 +243,7 @@ class EmailService {
                 Questions? We're here to help!
               </p>
               <p style="margin: 0;">
-                📧 <a href="mailto:info@centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">daniel@cnlscc.com</a><br>
+                📧 <a href="mailto:daniel@cnlscc.com" style="color: #2d5a87; text-decoration: none;">daniel@cnlscc.com</a><br>
                 🌐 <a href="https://cnlscc.com" style="color: #2d5a87; text-decoration: none;">cnlscc.com</a>
               </p>
             </div>
@@ -274,14 +269,14 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Parent Registration Confirmation</title>
+        <title>Parent Account Created - Next: Add Your Students</title>
       </head>
       <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
             <h1 style="margin: 0; font-size: 28px; font-weight: bold;">
-              👨‍👩‍👧‍👦 Parent Registration Confirmed!
+              👨‍👩‍👧‍👦 Parent Account Created!
             </h1>
             <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">
               Central NL Scholastic Chess Club
@@ -295,18 +290,36 @@ class EmailService {
             </p>
 
             <p style="margin-bottom: 20px;">
-              Thank you for registering as a parent with the Central NL Scholastic Chess Club! 
-              Your account has been created and you can now add your players to the club.
+              <strong>Your parent account has been successfully created!</strong> This account allows you to register and manage multiple students in your family.
             </p>
 
             <!-- Next Steps -->
             <div style="background: #e6fffa; border-left: 4px solid #38b2ac; padding: 20px; margin: 25px 0;">
-              <h3 style="margin: 0 0 15px; color: #234e52;">Next Steps</h3>
-              <ul style="margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 8px;">Click the "Add Student" button to register your players</li>
-                <li style="margin-bottom: 8px;">Complete the student information for each player</li>
-                <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
-              </ul>
+              <h3 style="margin: 0 0 15px; color: #234e52;">Next Steps - Add Your Students</h3>
+              <ol style="margin: 0; padding-left: 20px;">
+                <li style="margin-bottom: 8px;"><strong>Return to the registration page</strong> and click "Add Student"</li>
+                <li style="margin-bottom: 8px;"><strong>Complete student information</strong> for each child you want to register</li>
+                <li style="margin-bottom: 8px;"><strong>Repeat for additional students</strong> if you have multiple children</li>
+              </ol>
+            </div>
+
+            <!-- Account Type Info -->
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 6px; margin: 25px 0;">
+              <h3 style="margin: 0 0 15px; color: #1a365d; font-size: 18px;">Your Parent Account</h3>
+              <div style="display: grid; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Account Type:</span>
+                  <span>Parent Account</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Parent Name:</span>
+                  <span>${data.parentName}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                  <span style="font-weight: 600;">Email:</span>
+                  <span>${data.parentEmail}</span>
+                </div>
+              </div>
             </div>
 
             <!-- Contact -->
@@ -423,14 +436,14 @@ class EmailService {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Self-Registration Confirmation</title>
+        <title>Student Registration Complete</title>
       </head>
       <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
           <!-- Header -->
           <div style="background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
             <h1 style="margin: 0; font-size: 28px; font-weight: bold;">
-              ♟️ Registration Confirmed!
+              ♟️ Student Registration Complete!
             </h1>
             <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">
               Central NL Scholastic Chess Club
@@ -444,15 +457,26 @@ class EmailService {
             </p>
 
             <p style="margin-bottom: 20px;">
-              Thank you for registering yourself for the Central NL Scholastic Chess Club! 
-              We're excited to welcome you to our chess community.
+              <strong>Congratulations! Your student registration is complete!</strong> You have successfully registered yourself for the Central NL Scholastic Chess Club. We're excited to welcome you to our chess community.
             </p>
+
+            <!-- Registration Type Notice -->
+            <div style="background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 20px; margin: 25px 0;">
+              <h3 style="margin: 0 0 15px; color: #0c5460;">✅ Registration Complete</h3>
+              <p style="margin: 0; font-size: 14px; color: #0c5460;">
+                You have registered yourself as a student (age 13+). Your registration includes a student record, so you're all set to participate in club activities.
+              </p>
+            </div>
 
             <!-- Registration Details -->
             <div style="background: #f8f9fa; padding: 20px; border-radius: 6px; margin: 25px 0;">
               <h3 style="margin: 0 0 15px; color: #1a365d; font-size: 18px;">Your Registration Details</h3>
               
               <div style="display: grid; gap: 10px;">
+                <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                  <span style="font-weight: 600;">Registration Type:</span>
+                  <span>Student Registration</span>
+                </div>
                 <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
                   <span style="font-weight: 600;">Name:</span>
                   <span>${data.playerName}</span>
@@ -484,10 +508,10 @@ class EmailService {
             <div style="background: #e6fffa; border-left: 4px solid #38b2ac; padding: 20px; margin: 25px 0;">
               <h3 style="margin: 0 0 15px; color: #234e52;">What's Next?</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
-                <li style="margin-bottom: 8px;">Sessions typically run weekly during the school year</li>
-                <li style="margin-bottom: 8px;">All chess equipment is provided - no need to bring anything</li>
-                ${data.createAccount ? '<li style="margin-bottom: 8px;">Check your email for your player account magic link</li>' : ''}
+                <li style="margin-bottom: 8px;"><strong>You'll receive schedule information</strong> within 24-48 hours</li>
+                <li style="margin-bottom: 8px;"><strong>Sessions typically run weekly</strong> during the school year</li>
+                <li style="margin-bottom: 8px;"><strong>All chess equipment is provided</strong> - no need to bring anything</li>
+                ${data.createAccount ? '<li style="margin-bottom: 8px;"><strong>Check your email</strong> for your player account login link to access your dashboard</li>' : ''}
               </ul>
             </div>
 
@@ -533,15 +557,6 @@ class EmailService {
     `;
   }
 
-  private getExperienceText(experience: string): string {
-    const experienceMap: Record<string, string> = {
-      'none': 'Complete Beginner',
-      'basic': 'Knows Basic Rules',
-      'casual': 'Casual Player',
-      'tournament': 'Tournament Experience'
-    };
-    return experienceMap[experience] || experience;
-  }
 }
 
 export const emailService = new EmailService();

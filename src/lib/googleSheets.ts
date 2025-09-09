@@ -39,16 +39,9 @@ interface EventData {
 
 interface EventRegistrationData {
   eventId: string;
-  eventName: string;
-  parentName: string;
-  parentEmail: string;
-  parentPhone: string;
   playerName: string;
-  playerAge: string;
   playerGrade: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
+  additionalNotes: string;
   timestamp?: string;
 }
 
@@ -999,25 +992,17 @@ export class GoogleSheetsService {
     const timestamp = new Date().toISOString();
     const values = [
       [
-        timestamp,
         data.eventId,
-        data.eventName,
-        data.parentName,
-        data.parentEmail,
-        data.parentPhone,
         data.playerName,
-        data.playerAge,
         data.playerGrade,
-        data.emergencyContact,
-        data.emergencyPhone,
-        data.medicalInfo || ''
+        data.additionalNotes || ''
       ]
     ];
 
     try {
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'event registrations!A:L', // Using the new sheet name
+        range: 'event registrations!A:D', // Updated range for new format
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -1082,28 +1067,20 @@ export class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'event registrations!A1:L1',
+        range: 'event registrations!A1:D1',
       });
 
       if (!response.data.values || response.data.values.length === 0) {
         const headers = [
-          'Timestamp',
           'Event ID',
-          'Event Name',
-          'Parent Name',
-          'Parent Email',
-          'Parent Phone',
           'Player Name',
-          'Player Age',
           'Player Grade',
-          'Emergency Contact',
-          'Emergency Phone',
-          'Medical Info'
+          'Additional Notes'
         ];
 
         await this.sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: 'event registrations!A1:L1',
+          range: 'event registrations!A1:D1',
           valueInputOption: 'RAW',
           requestBody: {
             values: [headers],
@@ -1113,6 +1090,55 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Error initializing event registrations sheet:', error);
       throw new Error('Failed to initialize event registrations sheet');
+    }
+  }
+
+  // Get event registrations for a specific player
+  async getEventRegistrationsByPlayer(playerName: string): Promise<Array<{
+    eventId: string;
+    playerName: string;
+    playerGrade: string;
+    additionalNotes: string;
+    eventDetails?: EventData;
+  }>> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets registration ID not configured');
+    }
+
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'event registrations!A:D',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return [];
+      }
+
+      // Skip header row and filter by player name
+      const playerRegistrations = rows.slice(1)
+        .filter(row => row[1] === playerName) // Column B is player name
+        .map(row => ({
+          eventId: row[0] || '',
+          playerName: row[1] || '',
+          playerGrade: row[2] || '',
+          additionalNotes: row[3] || ''
+        }));
+
+      // Get event details for each registration
+      const events = await this.getEvents();
+      const eventMap = new Map(events.map(event => [event.id, event]));
+
+      return playerRegistrations.map(registration => ({
+        ...registration,
+        eventDetails: eventMap.get(registration.eventId)
+      }));
+    } catch (error) {
+      console.error('Error reading event registrations from Google Sheets:', error);
+      throw new Error('Failed to retrieve event registrations from Google Sheets');
     }
   }
 

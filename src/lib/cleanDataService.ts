@@ -392,7 +392,7 @@ export class CleanDataService {
         return [];
       }
 
-      return rows.slice(1).map(row => ({
+      return rows.slice(1).map((row: string[]) => ({
         memberId: row[0] || '',
         parentName: row[1] || '',
         parentEmail: row[2] || '',
@@ -414,7 +414,7 @@ export class CleanDataService {
         registrationDate: row[18] || '',
         isActive: row[19] === 'TRUE',
         parentLoginEnabled: row[20] === 'TRUE'
-      })).filter(member => member.playerName); // Only include valid members
+      })).filter((member: CleanMemberData) => member.playerName); // Only include valid members
     } catch (error) {
       console.error('❌ Failed to get clean members:', error);
       throw error;

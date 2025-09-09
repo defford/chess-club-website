@@ -4,7 +4,7 @@ import { googleSheetsService } from '@/lib/googleSheets';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, smsNumber, preferSms } = await request.json();
+    const { email, smsNumber, preferSms, isSelfRegistered } = await request.json();
     
     // Validate email
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
     await parentAuthService.sendMagicLink(email, 'login', {
       smsNumber,
       preferSms,
-      emailExistsInRegistrations: emailExists
+      emailExistsInRegistrations: emailExists,
+      isSelfRegistered: isSelfRegistered || false
     });
 
     return NextResponse.json(
@@ -38,9 +39,11 @@ export async function POST(request: NextRequest) {
     
     // If SMS failed and we have fallback email
     if (error instanceof Error && error.message.includes('SMS not yet implemented')) {
-      const { email } = await request.json();
+      const { email, isSelfRegistered } = await request.json();
       try {
-        await parentAuthService.sendMagicLink(email, 'login');
+        await parentAuthService.sendMagicLink(email, 'login', {
+          isSelfRegistered: isSelfRegistered || false
+        });
         return NextResponse.json(
           { 
             message: 'SMS not available, magic link sent to email instead',

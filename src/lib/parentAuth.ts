@@ -83,6 +83,7 @@ class ParentAuthService {
       smsNumber?: string; // Phone number for SMS
       preferSms?: boolean; // Whether to prefer SMS over email
       emailExistsInRegistrations?: boolean;
+      isSelfRegistered?: boolean; // Whether this is for a self-registered student
     }
   ): Promise<void> {
     const token = this.generateMagicToken(email, type, options);
@@ -96,9 +97,15 @@ class ParentAuthService {
     switch (type) {
       case 'login':
         magicUrl = `${baseUrl}/parent/verify?token=${token}`;
-        subject = 'Chess Club Parent Login';
-        htmlContent = this.generateLoginEmailHtml(magicUrl);
-        smsContent = `Chess Club login link: ${magicUrl} (expires in 15 minutes)`;
+        if (options?.isSelfRegistered) {
+          subject = 'Chess Club Player Login';
+          htmlContent = this.generatePlayerLoginEmailHtml(magicUrl);
+          smsContent = `Chess Club player login link: ${magicUrl} (expires in 15 minutes)`;
+        } else {
+          subject = 'Chess Club Parent Login';
+          htmlContent = this.generateLoginEmailHtml(magicUrl);
+          smsContent = `Chess Club login link: ${magicUrl} (expires in 15 minutes)`;
+        }
         break;
         
       case 'approval_request':
@@ -284,6 +291,51 @@ class ParentAuthService {
                 • Register for upcoming tournaments and events<br>
                 • Track tournament performance and history<br>
                 • Update contact information
+              </p>
+            </div>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private generatePlayerLoginEmailHtml(magicUrl: string): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Chess Club Player Login</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #1a365d 0%, #2d5a87 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: bold;">♟️ Player Login</h1>
+            <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.9;">Central NL Scholastic Chess Club</p>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border-radius: 0 0 8px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <p style="font-size: 18px; margin-bottom: 20px;">Click the button below to access your player dashboard:</p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${magicUrl}" style="background: #1a365d; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                Access Player Dashboard
+              </a>
+            </div>
+            
+            <p style="color: #666; font-size: 14px; margin-top: 25px;">
+              This link will expire in 15 minutes for security. If you didn't request this login, please ignore this email.
+            </p>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 6px; margin: 25px 0;">
+              <p style="margin: 0; font-size: 14px;">
+                <strong>In your player dashboard, you can:</strong><br>
+                • View your chess rankings and progress<br>
+                • Register for upcoming tournaments and events<br>
+                • Track your tournament performance and history<br>
+                • Update your contact information
               </p>
             </div>
           </div>

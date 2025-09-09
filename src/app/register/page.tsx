@@ -32,7 +32,7 @@ function RegisterPageContent() {
     photoConsent: false,
     valuesAcknowledgment: false,
     newsletter: true,
-    createAccount: false
+    createAccount: true
   })
   
   const [selfRegistrationData, setSelfRegistrationData] = useState({
@@ -51,7 +51,7 @@ function RegisterPageContent() {
     photoConsent: false,
     valuesAcknowledgment: false,
     newsletter: true,
-    createAccount: false
+    createAccount: true
   })
   
   const [students, setStudents] = useState<Student[]>([])
@@ -69,6 +69,7 @@ function RegisterPageContent() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [parentId, setParentId] = useState("")
+  const [showAddChildForm, setShowAddChildForm] = useState(true)
 
   // Pre-fill email from URL params if coming from parent login
   useEffect(() => {
@@ -130,7 +131,8 @@ function RegisterPageContent() {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              email: selfRegistrationData.playerEmail
+              email: selfRegistrationData.playerEmail,
+              isSelfRegistered: true
             }),
           })
 
@@ -225,7 +227,7 @@ function RegisterPageContent() {
       const newStudent = { ...currentStudent, id: result.studentId }
       setStudents(prev => [...prev, newStudent])
 
-      // Reset current student form
+      // Reset current student form and hide the form (since we now have at least one student)
       setCurrentStudent({
         id: "",
         playerName: "",
@@ -235,6 +237,7 @@ function RegisterPageContent() {
         emergencyPhone: "",
         medicalInfo: ""
       })
+      setShowAddChildForm(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add student')
     } finally {
@@ -321,8 +324,8 @@ function RegisterPageContent() {
               </h1>
               <p className="text-lg text-[--color-text-secondary] mb-6">
                 {registrationType === 'self' 
-                  ? `Thank you for registering yourself for the Central NL Scholastic Chess Club. We'll be in touch within 24 hours with next steps and schedule information.`
-                  : `Thank you for registering ${students.length} student${students.length !== 1 ? 's' : ''} for the Central NL Scholastic Chess Club. We'll be in touch within 24 hours with next steps and schedule information.`
+                  ? `Thank you for registering yourself for the Central NL Scholastic Chess Club.`
+                  : `Thank you for registering ${students.length} student${students.length !== 1 ? 's' : ''} for the Central NL Scholastic Chess Club.`
                 }
               </p>
               
@@ -353,6 +356,7 @@ function RegisterPageContent() {
                     setRegistrationType(null)
                     setStudents([])
                     setParentId("")
+                    setShowAddChildForm(true)
                     setSelfRegistrationData({
                       playerName: "",
                       playerAge: "",
@@ -369,7 +373,7 @@ function RegisterPageContent() {
                       photoConsent: false,
                       valuesAcknowledgment: false,
                       newsletter: true,
-                      createAccount: false
+                      createAccount: true
                     })
                   }}
                 >
@@ -702,7 +706,7 @@ function RegisterPageContent() {
                       </label>
                     </div>
 
-                    <div className="border border-[--color-primary]/20 rounded-lg p-4 bg-blue-50">
+                    {/* <div className="border border-[--color-primary]/20 rounded-lg p-4 bg-blue-50">
                       <div className="flex items-start space-x-3">
                         <input
                           type="checkbox"
@@ -721,7 +725,7 @@ function RegisterPageContent() {
                           </p>
                         </div>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
 
                   <Button 
@@ -1036,7 +1040,7 @@ function RegisterPageContent() {
                       </label>
                     </div>
 
-                    <div className="border border-[--color-primary]/20 rounded-lg p-4 bg-blue-50">
+                    {/* <div className="border border-[--color-primary]/20 rounded-lg p-4 bg-blue-50">
                       <div className="flex items-start space-x-3">
                         <input
                           type="checkbox"
@@ -1055,7 +1059,7 @@ function RegisterPageContent() {
                           </p>
                         </div>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
 
                   <Button 
@@ -1105,188 +1109,222 @@ function RegisterPageContent() {
                 </Card>
               )}
 
-              {/* Add Student Form */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Add a Student</CardTitle>
-                  <CardDescription>
-                    Add your player's information to register them for the chess club.
-                  </CardDescription>
-                </CardHeader>
-                
-                <CardContent>
-                  {error && (
-                    <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-red-600 text-sm">{error}</p>
-                    </div>
-                  )}
-                  
-                  <form onSubmit={handleAddStudent} className="space-y-6">
-                    {/* Student Information */}
-                    <div>
-                      <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
-                        Student Information
+              {/* Action Buttons - Only shown when there are students and form is not visible */}
+              {students.length > 0 && !showAddChildForm && (
+                <Card>
+                  <CardContent className="p-6">
+                    <div className="text-center space-y-4">
+                      <h3 className="text-lg font-semibold text-[--color-text-primary]">
+                        What would you like to do next?
                       </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div>
-                          <label htmlFor="playerName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                            Player&apos;s Full Name *
-                          </label>
-                          <input
-                            type="text"
-                            id="playerName"
-                            name="playerName"
-                            required
-                            value={currentStudent.playerName}
-                            onChange={handleStudentChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label htmlFor="playerAge" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                            Age *
-                          </label>
-                          <input
-                            type="number"
-                            id="playerAge"
-                            name="playerAge"
-                            required
-                            min="5"
-                            max="18"
-                            value={currentStudent.playerAge}
-                            onChange={handleStudentChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label htmlFor="playerGrade" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                            Grade *
-                          </label>
-                          <select
-                            id="playerGrade"
-                            name="playerGrade"
-                            required
-                            value={currentStudent.playerGrade}
-                            onChange={handleStudentChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                          >
-                            <option value="">Select Grade</option>
-                            <option value="K">Kindergarten</option>
-                            <option value="1">Grade 1</option>
-                            <option value="2">Grade 2</option>
-                            <option value="3">Grade 3</option>
-                            <option value="4">Grade 4</option>
-                            <option value="5">Grade 5</option>
-                            <option value="6">Grade 6</option>
-                            <option value="7">Grade 7</option>
-                            <option value="8">Grade 8</option>
-                            <option value="9">Grade 9</option>
-                            <option value="10">Grade 10</option>
-                            <option value="11">Grade 11</option>
-                            <option value="12">Grade 12</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Emergency Contact */}
-                    <div>
-                      <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
-                        Emergency Contact
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label htmlFor="emergencyContact" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                            Emergency Contact Name *
-                          </label>
-                          <input
-                            type="text"
-                            id="emergencyContact"
-                            name="emergencyContact"
-                            required
-                            value={currentStudent.emergencyContact}
-                            onChange={handleStudentChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                          />
-                        </div>
-                        
-                        <div>
-                          <label htmlFor="emergencyPhone" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                            Emergency Phone *
-                          </label>
-                          <input
-                            type="tel"
-                            id="emergencyPhone"
-                            name="emergencyPhone"
-                            required
-                            value={currentStudent.emergencyPhone}
-                            onChange={handleStudentChange}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                          />
-                        </div>
-                      </div>
-                      
-                      {/* Use Same Contact Button */}
-                      <div className="mt-3">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={handleUseSameContact}
-                          className="text-[--color-primary] border-[--color-primary] hover:bg-[#1c1F33] hover:text-white"
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                        <Button 
+                          onClick={() => setShowAddChildForm(true)}
+                          variant="outline" 
+                          size="lg"
+                          className="flex items-center gap-2"
                         >
-                          Use the same contact information as this account
+                          <Plus className="h-4 w-4" />
+                          Add Another Child
+                        </Button>
+                        
+                        <Button 
+                          onClick={handleCompleteRegistration}
+                          variant="outline" 
+                          size="lg"
+                          className="flex items-center gap-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Complete Registration
                         </Button>
                       </div>
                     </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                    {/* Medical Information */}
-                    <div>
-                      <label htmlFor="medicalInfo" className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                        Medical Information or Allergies
-                      </label>
-                      <textarea
-                        id="medicalInfo"
-                        name="medicalInfo"
-                        rows={3}
-                        value={currentStudent.medicalInfo}
-                        onChange={handleStudentChange}
-                        placeholder="Please list any allergies, medical conditions, or special needs we should be aware of..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                      />
-                      <p className="text-xs text-[--color-text-secondary] mt-1">
-                        Note: It is up to all players and guardians to ensure their own safety surrounding allergies.
-                      </p>
-                    </div>
+              {/* Add Student Form - Shown when no students exist (first child) or when showAddChildForm is true */}
+              {(students.length === 0 || showAddChildForm) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Add a Student</CardTitle>
+                    <CardDescription>
+                      Add your player's information to register them for the chess club.
+                    </CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    {error && (
+                      <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-md">
+                        <p className="text-red-600 text-sm">{error}</p>
+                      </div>
+                    )}
+                    
+                    <form onSubmit={handleAddStudent} className="space-y-6">
+                      {/* Student Information */}
+                      <div>
+                        <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
+                          Student Information
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div>
+                            <label htmlFor="playerName" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                              Player&apos;s Full Name *
+                            </label>
+                            <input
+                              type="text"
+                              id="playerName"
+                              name="playerName"
+                              required
+                              value={currentStudent.playerName}
+                              onChange={handleStudentChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label htmlFor="playerAge" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                              Age *
+                            </label>
+                            <input
+                              type="number"
+                              id="playerAge"
+                              name="playerAge"
+                              required
+                              min="5"
+                              max="18"
+                              value={currentStudent.playerAge}
+                              onChange={handleStudentChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label htmlFor="playerGrade" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                              Grade *
+                            </label>
+                            <select
+                              id="playerGrade"
+                              name="playerGrade"
+                              required
+                              value={currentStudent.playerGrade}
+                              onChange={handleStudentChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                            >
+                              <option value="">Select Grade</option>
+                              <option value="K">Kindergarten</option>
+                              <option value="1">Grade 1</option>
+                              <option value="2">Grade 2</option>
+                              <option value="3">Grade 3</option>
+                              <option value="4">Grade 4</option>
+                              <option value="5">Grade 5</option>
+                              <option value="6">Grade 6</option>
+                              <option value="7">Grade 7</option>
+                              <option value="8">Grade 8</option>
+                              <option value="9">Grade 9</option>
+                              <option value="10">Grade 10</option>
+                              <option value="11">Grade 11</option>
+                              <option value="12">Grade 12</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
 
-                    <div className="flex space-x-4">
-                      <Button 
-                        type="submit" 
-                        variant="outline" 
-                        size="lg" 
-                        className="flex-1"
-                        disabled={loading}
-                      >
-                        {loading ? "Adding..." : "Add Student"}
-                      </Button>
-                      
-                      {students.length > 0 && (
+                      {/* Emergency Contact */}
+                      <div>
+                        <h3 className="font-semibold text-lg text-[--color-text-primary] mb-4">
+                          Emergency Contact
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label htmlFor="emergencyContact" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                              Emergency Contact Name *
+                            </label>
+                            <input
+                              type="text"
+                              id="emergencyContact"
+                              name="emergencyContact"
+                              required
+                              value={currentStudent.emergencyContact}
+                              onChange={handleStudentChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label htmlFor="emergencyPhone" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                              Emergency Phone *
+                            </label>
+                            <input
+                              type="tel"
+                              id="emergencyPhone"
+                              name="emergencyPhone"
+                              required
+                              value={currentStudent.emergencyPhone}
+                              onChange={handleStudentChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                        
+                        {/* Use Same Contact Button */}
+                        <div className="mt-3">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={handleUseSameContact}
+                            className="text-[--color-primary] border-[--color-primary] hover:bg-[#1c1F33] hover:text-white"
+                          >
+                            Use the same contact information as this account
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Medical Information */}
+                      <div>
+                        <label htmlFor="medicalInfo" className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                          Medical Information or Allergies
+                        </label>
+                        <textarea
+                          id="medicalInfo"
+                          name="medicalInfo"
+                          rows={3}
+                          value={currentStudent.medicalInfo}
+                          onChange={handleStudentChange}
+                          placeholder="Please list any allergies, medical conditions, or special needs we should be aware of..."
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
+                        />
+                        <p className="text-xs text-[--color-text-secondary] mt-1">
+                          Note: It is up to all players and guardians to ensure their own safety surrounding allergies.
+                        </p>
+                      </div>
+
+                      <div className="flex space-x-4">
+                        <Button 
+                          type="submit" 
+                          variant="outline" 
+                          size="lg" 
+                          className="flex-1"
+                          disabled={loading}
+                        >
+                          {loading ? "Adding..." : "Add Student"}
+                        </Button>
+                        
                         <Button 
                           type="button" 
                           variant="outline" 
                           size="lg" 
-                          onClick={handleCompleteRegistration}
+                          onClick={() => setShowAddChildForm(false)}
                           className="flex-1"
                         >
-                          Complete Registration
+                          Cancel
                         </Button>
-                      )}
-                    </div>
-                  </form>
-                </CardContent>
-              </Card>
+                      </div>
+                    </form>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </div>

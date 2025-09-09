@@ -4,8 +4,9 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus, User, Trophy, Calendar, Settings, LogOut, ChevronRight } from "lucide-react"
+import { Plus, User, Trophy, Calendar, Settings, LogOut, ChevronRight, MapPin, Clock, Users } from "lucide-react"
 import Link from "next/link"
+import type { EventData } from "@/lib/googleSheets"
 
 interface PlayerWithRanking {
   playerId: string
@@ -54,6 +55,15 @@ export default function ParentDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [parentEmail, setParentEmail] = useState("")
+  const [events, setEvents] = useState<EventData[]>([])
+  const [eventsLoading, setEventsLoading] = useState(false)
+  const [showRegistrationModal, setShowRegistrationModal] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<EventData | null>(null)
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerWithRanking | null>(null)
+  const [registrationLoading, setRegistrationLoading] = useState(false)
+  const [registrationData, setRegistrationData] = useState({
+    additionalNotes: ''
+  })
 
   useEffect(() => {
     // Check authentication
@@ -65,6 +75,7 @@ export default function ParentDashboard() {
 
     setParentEmail(session.email)
     loadPlayers(session.email)
+    loadEvents()
   }, [router])
 
   const loadPlayers = async (email: string) => {
@@ -100,6 +111,76 @@ export default function ParentDashboard() {
     }
   }
 
+  const loadEvents = async () => {
+    try {
+      setEventsLoading(true)
+      const response = await fetch('/api/events')
+      if (!response.ok) {
+        throw new Error('Failed to load events')
+      }
+      const eventsData = await response.json()
+      setEvents(eventsData)
+    } catch (error) {
+      console.error('Error loading events:', error)
+    } finally {
+      setEventsLoading(false)
+    }
+  }
+
+  const handleRegisterClick = (event: EventData) => {
+    setSelectedEvent(event)
+    setShowRegistrationModal(true)
+  }
+
+  const handleRegistrationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedEvent || !selectedPlayer) return
+
+    setRegistrationLoading(true)
+    try {
+      const response = await fetch('/api/events/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          eventId: selectedEvent.id,
+          playerName: selectedPlayer.playerName,
+          playerGrade: selectedPlayer.playerGrade,
+          additionalNotes: registrationData.additionalNotes
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to register for event')
+      }
+
+      // Success - close modal and reset form
+      setShowRegistrationModal(false)
+      setSelectedPlayer(null)
+      setRegistrationData({
+        additionalNotes: ''
+      })
+      
+      // Refresh events to show updated participant count
+      loadEvents()
+      
+      alert('Successfully registered for the event!')
+    } catch (error) {
+      console.error('Registration error:', error)
+      alert('Failed to register for event. Please try again.')
+    } finally {
+      setRegistrationLoading(false)
+    }
+  }
+
+  const handleInputChange = (field: string, value: string) => {
+    setRegistrationData(prev => ({
+      ...prev,
+      [field]: value
+    }))
+  }
+
   const handleLogout = () => {
     clearParentSession()
     router.push('/')
@@ -113,6 +194,21 @@ export default function ParentDashboard() {
   const getRecordDisplay = (ranking: PlayerWithRanking['ranking']) => {
     if (!ranking) return 'No games played'
     return `${ranking.wins}W - ${ranking.losses}L`
+  }
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "tournament":
+        return "bg-red-100 text-red-800"
+      case "workshop":
+        return "bg-blue-100 text-blue-800"
+      case "training":
+        return "bg-green-100 text-green-800"
+      case "social":
+        return "bg-purple-100 text-purple-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
   }
 
   if (loading) {
@@ -286,6 +382,92 @@ export default function ParentDashboard() {
           </div>
         )}
 
+        {/* Events Section */}
+        <div className="mt-12">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-xl font-semibold text-gray-900">Upcoming Events</h2>
+            <Link href="/events">
+              <Button variant="outline" size="sm">
+                View All Events
+              </Button>
+            </Link>
+          </div>
+
+          {eventsLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[--color-primary] mx-auto"></div>
+              <p className="mt-2 text-gray-600">Loading events...</p>
+            </div>
+          ) : events.length === 0 ? (
+            <Card>
+              <CardContent className="p-8 text-center">
+                <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No events available</h3>
+                <p className="text-gray-600">Check back later for upcoming tournaments and workshops.</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.slice(0, 6).map((event) => (
+                <Card key={event.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between mb-2">
+                      <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(event.category)}`}>
+                        {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
+                      </span>
+                      <div className="text-[--color-secondary] text-2xl">♙</div>
+                    </div>
+                    <CardTitle className="text-lg">{event.name}</CardTitle>
+                    <CardDescription>{event.description}</CardDescription>
+                  </CardHeader>
+                  
+                  <CardContent>
+                    <div className="space-y-3">
+                      <div className="flex items-center text-sm text-gray-600">
+                        <Calendar className="h-4 w-4 mr-2" />
+                        <span>{event.date}</span>
+                      </div>
+                      
+                      {event.time && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Clock className="h-4 w-4 mr-2" />
+                          <span>{event.time}</span>
+                        </div>
+                      )}
+                      
+                      {event.location && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <MapPin className="h-4 w-4 mr-2" />
+                          <span>{event.location}</span>
+                        </div>
+                      )}
+                      
+                      {event.ageGroups && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Users className="h-4 w-4 mr-2" />
+                          <span>Age Groups: {event.ageGroups}</span>
+                        </div>
+                      )}
+
+                      <div className="pt-2 border-t">
+                        <Button 
+                          variant="secondary" 
+                          size="sm" 
+                          className="w-full"
+                          disabled={players.length === 0}
+                          onClick={() => handleRegisterClick(event)}
+                        >
+                          {players.length === 0 ? "Register a Player First" : "Register for Event"}
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* Quick Actions */}
         {/* <div className="mt-12">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">Quick Actions</h2>
@@ -333,6 +515,175 @@ export default function ParentDashboard() {
             </Link>
           </div>
         </div> */}
+
+        {/* Registration Modal */}
+        {showRegistrationModal && selectedEvent && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    Register for {selectedEvent.name}
+                  </h2>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowRegistrationModal(false)}
+                  >
+                    ✕
+                  </Button>
+                </div>
+
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+                  <div className="flex items-center text-sm text-gray-600 mb-2">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>{selectedEvent.date} at {selectedEvent.time}</span>
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <MapPin className="h-4 w-4 mr-2" />
+                    <span>{selectedEvent.location}</span>
+                  </div>
+                </div>
+
+                <form onSubmit={handleRegistrationSubmit} className="space-y-4">
+                  {/* Player Selection */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Select Player to Register *
+                    </label>
+                    <div className="space-y-2">
+                      {players.map((player) => (
+                        <div
+                          key={player.playerId}
+                          className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                            selectedPlayer?.playerId === player.playerId
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => setSelectedPlayer(player)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium">{player.playerName}</p>
+                              <p className="text-sm text-gray-600">
+                                Age {player.playerAge} • Grade {player.playerGrade}
+                              </p>
+                            </div>
+                            {selectedPlayer?.playerId === player.playerId && (
+                              <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
+                                <div className="w-2 h-2 bg-white rounded-full"></div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+{/* 
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Parent/Guardian Name *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={registrationData.parentName}
+                        onChange={(e) => handleInputChange('parentName', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Parent Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={registrationData.parentPhone}
+                        onChange={(e) => handleInputChange('parentPhone', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Emergency Contact *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={registrationData.emergencyContact}
+                        onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Emergency Phone *
+                      </label>
+                      <input
+                        type="tel"
+                        required
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        value={registrationData.emergencyPhone}
+                        onChange={(e) => handleInputChange('emergencyPhone', e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Medical Information (Optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Any allergies, medical conditions, or special requirements..."
+                      value={registrationData.medicalInfo}
+                      onChange={(e) => handleInputChange('medicalInfo', e.target.value)}
+                    />
+                  </div> */}
+
+                  {/* Additional Notes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Additional Notes (Optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Any special requirements, dietary restrictions, or other notes..."
+                      value={registrationData.additionalNotes}
+                      onChange={(e) => handleInputChange('additionalNotes', e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setShowRegistrationModal(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant="outline"
+                      className="flex-1"
+                      disabled={registrationLoading || !selectedPlayer}
+                    >
+                      {registrationLoading ? 'Registering...' : 'Register'}
+                    </Button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

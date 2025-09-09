@@ -40,15 +40,15 @@ export async function POST(request: NextRequest) {
 
     // Skip legacy registrations sheet - it's being deprecated
 
+    // Generate member ID
+    const timestamp = new Date().toISOString();
+    const memberId = `member_${Date.now()}`;
+    
+    console.log(`📝 Generated member ID: ${memberId}`);
+
     // 2. Also add to clean structure immediately
     try {
       console.log('🔄 Attempting to add to clean structure...');
-      
-      // Generate member ID
-      const timestamp = new Date().toISOString();
-      const memberId = `member_${Date.now()}`;
-      
-      console.log(`📝 Generated member ID: ${memberId}`);
       
       // Create clean member data
       const cleanMemberData = {

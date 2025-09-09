@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
     // Get students from the students sheet by parent email
     const students = await googleSheetsService.getStudentsByParentEmail(parentEmail);
 
+    // Get parent information
+    const parent = await googleSheetsService.getParentByEmail(parentEmail);
+
     // For each student, get their ranking information if available
     const studentsWithRankings = await Promise.all(
       students.map(async (student) => {
@@ -37,6 +40,8 @@ export async function GET(request: NextRequest) {
             emergencyPhone: student.emergencyPhone,
             medicalInfo: student.medicalInfo,
             timestamp: student.timestamp,
+            parentName: parent?.name || '',
+            parentPhone: parent?.phone || '',
             ranking: studentRanking ? {
               rank: studentRanking.rank,
               points: studentRanking.points,
@@ -49,6 +54,8 @@ export async function GET(request: NextRequest) {
           console.error(`Error getting ranking for student ${student.name}:`, error);
           return {
             ...student,
+            parentName: parent?.name || '',
+            parentPhone: parent?.phone || '',
             ranking: null
           };
         }

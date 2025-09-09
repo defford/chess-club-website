@@ -43,9 +43,23 @@ interface PlayerDetails {
 
 interface EventRegistration {
   eventId: string
-  eventName: string
-  eventDate: string
-  timestamp: string
+  playerName: string
+  playerGrade: string
+  additionalNotes: string
+  eventDetails?: {
+    id: string
+    name: string
+    date: string
+    time: string
+    location: string
+    participants: number
+    maxParticipants: number
+    description: string
+    category: 'tournament' | 'workshop' | 'training' | 'social'
+    ageGroups: string
+    status?: 'active' | 'cancelled' | 'completed'
+    lastUpdated?: string
+  }
 }
 
 export default function PlayerDetailPage() {
@@ -98,9 +112,9 @@ export default function PlayerDetailPage() {
         playerName: foundStudent.name,
         playerAge: foundStudent.age,
         playerGrade: foundStudent.grade,
-        parentName: '', // Not available in students sheet
+        parentName: foundStudent.parentName || '',
         parentEmail: email, // We have this from the session
-        parentPhone: '', // Not available in students sheet
+        parentPhone: foundStudent.parentPhone || '',
         emergencyContact: foundStudent.emergencyContact || '',
         emergencyPhone: foundStudent.emergencyPhone || '',
         medicalInfo: foundStudent.medicalInfo || '',
@@ -109,9 +123,8 @@ export default function PlayerDetailPage() {
 
       setPlayer(playerFromStudent)
 
-      // TODO: Load event registrations for this player
-      // This would require extending the API to get event registrations by player
-      setEvents([])
+      // Load event registrations for this player
+      await loadEventRegistrations(playerFromStudent.playerName)
       
     } catch (error) {
       setError(error instanceof Error ? error.message : 'Failed to load player details')
@@ -125,10 +138,69 @@ export default function PlayerDetailPage() {
     return Math.round((ranking.wins / (ranking.wins + ranking.losses)) * 100)
   }
 
+  const loadEventRegistrations = async (playerName: string) => {
+    try {
+      const response = await fetch(`/api/events/registrations/${encodeURIComponent(playerName)}`)
+      if (!response.ok) {
+        throw new Error('Failed to load event registrations')
+      }
+      const registrations = await response.json()
+      setEvents(registrations)
+    } catch (error) {
+      console.error('Error loading event registrations:', error)
+      // Don't set error state for this, just log it
+      setEvents([])
+    }
+  }
+
   const formatLastActive = (lastActive?: string) => {
     if (!lastActive) return 'Never'
     const date = new Date(lastActive)
     return date.toLocaleDateString()
+  }
+
+  const getEventStatus = (eventDetails?: EventRegistration['eventDetails']) => {
+    if (!eventDetails) return 'Unknown'
+    
+    const eventDate = new Date(eventDetails.date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    
+    if (eventDetails.status === 'cancelled') return 'Cancelled'
+    if (eventDetails.status === 'completed') return 'Completed'
+    if (eventDate < today) return 'Completed'
+    if (eventDate.toDateString() === today.toDateString()) return 'Today'
+    return 'Upcoming'
+  }
+
+  const getEventStatusColor = (status: string) => {
+    switch (status) {
+      case 'Completed':
+        return 'bg-green-100 text-green-800'
+      case 'Today':
+        return 'bg-blue-100 text-blue-800'
+      case 'Upcoming':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'Cancelled':
+        return 'bg-red-100 text-red-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getCategoryColor = (category: string) => {
+    switch (category) {
+      case "tournament":
+        return "bg-red-100 text-red-800"
+      case "workshop":
+        return "bg-blue-100 text-blue-800"
+      case "training":
+        return "bg-green-100 text-green-800"
+      case "social":
+        return "bg-purple-100 text-purple-800"
+      default:
+        return "bg-gray-100 text-gray-800"
+    }
   }
 
   if (loading) {
@@ -191,7 +263,7 @@ export default function PlayerDetailPage() {
             
             <div className="text-right">
               <p className="text-sm text-gray-600">Parent</p>
-              <p className="font-medium">{parentEmail}</p>
+              <p className="font-medium">{player.parentName}</p>
             </div>
           </div>
         </div>
@@ -319,18 +391,57 @@ export default function PlayerDetailPage() {
               </CardHeader>
               <CardContent>
                 {events.length > 0 ? (
-                  <div className="space-y-3">
-                    {events.map((event) => (
-                      <div key={event.eventId} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium text-gray-900">{event.eventName}</h4>
-                            <p className="text-sm text-gray-600">{event.eventDate}</p>
+                  <div className="space-y-4">
+                    {events.map((registration) => {
+                      const status = getEventStatus(registration.eventDetails)
+                      const event = registration.eventDetails
+                      
+                      return (
+                        <div key={registration.eventId} className="border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-start justify-between mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h4 className="font-medium text-gray-900">
+                                  {event?.name || 'Unknown Event'}
+                                </h4>
+                                {event?.category && (
+                                  <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getCategoryColor(event.category)}`}>
+                                    {event.category.charAt(0).toUpperCase() + event.category.slice(1)}
+                                  </span>
+                                )}
+                              </div>
+                              
+                              {event && (
+                                <div className="space-y-1 text-sm text-gray-600">
+                                  <div className="flex items-center">
+                                    <Calendar className="w-4 h-4 mr-2" />
+                                    <span>{event.date} {event.time && `at ${event.time}`}</span>
+                                  </div>
+                                  {event.location && (
+                                    <div className="flex items-center">
+                                      <span className="w-4 h-4 mr-2">📍</span>
+                                      <span>{event.location}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                            
+                            <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getEventStatusColor(status)}`}>
+                              {status}
+                            </span>
                           </div>
-                          <Calendar className="w-5 h-5 text-gray-400" />
+                          
+                          {registration.additionalNotes && (
+                            <div className="border-t pt-3">
+                              <p className="text-sm text-gray-600">
+                                <span className="font-medium">Notes:</span> {registration.additionalNotes}
+                              </p>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-8">
