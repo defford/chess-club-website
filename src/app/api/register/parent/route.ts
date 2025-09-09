@@ -35,8 +35,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Add parent registration to Google Sheets
-    const parentId = await googleSheetsService.addParentRegistration(data);
+    // TODO: With clean structure, parent-only registration needs redesign
+    // For now, generate a temporary parent ID that will be used when children are added
+    const parentId = `temp_parent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     // Send confirmation email
     try {

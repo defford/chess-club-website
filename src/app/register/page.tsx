@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { CheckCircle, Users, Calendar, Trophy, DollarSign, Plus, X } from "lucide-react"
+import Image from "next/image"
 
 interface Student {
   id: string;
@@ -329,7 +330,7 @@ function RegisterPageContent() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                   <h3 className="font-medium text-blue-800 mb-2">🔐 Account Created!</h3>
                   <p className="text-sm text-blue-700">
-                    A magic link has been sent to <strong>{registrationType === 'self' ? selfRegistrationData.playerEmail : parentData.parentEmail}</strong>. 
+                    A login link has been sent to <strong>{registrationType === 'self' ? selfRegistrationData.playerEmail : parentData.parentEmail}</strong>. 
                     Click the link in your email to access your {registrationType === 'self' ? 'player' : 'parent'} dashboard and track your {registrationType === 'self' ? 'progress' : 'players\' progress'}.
                   </p>
                 </div>
@@ -338,11 +339,10 @@ function RegisterPageContent() {
               <div className="space-y-2 text-sm text-[--color-text-secondary]">
                 <p>📧 A confirmation email with all the details has been sent to {registrationType === 'self' ? selfRegistrationData.playerEmail : parentData.parentEmail}</p>
                 <p>📋 Your registration has been recorded in our system</p>
-                <p>🕐 You&apos;ll receive schedule information within 24-48 hours</p>
                 {((registrationType === 'parent' && parentData.createAccount) || (registrationType === 'self' && selfRegistrationData.createAccount)) && (
-                  <p>🔑 Check your email for the {registrationType === 'self' ? 'player' : 'parent'} account magic link</p>
+                  <p>🔑 Check your email for the {registrationType === 'self' ? 'player' : 'parent'} account login link</p>
                 )}
-                <p>❓ Questions? Contact us at info@centralnlchess.ca</p>
+                <p>❓ Questions? Contact us at daniel@cnlscc.com</p>
               </div>
               <div className="mt-6">
                 <Button 
@@ -388,11 +388,31 @@ function RegisterPageContent() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="font-heading font-bold text-4xl md:text-5xl text-[--color-accent] mb-4">
-            Join Our Chess Club
-          </h1>
+          <div className="flex items-center justify-center gap-6 mb-4">
+            <div className="relative h-16 w-16">
+              <Image
+                src="/Logo.png"
+                alt="Central NL Scholastic Chess Club Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+            <h1 className="font-heading font-bold text-4xl md:text-5xl text-[--color-accent]">
+              Join Our Chess Club
+            </h1>
+            <div className="relative h-16 w-16">
+              <Image
+                src="/Logo.png"
+                alt="Central NL Scholastic Chess Club Logo"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+          </div>
           <p className="text-lg text-[--color-text-secondary] max-w-2xl mx-auto">
-            Register your family today for an exciting journey into the world of chess. All skill levels welcome!
+            Register today for an exciting journey into the world of chess. All skill levels welcome!
           </p>
         </div>
 
@@ -418,7 +438,7 @@ function RegisterPageContent() {
                 </div>
                 <div className={`w-16 h-1 ${currentStep >= 3 ? 'bg-[--color-primary]' : 'bg-gray-200'}`}></div>
                 <div className={`flex items-center space-x-2 ${currentStep >= 3 ? 'text-[--color-primary]' : 'text-gray-400'}`}>
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-[--color-primary] text-white' : 'bg-gray-200'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${currentStep >= 3 ? 'bg-[#1c1F33] text-white' : 'bg-gray-200'}`}>
                     2
                   </div>
                   <span className="text-sm font-medium">Add Students</span>
@@ -706,7 +726,7 @@ function RegisterPageContent() {
 
                   <Button 
                     type="submit" 
-                    variant="secondary" 
+                    variant="outline" 
                     size="xl" 
                     className="w-full"
                     disabled={loading}
@@ -1039,8 +1059,8 @@ function RegisterPageContent() {
                   </div>
 
                   <Button 
-                    type="submit" 
-                    variant="secondary" 
+                    type="submit"             
+                    variant="outline"
                     size="xl" 
                     className="w-full"
                     disabled={loading}
@@ -1075,7 +1095,6 @@ function RegisterPageContent() {
                             variant="outline"
                             size="sm"
                             onClick={() => removeStudent(student.id)}
-                            className="text-red-600 hover:text-red-700"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -1216,7 +1235,7 @@ function RegisterPageContent() {
                           variant="outline"
                           size="sm"
                           onClick={handleUseSameContact}
-                          className="text-[--color-primary] border-[--color-primary] hover:bg-[--color-primary] hover:text-white"
+                          className="text-[--color-primary] border-[--color-primary] hover:bg-[#1c1F33] hover:text-white"
                         >
                           Use the same contact information as this account
                         </Button>
@@ -1245,7 +1264,7 @@ function RegisterPageContent() {
                     <div className="flex space-x-4">
                       <Button 
                         type="submit" 
-                        variant="secondary" 
+                        variant="outline" 
                         size="lg" 
                         className="flex-1"
                         disabled={loading}
@@ -1256,7 +1275,7 @@ function RegisterPageContent() {
                       {students.length > 0 && (
                         <Button 
                           type="button" 
-                          variant="primary" 
+                          variant="outline" 
                           size="lg" 
                           onClick={handleCompleteRegistration}
                           className="flex-1"

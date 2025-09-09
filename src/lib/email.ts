@@ -222,7 +222,6 @@ class EmailService {
                 <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
                 <li style="margin-bottom: 8px;">Sessions typically run weekly during the school year</li>
                 <li style="margin-bottom: 8px;">All chess equipment is provided - no need to bring anything</li>
-                <li style="margin-bottom: 8px;">Payment details will be sent separately</li>
               </ul>
             </div>
 
@@ -230,9 +229,7 @@ class EmailService {
             <div style="margin: 25px 0;">
               <h3 style="color: #1a365d; margin-bottom: 15px;">Club Information</h3>
               <p style="margin-bottom: 10px;">
-                <strong>Membership:</strong> $50/semester or $80/year<br>
-                <strong>Family Discount:</strong> 2nd player 25% off<br>
-                <strong>Contact:</strong> info@centralnlchess.ca
+                <strong>Contact:</strong> daniel@cnlscc.com
               </p>
             </div>
 
@@ -251,8 +248,8 @@ class EmailService {
                 Questions? We're here to help!
               </p>
               <p style="margin: 0;">
-                📧 <a href="mailto:info@centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">info@centralnlchess.ca</a><br>
-                🌐 <a href="https://centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">centralnlchess.ca</a>
+                📧 <a href="mailto:info@centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">daniel@cnlscc.com</a><br>
+                🌐 <a href="https://cnlscc.com" style="color: #2d5a87; text-decoration: none;">cnlscc.com</a>
               </p>
             </div>
           </div>
@@ -309,7 +306,6 @@ class EmailService {
                 <li style="margin-bottom: 8px;">Click the "Add Student" button to register your players</li>
                 <li style="margin-bottom: 8px;">Complete the student information for each player</li>
                 <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
-                <li style="margin-bottom: 8px;">Payment details will be sent separately</li>
               </ul>
             </div>
 
@@ -319,8 +315,8 @@ class EmailService {
                 Questions? We're here to help!
               </p>
               <p style="margin: 0;">
-                📧 <a href="mailto:info@centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">info@centralnlchess.ca</a><br>
-                🌐 <a href="https://centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">centralnlchess.ca</a>
+                📧 <a href="mailto:daniel@cnlscc.com" style="color: #2d5a87; text-decoration: none;">daniel@cnlscc.com</a><br>
+                🌐 <a href="https://cnlscc.com" style="color: #2d5a87; text-decoration: none;">cnlscc.com</a>
               </p>
             </div>
           </div>
@@ -392,7 +388,6 @@ class EmailService {
                 <li style="margin-bottom: 8px;">You can add more students using the "Add Student" button</li>
                 <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
                 <li style="margin-bottom: 8px;">All chess equipment is provided - no need to bring anything</li>
-                <li style="margin-bottom: 8px;">Payment details will be sent separately</li>
               </ul>
             </div>
 
@@ -402,8 +397,8 @@ class EmailService {
                 Questions? We're here to help!
               </p>
               <p style="margin: 0;">
-                📧 <a href="mailto:info@centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">info@centralnlchess.ca</a><br>
-                🌐 <a href="https://centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">centralnlchess.ca</a>
+                📧 <a href="mailto:daniel@cnlscc.com" style="color: #2d5a87; text-decoration: none;">daniel@cnlscc.com</a><br>
+                🌐 <a href="https://cnlscc.com" style="color: #2d5a87; text-decoration: none;">cnlscc.com</a>
               </p>
             </div>
           </div>
@@ -492,7 +487,6 @@ class EmailService {
                 <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
                 <li style="margin-bottom: 8px;">Sessions typically run weekly during the school year</li>
                 <li style="margin-bottom: 8px;">All chess equipment is provided - no need to bring anything</li>
-                <li style="margin-bottom: 8px;">Payment details will be sent separately</li>
                 ${data.createAccount ? '<li style="margin-bottom: 8px;">Check your email for your player account magic link</li>' : ''}
               </ul>
             </div>
@@ -501,9 +495,7 @@ class EmailService {
             <div style="margin: 25px 0;">
               <h3 style="color: #1a365d; margin-bottom: 15px;">Club Information</h3>
               <p style="margin-bottom: 10px;">
-                <strong>Membership:</strong> $50/semester or $80/year<br>
-                <strong>Family Discount:</strong> 2nd player 25% off<br>
-                <strong>Contact:</strong> info@centralnlchess.ca
+                <strong>Contact:</strong> daniel@cnlscc.com
               </p>
             </div>
 
@@ -522,8 +514,8 @@ class EmailService {
                 Questions? We're here to help!
               </p>
               <p style="margin: 0;">
-                📧 <a href="mailto:info@centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">info@centralnlchess.ca</a><br>
-                🌐 <a href="https://centralnlchess.ca" style="color: #2d5a87; text-decoration: none;">centralnlchess.ca</a>
+                📧 <a href="mailto:daniel@cnlscc.com" style="color: #2d5a87; text-decoration: none;">daniel@cnlscc.com</a><br>
+                🌐 <a href="https://cnlscc.com" style="color: #2d5a87; text-decoration: none;">cnlscc.com</a>
               </p>
             </div>
           </div>

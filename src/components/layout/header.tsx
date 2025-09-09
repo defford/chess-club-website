@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { Menu, X } from "lucide-react"
@@ -22,16 +23,29 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        {/* Logo */}
-        <Link href="/" className="flex items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[--color-primary] text-white">
+        {/* Left - Club Name */}
+        <Link href="/" className="flex items-center">
+          <div className="hidden md:block">
+            <span className="font-heading font-bold text-lg text-[#1C1F33]">
+              Central NL Scholastic Chess Club
+            </span> {/* TODO: make this a link to the home page */}
           </div>
-          <span className="font-heading font-bold text-lg text-[#1C1F33]">
-            Central NL Scholastic Chess Club
-          </span>
         </Link>
 
-        {/* Desktop Navigation */}
+        {/* Center - Logo */}
+        <Link href="/" className="flex items-center">
+          <div className="relative h-12 w-12">
+            <Image
+              src="/Logo.png"
+              alt="Central NL Scholastic Chess Club Logo"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+        </Link>
+
+        {/* Right Navigation - Desktop only */}
         <nav className="hidden md:flex items-center space-x-6">
           {navigation.map((item) => (
             <Link

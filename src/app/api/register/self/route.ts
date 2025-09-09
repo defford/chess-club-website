@@ -45,8 +45,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Add self-registration to Google Sheets
-    const playerId = await googleSheetsService.addSelfRegistration(data);
+    // For self-registration, save to both parent and student sheets
+    // 1. First, save as parent (since they're registering themselves)
+    const parentData = {
+      parentName: data.playerName, // Self-registering student is their own parent
+      parentEmail: data.playerEmail,
+      parentPhone: data.playerPhone,
+      hearAboutUs: data.hearAboutUs || '',
+      provincialInterest: data.provincialInterest || '',
+      volunteerInterest: data.volunteerInterest || '',
+      consent: data.consent,
+      photoConsent: data.photoConsent || false,
+      valuesAcknowledgment: data.valuesAcknowledgment,
+      newsletter: data.newsletter || false,
+      createAccount: data.createAccount || false
+    };
+
+    const parentId = await googleSheetsService.addParentRegistration(parentData);
+
+    // 2. Then, save as student linked to the parent
+    const studentData = {
+      parentId: parentId,
+      playerName: data.playerName,
+      playerAge: data.playerAge,
+      playerGrade: data.playerGrade,
+      emergencyContact: data.emergencyContact,
+      emergencyPhone: data.emergencyPhone,
+      medicalInfo: data.medicalInfo || ''
+    };
+
+    const studentId = await googleSheetsService.addStudentRegistration(studentData);
 
     // Send confirmation email
     try {
@@ -59,7 +87,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { 
         message: 'Self-registration submitted successfully',
-        playerId: playerId
+        parentId: parentId,
+        studentId: studentId
       },
       { status: 200 }
     );

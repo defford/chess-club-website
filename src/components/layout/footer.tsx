@@ -4,7 +4,7 @@ const quickLinks = [
   { name: "Home", href: "/" },
   { name: "Register", href: "/register" },
   { name: "Events", href: "/events" },
-  { name: "Rankings", href: "/rankings" },
+  // { name: "Rankings", href: "/rankings" },
   { name: "About", href: "/about" },
 ]
 

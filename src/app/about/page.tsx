@@ -173,24 +173,44 @@ export default function AboutPage() {
         </div>
 
         {/* Call to Action */}
-        <div className="text-center">
-          <Card className="max-w-2xl mx-auto">
-            <CardContent className="p-8">
-              <h3 className="font-heading font-semibold text-2xl text-[--color-text-primary] mb-4">
-                Ready to Join?
-              </h3>
-              <p className="text-[--color-text-secondary] mb-6">
-                Register today and develop skills that will last a lifetime.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link href="/register">
-                  <Button variant="outline" size="lg">
-                    Register Now
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="flex items-center justify-center gap-12">
+          <div className="relative h-48 w-48">
+            <Image
+              src="/Logo.png"
+              alt="Central NL Scholastic Chess Club Logo"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
+          <div className="text-center">
+            <h3 className="font-heading font-semibold text-2xl text-[--color-text-primary] mb-4">
+              Ready to Join?
+            </h3>
+            <Card className="max-w-2xl mx-auto">
+              <CardContent className="p-8">
+                <p className="text-[--color-text-secondary] mb-6">
+                  Register today and develop skills that will last a lifetime.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link href="/register">
+                    <Button variant="outline" size="lg">
+                      Register Now
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="relative h-48 w-48">
+            <Image
+              src="/Logo.png"
+              alt="Central NL Scholastic Chess Club Logo"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
         </div>
       </div>
     </div>

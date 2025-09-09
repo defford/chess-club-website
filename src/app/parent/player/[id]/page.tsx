@@ -73,25 +73,41 @@ export default function PlayerDetailPage() {
 
   const loadPlayerDetails = async (email: string) => {
     try {
-      // Load players and find the specific player
-      const playersResponse = await fetch('/api/parent/players', {
-        headers: {
-          'x-parent-email': email
-        }
-      })
+      // Load students from students sheet by parent email
+      const studentsResponse = await fetch(`/api/parent/students?email=${encodeURIComponent(email)}`)
 
-      if (!playersResponse.ok) {
-        throw new Error('Failed to load player details')
+      if (!studentsResponse.ok) {
+        throw new Error('Failed to load student details')
       }
 
-      const playersResult = await playersResponse.json()
-      const foundPlayer = playersResult.players.find((p: any) => p.playerId === playerId)
+      const studentsResult = await studentsResponse.json()
       
-      if (!foundPlayer) {
-        throw new Error('Player not found or you do not have permission to view this player')
+      if (!studentsResult.success) {
+        throw new Error(studentsResult.error || 'Failed to load students')
       }
 
-      setPlayer(foundPlayer)
+      const foundStudent = studentsResult.students.find((s: any) => s.id === playerId)
+      
+      if (!foundStudent) {
+        throw new Error('Student not found or you do not have permission to view this student')
+      }
+
+      // Convert student format to match the expected player format
+      const playerFromStudent: PlayerDetails = {
+        playerId: foundStudent.id,
+        playerName: foundStudent.name,
+        playerAge: foundStudent.age,
+        playerGrade: foundStudent.grade,
+        parentName: '', // Not available in students sheet
+        parentEmail: email, // We have this from the session
+        parentPhone: '', // Not available in students sheet
+        emergencyContact: foundStudent.emergencyContact || '',
+        emergencyPhone: foundStudent.emergencyPhone || '',
+        medicalInfo: foundStudent.medicalInfo || '',
+        ranking: foundStudent.ranking
+      }
+
+      setPlayer(playerFromStudent)
 
       // TODO: Load event registrations for this player
       // This would require extending the API to get event registrations by player

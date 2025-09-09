@@ -1394,6 +1394,22 @@ export class GoogleSheetsService {
     }
   }
 
+  async getStudentsByParentEmail(parentEmail: string): Promise<StudentData[]> {
+    try {
+      // First, get the parent by email to find their ID
+      const parent = await this.getParentByEmail(parentEmail);
+      if (!parent) {
+        return []; // No parent found with this email
+      }
+
+      // Then get students using the parent ID
+      return await this.getStudentsByParentId(parent.id);
+    } catch (error) {
+      console.error('Error getting students by parent email from Google Sheets:', error);
+      throw new Error('Failed to get students by parent email from Google Sheets');
+    }
+  }
+
   async getParentByEmail(email: string): Promise<ParentData | null> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
