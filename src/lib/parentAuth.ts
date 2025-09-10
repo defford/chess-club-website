@@ -11,6 +11,8 @@ export interface ParentAccount {
   createdDate: string;
   lastLogin: string;
   isActive: boolean;
+  isSelfRegistered?: boolean;
+  registrationType?: 'parent' | 'self';
 }
 
 export interface MagicLinkToken {
@@ -20,6 +22,7 @@ export interface MagicLinkToken {
   requesterId?: string;
   action?: 'approve' | 'deny';
   emailExistsInRegistrations?: boolean;
+  isSelfRegistered?: boolean;
   exp: number;
 }
 
@@ -27,6 +30,8 @@ export interface ParentSession {
   parentId: string;
   email: string;
   loginTime: number;
+  isSelfRegistered?: boolean;
+  registrationType?: 'parent' | 'self';
 }
 
 class ParentAuthService {
@@ -41,6 +46,7 @@ class ParentAuthService {
       requesterId?: string;
       action?: 'approve' | 'deny';
       emailExistsInRegistrations?: boolean;
+      isSelfRegistered?: boolean;
     }
   ): string {
     const payload: MagicLinkToken = {
@@ -196,7 +202,7 @@ class ParentAuthService {
   }
 
   // Login parent and create session
-  async loginParent(email: string): Promise<ParentSession> {
+  async loginParent(email: string, isSelfRegistered: boolean = false): Promise<ParentSession> {
     const account = await this.createOrGetParentAccount(email);
     
     // Update last login
@@ -207,7 +213,9 @@ class ParentAuthService {
     const session: ParentSession = {
       parentId: account.id,
       email: account.email,
-      loginTime: Date.now()
+      loginTime: Date.now(),
+      isSelfRegistered: account.isSelfRegistered || isSelfRegistered,
+      registrationType: account.registrationType || (account.isSelfRegistered ? 'self' : 'parent')
     };
 
     // Store session (never expires as requested)

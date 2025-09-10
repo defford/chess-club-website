@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         }
         
         // Login the parent
-        const session = await parentAuthService.loginParent(decoded.email);
+        const session = await parentAuthService.loginParent(decoded.email, decoded.isSelfRegistered || false);
         
         // Ensure any existing student registrations are linked to this parent account
         try {
@@ -53,7 +53,9 @@ export async function POST(request: NextRequest) {
             message: 'Login successful',
             session: {
               parentId: session.parentId,
-              email: session.email
+              email: session.email,
+              isSelfRegistered: session.isSelfRegistered,
+              registrationType: session.registrationType
             }
           },
           { status: 200 }

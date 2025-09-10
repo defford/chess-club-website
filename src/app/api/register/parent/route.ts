@@ -36,7 +36,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Save parent registration to Google Sheets
-    const parentId = await googleSheetsService.addParentRegistration(data);
+    const parentData = {
+      ...data,
+      registrationType: 'parent' as const
+    };
+    const parentId = await googleSheetsService.addParentRegistration(parentData);
 
     // Send confirmation email
     try {

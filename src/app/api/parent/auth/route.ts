@@ -18,12 +18,20 @@ export async function POST(request: NextRequest) {
     const parent = await googleSheetsService.getParentByEmail(email);
     const emailExists = parent !== null;
 
+    // Determine if this is a self-registered student
+    let actualIsSelfRegistered = isSelfRegistered || false;
+    if (emailExists && parent) {
+      // Get the full parent account to check if they're self-registered
+      const parentAccount = await googleSheetsService.getParentAccount(email);
+      actualIsSelfRegistered = parentAccount?.isSelfRegistered || false;
+    }
+
     // Send magic link with additional context about whether email exists
     await parentAuthService.sendMagicLink(email, 'login', {
       smsNumber,
       preferSms,
       emailExistsInRegistrations: emailExists,
-      isSelfRegistered: isSelfRegistered || false
+      isSelfRegistered: actualIsSelfRegistered
     });
 
     return NextResponse.json(
@@ -41,8 +49,16 @@ export async function POST(request: NextRequest) {
     if (error instanceof Error && error.message.includes('SMS not yet implemented')) {
       const { email, isSelfRegistered } = await request.json();
       try {
+        // Determine if this is a self-registered student for fallback email
+        const parent = await googleSheetsService.getParentByEmail(email);
+        let actualIsSelfRegistered = isSelfRegistered || false;
+        if (parent) {
+          const parentAccount = await googleSheetsService.getParentAccount(email);
+          actualIsSelfRegistered = parentAccount?.isSelfRegistered || false;
+        }
+        
         await parentAuthService.sendMagicLink(email, 'login', {
-          isSelfRegistered: isSelfRegistered || false
+          isSelfRegistered: actualIsSelfRegistered
         });
         return NextResponse.json(
           { 

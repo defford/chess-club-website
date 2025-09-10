@@ -71,7 +71,7 @@ export default function ParentLogin() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl font-bold">Parent Sign In</CardTitle>
+            <CardTitle className="text-2xl font-bold">Member Sign In</CardTitle>
             <CardDescription>
               Enter your email to receive a secure sign-in link
             </CardDescription>
@@ -176,7 +176,7 @@ export default function ParentLogin() {
               <ul className="space-y-2 text-sm text-gray-600">
                 <li className="flex items-center">
                   <div className="w-2 h-2 bg-[--color-primary] rounded-full mr-3"></div>
-                  View your players' chess rankings and progress
+                  View players' chess rankings and progress
                 </li>
                 <li className="flex items-center">
                   <div className="w-2 h-2 bg-[--color-primary] rounded-full mr-3"></div>

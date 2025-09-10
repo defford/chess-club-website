@@ -15,20 +15,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Initialize the parent accounts and player ownership sheets if they don't exist
-    try {
-      await googleSheetsService.initializeParentAccountsSheet();
-    } catch (error) {
-      // Sheet might already exist, continue
-      console.log('Parent accounts sheet initialization skipped:', error);
-    }
-
-    try {
-      await googleSheetsService.initializePlayerOwnershipSheet();
-    } catch (error) {
-      // Sheet might already exist, continue
-      console.log('Player ownership sheet initialization skipped:', error);
-    }
+    // Sheets already exist, no initialization needed
 
     // Generate player IDs for all existing registrations
     await googleSheetsService.generatePlayerIdsForExistingRegistrations();

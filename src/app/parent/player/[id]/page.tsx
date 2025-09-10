@@ -72,6 +72,7 @@ export default function PlayerDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [parentEmail, setParentEmail] = useState("")
+  const [isSelfRegistered, setIsSelfRegistered] = useState(false)
 
   useEffect(() => {
     // Check authentication
@@ -82,6 +83,7 @@ export default function PlayerDetailPage() {
     }
 
     setParentEmail(session.email)
+    setIsSelfRegistered(session.isSelfRegistered || false)
     loadPlayerDetails(session.email)
   }, [router, playerId])
 
@@ -223,7 +225,7 @@ export default function PlayerDetailPage() {
             className="flex items-center text-[--color-primary] hover:text-[--color-primary]/80 transition-colors mb-6"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
-            Back to Dashboard
+            {isSelfRegistered ? 'Back to My Dashboard' : 'Back to Dashboard'}
           </Link>
           
           <Card>
@@ -253,7 +255,7 @@ export default function PlayerDetailPage() {
                 className="flex items-center text-[--color-primary] hover:text-[--color-primary]/80 transition-colors mr-4"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
-                Dashboard
+                {isSelfRegistered ? 'My Dashboard' : 'Dashboard'}
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">{player.playerName}</h1>
@@ -262,7 +264,7 @@ export default function PlayerDetailPage() {
             </div>
             
             <div className="text-right">
-              <p className="text-sm text-gray-600">Parent</p>
+              <p className="text-sm text-gray-600">{isSelfRegistered ? 'Player' : 'Parent'}</p>
               <p className="font-medium">{player.parentName}</p>
             </div>
           </div>
@@ -374,8 +376,10 @@ export default function PlayerDetailPage() {
                       <Trophy className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                       <h3 className="font-medium text-gray-900 mb-2">No Games Played Yet</h3>
                       <p className="text-gray-600">
-                        {player.playerName} hasn't played any ranked games yet. 
-                        They'll appear in the rankings after their first game.
+                        {isSelfRegistered 
+                          ? "You haven't played any ranked games yet. You'll appear in the rankings after your first game."
+                          : `${player.playerName} hasn't played any ranked games yet. They'll appear in the rankings after their first game.`
+                        }
                       </p>
                     </div>
                   )}
@@ -448,7 +452,10 @@ export default function PlayerDetailPage() {
                     <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="font-medium text-gray-900 mb-2">No Events Yet</h3>
                     <p className="text-gray-600 mb-4">
-                      {player.playerName} hasn't registered for any events yet.
+                      {isSelfRegistered 
+                        ? "You haven't registered for any events yet."
+                        : `${player.playerName} hasn't registered for any events yet.`
+                      }
                     </p>
                     <Link href="/events">
                       <Button>Browse Upcoming Events</Button>
@@ -464,13 +471,13 @@ export default function PlayerDetailPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Contact Information</CardTitle>
-                <CardDescription>Registered contact details</CardDescription>
+                <CardDescription>{isSelfRegistered ? 'Your registered contact details' : 'Registered contact details'}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-start">
                   <User className="w-5 h-5 text-gray-400 mt-0.5 mr-3" />
                   <div>
-                    <p className="font-medium text-gray-900">Parent</p>
+                    <p className="font-medium text-gray-900">{isSelfRegistered ? 'Name' : 'Parent'}</p>
                     <p className="text-sm text-gray-600">{player.parentName}</p>
                   </div>
                 </div>
@@ -525,7 +532,7 @@ export default function PlayerDetailPage() {
                 <Link href="/events">
                   <Button className="w-full justify-start">
                     <Calendar className="w-4 h-4 mr-2" />
-                    Register for Events
+                    {isSelfRegistered ? 'Register for Events' : 'Register for Events'}
                   </Button>
                 </Link>
                 

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, User, Trophy, Calendar, Settings, LogOut, ChevronRight, RefreshCw } from "lucide-react"
 import Link from "next/link"
+import { clientAuthService } from "@/lib/clientAuth"
 
 interface PlayerWithRanking {
   memberId: string;
@@ -51,9 +52,7 @@ const getParentSession = (): ParentSession | null => {
 }
 
 const clearParentSession = (): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('chess-club-parent-auth')
-  }
+  clientAuthService.logoutParent()
 }
 
 export default function CleanParentDashboard() {

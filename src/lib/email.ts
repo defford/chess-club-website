@@ -214,7 +214,6 @@ class EmailService {
             <div style="background: #e6fffa; border-left: 4px solid #38b2ac; padding: 20px; margin: 25px 0;">
               <h3 style="margin: 0 0 15px; color: #234e52;">What's Next?</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
                 <li style="margin-bottom: 8px;">Sessions typically run weekly during the school year</li>
                 <li style="margin-bottom: 8px;">All chess equipment is provided - no need to bring anything</li>
               </ul>
@@ -399,7 +398,6 @@ class EmailService {
               <h3 style="margin: 0 0 15px; color: #234e52;">What's Next?</h3>
               <ul style="margin: 0; padding-left: 20px;">
                 <li style="margin-bottom: 8px;">You can add more students using the "Add Student" button</li>
-                <li style="margin-bottom: 8px;">You'll receive schedule information within 24-48 hours</li>
                 <li style="margin-bottom: 8px;">All chess equipment is provided - no need to bring anything</li>
               </ul>
             </div>
@@ -508,7 +506,6 @@ class EmailService {
             <div style="background: #e6fffa; border-left: 4px solid #38b2ac; padding: 20px; margin: 25px 0;">
               <h3 style="margin: 0 0 15px; color: #234e52;">What's Next?</h3>
               <ul style="margin: 0; padding-left: 20px;">
-                <li style="margin-bottom: 8px;"><strong>You'll receive schedule information</strong> within 24-48 hours</li>
                 <li style="margin-bottom: 8px;"><strong>Sessions typically run weekly</strong> during the school year</li>
                 <li style="margin-bottom: 8px;"><strong>All chess equipment is provided</strong> - no need to bring anything</li>
                 ${data.createAccount ? '<li style="margin-bottom: 8px;"><strong>Check your email</strong> for your player account login link to access your dashboard</li>' : ''}

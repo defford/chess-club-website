@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Plus, User, Trophy, Calendar, Settings, LogOut, ChevronRight, MapPin, Clock, Users } from "lucide-react"
 import Link from "next/link"
 import type { EventData } from "@/lib/googleSheets"
+import { clientAuthService } from "@/lib/clientAuth"
 
 interface PlayerWithRanking {
   playerId: string
@@ -27,6 +28,7 @@ interface ParentSession {
   parentId: string
   email: string
   loginTime: number
+  isSelfRegistered?: boolean
 }
 
 // Client-safe session management
@@ -44,9 +46,7 @@ const getParentSession = (): ParentSession | null => {
 }
 
 const clearParentSession = (): void => {
-  if (typeof window !== 'undefined') {
-    localStorage.removeItem('chess-club-parent-auth')
-  }
+  clientAuthService.logoutParent()
 }
 
 export default function ParentDashboard() {
@@ -55,6 +55,7 @@ export default function ParentDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [parentEmail, setParentEmail] = useState("")
+  const [isSelfRegistered, setIsSelfRegistered] = useState(false)
   const [events, setEvents] = useState<EventData[]>([])
   const [eventsLoading, setEventsLoading] = useState(false)
   const [showRegistrationModal, setShowRegistrationModal] = useState(false)
@@ -74,6 +75,7 @@ export default function ParentDashboard() {
     }
 
     setParentEmail(session.email)
+    setIsSelfRegistered(session.isSelfRegistered || false)
     loadPlayers(session.email)
     loadEvents()
   }, [router])
@@ -229,7 +231,9 @@ export default function ParentDashboard() {
         <div className="max-w-6xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Parent Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {isSelfRegistered ? 'Player Dashboard' : 'Parent Dashboard'}
+              </h1>
               <p className="text-gray-600">{parentEmail}</p>
             </div>
             <div className="flex items-center space-x-3">
@@ -320,16 +324,23 @@ export default function ParentDashboard() {
           <Card>
             <CardContent className="p-12 text-center">
               <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">No players yet</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">
+                {isSelfRegistered ? 'No player data yet' : 'No players yet'}
+              </h3>
               <p className="text-gray-600 mb-6">
-                Register your player's account to view their chess progress and register for events.
+                {isSelfRegistered 
+                  ? 'Your player account is being set up. You\'ll be able to view your chess progress and register for events once it\'s ready.'
+                  : 'Register your player\'s account to view their chess progress and register for events.'
+                }
               </p>
-              <Link href="/parent/player/register-child">
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Register Your First Player
-                </Button>
-              </Link>
+              {!isSelfRegistered && (
+                <Link href="/parent/player/register-child">
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Register Your First Player
+                  </Button>
+                </Link>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -349,29 +360,37 @@ export default function ParentDashboard() {
                   
                   <CardContent>
                     <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">
+                        {isSelfRegistered ? 'My Rank:' : 'Current Rank:'}
+                      </span>
+                      <span className="font-medium">{getRankDisplay(player.ranking)}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">
+                        {isSelfRegistered ? 'My Record:' : 'Record:'}
+                      </span>
+                      <span className="font-medium">{getRecordDisplay(player.ranking)}</span>
+                    </div>
+                    
+                    {player.ranking && (
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Current Rank:</span>
-                        <span className="font-medium">{getRankDisplay(player.ranking)}</span>
+                        <span className="text-sm text-gray-600">
+                          {isSelfRegistered ? 'My Points:' : 'Points:'}
+                        </span>
+                        <span className="font-medium">{player.ranking.points}</span>
                       </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-gray-600">Record:</span>
-                        <span className="font-medium">{getRecordDisplay(player.ranking)}</span>
-                      </div>
-                      
-                      {player.ranking && (
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Points:</span>
-                          <span className="font-medium">{player.ranking.points}</span>
-                        </div>
-                      )}
+                    )}
                     </div>
 
                     {player.ranking?.rank && player.ranking.rank <= 10 && (
                       <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                         <div className="flex items-center">
                           <Trophy className="w-4 h-4 text-yellow-600 mr-2" />
-                          <span className="text-sm font-medium text-yellow-800">Top 10 Player!</span>
+                          <span className="text-sm font-medium text-yellow-800">
+                            {isSelfRegistered ? 'You\'re in the Top 10!' : 'Top 10 Player!'}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -457,7 +476,10 @@ export default function ParentDashboard() {
                           disabled={players.length === 0}
                           onClick={() => handleRegisterClick(event)}
                         >
-                          {players.length === 0 ? "Register a Player First" : "Register for Event"}
+                          {players.length === 0 
+                            ? (isSelfRegistered ? "Player Data Loading..." : "Register a Player First") 
+                            : (isSelfRegistered ? "Register" : "Register for Event")
+                          }
                         </Button>
                       </div>
                     </div>
@@ -549,7 +571,7 @@ export default function ParentDashboard() {
                   {/* Player Selection */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Player to Register *
+                      {isSelfRegistered ? 'Register for Event *' : 'Select Player to Register *'}
                     </label>
                     <div className="space-y-2">
                       {players.map((player) => (
@@ -676,7 +698,7 @@ export default function ParentDashboard() {
                       className="flex-1"
                       disabled={registrationLoading || !selectedPlayer}
                     >
-                      {registrationLoading ? 'Registering...' : 'Register'}
+                      {registrationLoading ? 'Registering...' : ('Register')}
                     </Button>
                   </div>
                 </form>

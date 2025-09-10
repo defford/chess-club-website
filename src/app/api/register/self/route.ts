@@ -58,7 +58,8 @@ export async function POST(request: NextRequest) {
       photoConsent: data.photoConsent || false,
       valuesAcknowledgment: data.valuesAcknowledgment,
       newsletter: data.newsletter || false,
-      createAccount: data.createAccount || false
+      createAccount: data.createAccount || false,
+      registrationType: 'self' as const
     };
 
     const parentId = await googleSheetsService.addParentRegistration(parentData);

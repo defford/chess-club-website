@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle, XCircle, Loader2, ChevronLeft } from "lucide-react"
 import Link from "next/link"
+import { clientAuthService } from "@/lib/clientAuth"
 
 function ParentVerifyContent() {
   const router = useRouter()
@@ -70,13 +71,14 @@ function ParentVerifyContent() {
           router.push(`/register?email=${encodeURIComponent(result.email)}`)
         }, 2000)
       } else if (result.session) {
-        // Login successful - store session in localStorage
+        // Login successful - store session using clientAuthService
         const sessionData = {
           parentId: result.session.parentId,
           email: result.session.email,
-          loginTime: Date.now()
+          loginTime: Date.now(),
+          isSelfRegistered: result.session.isSelfRegistered || false
         }
-        localStorage.setItem('chess-club-parent-auth', JSON.stringify(sessionData))
+        clientAuthService.setParentSession(sessionData)
         
         setMessage('Successfully signed in! Redirecting to your dashboard...')
         setTimeout(() => {

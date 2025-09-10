@@ -43,6 +43,21 @@ export class ClientAuthService {
   logoutParent(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(this.AUTH_KEY);
+      // Dispatch custom event for same-tab authentication changes
+      window.dispatchEvent(new CustomEvent('authStateChanged', { 
+        detail: { authenticated: false } 
+      }));
+    }
+  }
+
+  // Set parent session (for use after successful login)
+  setParentSession(session: ParentSession): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(this.AUTH_KEY, JSON.stringify(session));
+      // Dispatch custom event for same-tab authentication changes
+      window.dispatchEvent(new CustomEvent('authStateChanged', { 
+        detail: { authenticated: true, session } 
+      }));
     }
   }
 }

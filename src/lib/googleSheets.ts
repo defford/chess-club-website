@@ -63,6 +63,8 @@ interface ParentAccount {
   createdDate: string;
   lastLogin: string;
   isActive: boolean;
+  isSelfRegistered?: boolean;
+  registrationType?: 'parent' | 'self';
 }
 
 interface PlayerOwnership {
@@ -92,6 +94,7 @@ interface ParentRegistrationData {
   valuesAcknowledgment: boolean;
   newsletter: boolean;
   createAccount?: boolean;
+  registrationType?: 'parent' | 'self';
 }
 
 interface StudentRegistrationData {
@@ -138,6 +141,7 @@ interface ParentData {
   newsletter: boolean;
   createAccount: boolean;
   timestamp: string;
+  registrationType?: 'parent' | 'self';
 }
 
 interface StudentData {
@@ -294,14 +298,15 @@ export class GoogleSheetsService {
         parentData.valuesAcknowledgment ? 'Yes' : 'No',
         parentData.newsletter ? 'Yes' : 'No',
         parentData.createAccount ? 'Yes' : 'No',
-        parentData.timestamp
+        parentData.timestamp,
+        data.registrationType || 'parent' // Registration Type
       ]
     ];
 
     try {
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'parents!A:M',
+        range: 'parents!A:N',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -458,7 +463,7 @@ export class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'parents!A:M',
+        range: 'parents!A:N',
       });
 
       const rows = response.data.values;
@@ -484,7 +489,8 @@ export class GoogleSheetsService {
         photoConsent: parentRow[8] === 'Yes',
         valuesAcknowledgment: parentRow[9] === 'Yes',
         newsletter: parentRow[10] === 'Yes',
-        createAccount: parentRow[11] === 'Yes'
+        createAccount: parentRow[11] === 'Yes',
+        registrationType: (parentRow[13] as 'parent' | 'self') || 'parent'
       };
     } catch (error) {
       console.error('Error reading parent registration from Google Sheets:', error);
@@ -492,53 +498,6 @@ export class GoogleSheetsService {
     }
   }
 
-  async initializeSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    if (!spreadsheetId) {
-      throw new Error('Google Sheets registration ID not configured');
-    }
-
-    // Check if headers exist, if not, create them
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'registrations!A1:N1',
-      });
-
-      // If no data or wrong headers, set up the header row
-      if (!response.data.values || response.data.values.length === 0) {
-        const headers = [
-          'Timestamp',
-          'Parent Name',
-          'Parent Email',
-          'Parent Phone',
-          'Player Name',
-          'Player Age',
-          'Player Grade',
-          'Chess Experience',
-          'Emergency Contact',
-          'Emergency Phone',
-          'Medical Info',
-          'Participation Consent',
-          'Photo Consent',
-          'Newsletter Subscription'
-        ];
-
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: 'registrations!A1:N1',
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [headers],
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing Google Sheets:', error);
-      throw new Error('Failed to initialize Google Sheets');
-    }
-  }
 
   // Events Management Methods
   async getEvents(): Promise<EventData[]> {
@@ -686,49 +645,6 @@ export class GoogleSheetsService {
     }
   }
 
-  async initializeEventsSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('events');
-    
-    if (!spreadsheetId) {
-      throw new Error('Google Sheets events ID not configured');
-    }
-
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'events!A1:L1',
-      });
-
-      if (!response.data.values || response.data.values.length === 0) {
-        const headers = [
-          'ID',
-          'Name',
-          'Date',
-          'Time',
-          'Location',
-          'Participants',
-          'Max Participants',
-          'Description',
-          'Category',
-          'Age Groups',
-          'Status',
-          'Last Updated'
-        ];
-
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: 'events!A1:L1',
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [headers],
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing events sheet:', error);
-      throw new Error('Failed to initialize events sheet');
-    }
-  }
 
   // Rankings/Ladder Management Methods
   async getPlayers(): Promise<PlayerData[]> {
@@ -870,46 +786,6 @@ export class GoogleSheetsService {
     }
   }
 
-  async initializeRankingsSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('rankings');
-    
-    if (!spreadsheetId) {
-      throw new Error('Google Sheets rankings ID not configured');
-    }
-
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'rankings!A1:I1',
-      });
-
-      if (!response.data.values || response.data.values.length === 0) {
-        const headers = [
-          'ID',
-          'Name',
-          'Grade',
-          'Wins',
-          'Losses',
-          'Points',
-          'Rank',
-          'Last Active',
-          'Email'
-        ];
-
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: 'rankings!A1:I1',
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [headers],
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing rankings sheet:', error);
-      throw new Error('Failed to initialize rankings sheet');
-    }
-  }
 
   // Members/Registration Management Methods
   async getRegistrations(): Promise<RegistrationData[]> {
@@ -1057,41 +933,6 @@ export class GoogleSheetsService {
     }
   }
 
-  async initializeEventRegistrationsSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    if (!spreadsheetId) {
-      throw new Error('Google Sheets registration ID not configured');
-    }
-
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'event registrations!A1:D1',
-      });
-
-      if (!response.data.values || response.data.values.length === 0) {
-        const headers = [
-          'Event ID',
-          'Player Name',
-          'Player Grade',
-          'Additional Notes'
-        ];
-
-        await this.sheets.spreadsheets.values.update({
-          spreadsheetId,
-          range: 'event registrations!A1:D1',
-          valueInputOption: 'RAW',
-          requestBody: {
-            values: [headers],
-          },
-        });
-      }
-    } catch (error) {
-      console.error('Error initializing event registrations sheet:', error);
-      throw new Error('Failed to initialize event registrations sheet');
-    }
-  }
 
   // Get event registrations for a specific player
   async getEventRegistrationsByPlayer(playerName: string): Promise<Array<{
@@ -1170,7 +1011,7 @@ export class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'parent_accounts!A:E',
+        range: 'parents!A:N',
       });
 
       const rows = response.data.values;
@@ -1178,18 +1019,47 @@ export class GoogleSheetsService {
         return null;
       }
 
-      // Find account by email
-      const accountRow = rows.slice(1).find(row => row[1] === email);
+      // Find account by email (email is in column C, index 2)
+      const accountRow = rows.slice(1).find(row => 
+        row[2] && row[2].toLowerCase() === email.toLowerCase()
+      );
       if (!accountRow) {
         return null;
       }
 
+      // Get registration type from column N (index 13), fallback to inferring from other data
+      let registrationType: 'parent' | 'self' = 'parent';
+      let isSelfRegistered = false;
+      
+      if (accountRow[13]) {
+        // Use explicit registration type if available
+        registrationType = accountRow[13] as 'parent' | 'self';
+        isSelfRegistered = registrationType === 'self';
+      } else {
+        // Fallback to old logic for existing data
+        try {
+          const students = await this.getStudentsByParentEmail(email);
+          const parentName = accountRow[1] || ''; // Parent name is in column B, index 1
+          isSelfRegistered = students.some(student => 
+            student.name.toLowerCase() === parentName.toLowerCase()
+          );
+          registrationType = isSelfRegistered ? 'self' : 'parent';
+        } catch (error) {
+          console.error('Error checking if self-registered:', error);
+          // Fallback to the createAccount column if we can't determine from student data
+          isSelfRegistered = accountRow[11] === 'true';
+          registrationType = isSelfRegistered ? 'self' : 'parent';
+        }
+      }
+
       return {
         id: accountRow[0] || '',
-        email: accountRow[1] || '',
-        createdDate: accountRow[2] || '',
-        lastLogin: accountRow[3] || '',
-        isActive: accountRow[4] === 'true'
+        email: accountRow[2] || '',
+        createdDate: accountRow[12] || new Date().toISOString(), // Timestamp column
+        lastLogin: new Date().toISOString(), // Will be updated on login
+        isActive: true, // Assume active if exists in parents sheet
+        isSelfRegistered,
+        registrationType
       };
     } catch (error) {
       console.error('Error reading parent account from Google Sheets:', error);
@@ -1200,20 +1070,31 @@ export class GoogleSheetsService {
   async addParentAccount(account: ParentAccount): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
+    // Add row to parents sheet with the structure: ID, Name, Email, Phone, Hear About Us, Provincial Interest, 
+    // Volunteer Interest, Consent, Photo Consent, Values Acknowledgment, Newsletter, Create Account, Timestamp, Registration Type
     const values = [
       [
-        account.id,
-        account.email,
-        account.createdDate,
-        account.lastLogin,
-        account.isActive ? 'true' : 'false'
+        account.id,                    // ID
+        '',                           // Name (empty for self-registered)
+        account.email,                // Email
+        '',                           // Phone (empty for self-registered)
+        '',                           // Hear About Us (empty for self-registered)
+        '',                           // Provincial Interest (empty for self-registered)
+        '',                           // Volunteer Interest (empty for self-registered)
+        '',                           // Consent (empty for self-registered)
+        '',                           // Photo Consent (empty for self-registered)
+        '',                           // Values Acknowledgment (empty for self-registered)
+        '',                           // Newsletter (empty for self-registered)
+        account.isSelfRegistered ? 'true' : 'false', // Create Account
+        account.createdDate,          // Timestamp
+        account.registrationType || (account.isSelfRegistered ? 'self' : 'parent') // Registration Type
       ]
     ];
 
     try {
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'parent_accounts!A:E',
+        range: 'parents!A:N',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -1232,7 +1113,7 @@ export class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'parent_accounts!A:E',
+        range: 'parents!A:N',
       });
 
       const rows = response.data.values;
@@ -1249,18 +1130,29 @@ export class GoogleSheetsService {
       const actualRowIndex = rowIndex + 2; // Account for header row and 0-based index
       const currentRow = rows[rowIndex + 1];
 
-      // Apply updates
+      // Apply updates to the parents sheet structure
+      // Structure: ID, Name, Email, Phone, Hear About Us, Provincial Interest, 
+      // Volunteer Interest, Consent, Photo Consent, Values Acknowledgment, Newsletter, Create Account, Timestamp, Registration Type
       const updatedRow = [
-        currentRow[0], // id (never changes)
-        updates.email !== undefined ? updates.email : currentRow[1],
-        updates.createdDate !== undefined ? updates.createdDate : currentRow[2],
-        updates.lastLogin !== undefined ? updates.lastLogin : currentRow[3],
-        updates.isActive !== undefined ? (updates.isActive ? 'true' : 'false') : currentRow[4]
+        currentRow[0], // ID (never changes)
+        currentRow[1], // Name (unchanged)
+        updates.email !== undefined ? updates.email : currentRow[2], // Email
+        currentRow[3], // Phone (unchanged)
+        currentRow[4], // Hear About Us (unchanged)
+        currentRow[5], // Provincial Interest (unchanged)
+        currentRow[6], // Volunteer Interest (unchanged)
+        currentRow[7], // Consent (unchanged)
+        currentRow[8], // Photo Consent (unchanged)
+        currentRow[9], // Values Acknowledgment (unchanged)
+        currentRow[10], // Newsletter (unchanged)
+        updates.isSelfRegistered !== undefined ? (updates.isSelfRegistered ? 'true' : 'false') : (currentRow[11] || 'false'), // Create Account
+        updates.createdDate !== undefined ? updates.createdDate : currentRow[12], // Timestamp
+        updates.registrationType !== undefined ? updates.registrationType : (currentRow[13] || 'parent') // Registration Type
       ];
 
       await this.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `parent_accounts!A${actualRowIndex}:E${actualRowIndex}`,
+        range: `parents!A${actualRowIndex}:N${actualRowIndex}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [updatedRow],
@@ -1442,7 +1334,7 @@ export class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'parents!A:M',
+        range: 'parents!A:N',
       });
 
       const rows = response.data.values;
@@ -1472,7 +1364,8 @@ export class GoogleSheetsService {
         valuesAcknowledgment: parentRow[9] === 'Yes',
         newsletter: parentRow[10] === 'Yes',
         createAccount: parentRow[11] === 'Yes',
-        timestamp: parentRow[12] || ''
+        timestamp: parentRow[12] || '',
+        registrationType: (parentRow[13] as 'parent' | 'self') || 'parent'
       };
     } catch (error) {
       console.error('Error getting parent by email from Google Sheets:', error);
@@ -1677,152 +1570,9 @@ export class GoogleSheetsService {
   }
 
   // Initialize parent account and player ownership sheets
-  async initializeParentAccountsSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    try {
-      // Create the parent_accounts sheet with headers
-      await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              addSheet: {
-                properties: {
-                  title: 'parent_accounts'
-                }
-              }
-            }
-          ]
-        }
-      });
 
-      // Add header row
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: 'parent_accounts!A1:E1',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [['Parent ID', 'Email', 'Created Date', 'Last Login', 'Is Active']]
-        }
-      });
-    } catch (error) {
-      console.error('Error initializing parent accounts sheet:', error);
-      throw new Error('Failed to initialize parent accounts sheet');
-    }
-  }
 
-  async initializePlayerOwnershipSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    try {
-      // Create the player_ownership sheet with headers
-      await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              addSheet: {
-                properties: {
-                  title: 'player_ownership'
-                }
-              }
-            }
-          ]
-        }
-      });
 
-      // Add header row
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: 'player_ownership!A1:G1',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [['Player ID', 'Player Name', 'Player Email', 'Owner Parent ID', 'Pending Parent ID', 'Approval Status', 'Claim Date']]
-        }
-      });
-    } catch (error) {
-      console.error('Error initializing player ownership sheet:', error);
-      throw new Error('Failed to initialize player ownership sheet');
-    }
-  }
-
-  async initializeParentsSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    try {
-      // Create the parents sheet with headers
-      await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              addSheet: {
-                properties: {
-                  title: 'parents'
-                }
-              }
-            }
-          ]
-        }
-      });
-
-      // Add header row
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: 'parents!A1:M1',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [[
-            'ID', 'Name', 'Email', 'Phone', 'Hear About Us', 'Provincial Interest', 
-            'Volunteer Interest', 'Consent', 'Photo Consent', 'Values Acknowledgment', 
-            'Newsletter', 'Create Account', 'Timestamp'
-          ]]
-        }
-      });
-    } catch (error) {
-      console.error('Error initializing parents sheet:', error);
-      throw new Error('Failed to initialize parents sheet');
-    }
-  }
-
-  async initializeStudentsSheet(): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    try {
-      // Create the students sheet with headers
-      await this.sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-          requests: [
-            {
-              addSheet: {
-                properties: {
-                  title: 'students'
-                }
-              }
-            }
-          ]
-        }
-      });
-
-      // Add header row
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: 'students!A1:I1',
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [[
-            'ID', 'Parent ID', 'Name', 'Age', 'Grade', 'Emergency Contact', 
-            'Emergency Phone', 'Medical Info', 'Timestamp'
-          ]]
-        }
-      });
-    } catch (error) {
-      console.error('Error initializing students sheet:', error);
-      throw new Error('Failed to initialize students sheet');
-    }
-  }
 }
 
 export const googleSheetsService = new GoogleSheetsService();
