@@ -233,7 +233,7 @@ export function Header() {
                     </Button>
                   </Link>
                   <Link href="/parent/login" onClick={() => setMobileMenuOpen(false)}>
-                    <Button size="sm" className="w-full">
+                    <Button variant="outline" size="sm" className="w-full">
                       Login
                     </Button>
                   </Link>
