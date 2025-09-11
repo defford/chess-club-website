@@ -93,7 +93,7 @@ class ParentAuthService {
     }
   ): Promise<void> {
     const token = this.generateMagicToken(email, type, options);
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://cnlscc.com';
     
     let magicUrl: string;
     let subject: string;
@@ -433,7 +433,7 @@ class ParentAuthService {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/parent/dashboard" style="background: #1a365d; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
+                <a href="${process.env.NEXT_PUBLIC_BASE_URL || 'https://cnlscc.com'}/parent/dashboard" style="background: #1a365d; color: white; padding: 15px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
                   Go to Parent Dashboard
                 </a>
               </div>
