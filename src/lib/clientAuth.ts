@@ -14,6 +14,11 @@ export class ClientAuthService {
   isParentAuthenticated(): boolean {
     if (typeof window === 'undefined') return false;
     
+    // In development, bypass authentication
+    if (process.env.NODE_ENV === 'development') {
+      return true;
+    }
+    
     try {
       const stored = localStorage.getItem(this.AUTH_KEY);
       if (!stored) return false;
@@ -28,6 +33,15 @@ export class ClientAuthService {
   // Get current parent session (client-side only)
   getCurrentParentSession(): ParentSession | null {
     if (typeof window === 'undefined') return null;
+    
+    // In development, return a mock session
+    if (process.env.NODE_ENV === 'development') {
+      return {
+        parentId: 'dev-parent-123',
+        email: 'dev@example.com',
+        loginTime: Date.now()
+      };
+    }
     
     try {
       const stored = localStorage.getItem(this.AUTH_KEY);
