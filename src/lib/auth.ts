@@ -8,7 +8,23 @@ export interface AuthState {
   timestamp: number
 }
 
+// Development environment bypass
+function isDevelopmentMode(): boolean {
+  return process.env.NODE_ENV === 'development'
+}
+
 export function authenticate(password: string): boolean {
+  // In development, bypass authentication
+  if (isDevelopmentMode()) {
+    const authState: AuthState = {
+      isAuthenticated: true,
+      timestamp: Date.now()
+    }
+    localStorage.setItem(AUTH_KEY, JSON.stringify(authState))
+    return true
+  }
+  
+  // Production authentication
   if (password === ADMIN_PASSWORD) {
     const authState: AuthState = {
       isAuthenticated: true,
@@ -22,6 +38,11 @@ export function authenticate(password: string): boolean {
 
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false
+  
+  // In development, always return true (bypass authentication)
+  if (isDevelopmentMode()) {
+    return true
+  }
   
   try {
     const stored = localStorage.getItem(AUTH_KEY)
