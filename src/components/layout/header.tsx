@@ -5,8 +5,9 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Dropdown } from "@/components/ui/dropdown"
-import { Menu, X, LogOut, LayoutDashboard } from "lucide-react"
+import { Menu, X, LogOut, LayoutDashboard, Gamepad2, Settings } from "lucide-react"
 import { clientAuthService } from "@/lib/clientAuth"
+import { useAdmin } from "@/hooks/useAdmin"
 
 const navigation = [
   { name: "Home", href: "/" },
@@ -21,6 +22,7 @@ export function Header() {
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
   const [parentEmail, setParentEmail] = React.useState("")
   const [parentName, setParentName] = React.useState("")
+  const { isAdmin } = useAdmin()
 
   // Fetch parent details from API
   const fetchParentDetails = async (email: string) => {
@@ -146,6 +148,18 @@ export function Header() {
                   href: "/parent/dashboard",
                   icon: <LayoutDashboard className="h-4 w-4" />
                 },
+                ...(isAdmin ? [
+                  {
+                    label: "Game Management",
+                    href: "/admin/games",
+                    icon: <Gamepad2 className="h-4 w-4" />
+                  },
+                  {
+                    label: "Admin Panel",
+                    href: "/admin",
+                    icon: <Settings className="h-4 w-4" />
+                  }
+                ] : []),
                 {
                   label: "Logout",
                   onClick: handleLogout,
@@ -212,6 +226,22 @@ export function Header() {
                       <span>Dashboard</span>
                     </Button>
                   </Link>
+                  {isAdmin && (
+                    <>
+                      <Link href="/admin/games" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" size="sm" className="w-full flex items-center justify-center space-x-1">
+                          <Gamepad2 className="h-4 w-4" />
+                          <span>Game Management</span>
+                        </Button>
+                      </Link>
+                      <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                        <Button variant="outline" size="sm" className="w-full flex items-center justify-center space-x-1">
+                          <Settings className="h-4 w-4" />
+                          <span>Admin Panel</span>
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"

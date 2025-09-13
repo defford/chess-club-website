@@ -32,6 +32,7 @@ export interface ParentSession {
   loginTime: number;
   isSelfRegistered?: boolean;
   registrationType?: 'parent' | 'self';
+  isAdmin?: boolean;
 }
 
 class ParentAuthService {
@@ -215,7 +216,8 @@ class ParentAuthService {
       email: account.email,
       loginTime: Date.now(),
       isSelfRegistered: account.isSelfRegistered || isSelfRegistered,
-      registrationType: account.registrationType || (account.isSelfRegistered ? 'self' : 'parent')
+      registrationType: account.registrationType || (account.isSelfRegistered ? 'self' : 'parent'),
+      isAdmin: account.isAdmin || false
     };
 
     // Store session (never expires as requested)

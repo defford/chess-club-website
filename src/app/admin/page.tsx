@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { getMemberStats } from "@/lib/members"
-import { Users, Calendar, Trophy, Settings, LogOut } from "lucide-react"
+import { Users, Calendar, Trophy, Settings, LogOut, Gamepad2 } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminDashboard() {
@@ -75,6 +75,13 @@ export default function AdminDashboard() {
       icon: Trophy,
       href: "/admin/rankings",
       count: "Manage games",
+    },
+    {
+      title: "Game Management",
+      description: "Record and manage chess games",
+      icon: Gamepad2,
+      href: "/admin/games",
+      count: "Record games",
     },
     {
       title: "Settings",

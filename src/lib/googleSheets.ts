@@ -65,6 +65,7 @@ interface ParentAccount {
   isActive: boolean;
   isSelfRegistered?: boolean;
   registrationType?: 'parent' | 'self';
+  isAdmin?: boolean;
 }
 
 interface PlayerOwnership {
@@ -1011,7 +1012,7 @@ export class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'parents!A:N',
+        range: 'parents!A:O',
       });
 
       const rows = response.data.values;
@@ -1059,7 +1060,8 @@ export class GoogleSheetsService {
         lastLogin: new Date().toISOString(), // Will be updated on login
         isActive: true, // Assume active if exists in parents sheet
         isSelfRegistered,
-        registrationType
+        registrationType,
+        isAdmin: accountRow[14] === 'true' || false // Column O (index 14) for admin status
       };
     } catch (error) {
       console.error('Error reading parent account from Google Sheets:', error);
@@ -1071,7 +1073,7 @@ export class GoogleSheetsService {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
     // Add row to parents sheet with the structure: ID, Name, Email, Phone, Hear About Us, Provincial Interest, 
-    // Volunteer Interest, Consent, Photo Consent, Values Acknowledgment, Newsletter, Create Account, Timestamp, Registration Type
+    // Volunteer Interest, Consent, Photo Consent, Values Acknowledgment, Newsletter, Create Account, Timestamp, Registration Type, Is Admin
     const values = [
       [
         account.id,                    // ID
@@ -1087,14 +1089,15 @@ export class GoogleSheetsService {
         '',                           // Newsletter (empty for self-registered)
         account.isSelfRegistered ? 'true' : 'false', // Create Account
         account.createdDate,          // Timestamp
-        account.registrationType || (account.isSelfRegistered ? 'self' : 'parent') // Registration Type
+        account.registrationType || (account.isSelfRegistered ? 'self' : 'parent'), // Registration Type
+        account.isAdmin ? 'true' : 'false' // Is Admin
       ]
     ];
 
     try {
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'parents!A:N',
+        range: 'parents!A:O',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -1571,7 +1574,295 @@ export class GoogleSheetsService {
 
   // Initialize parent account and player ownership sheets
 
+  // Game Management Methods
+  async addGame(gameData: any): Promise<string> {
+    const spreadsheetId = this.getSpreadsheetId('rankings');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
 
+    try {
+      const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const gameRow = [
+        gameId,
+        gameData.player1Id,
+        gameData.player1Name,
+        gameData.player2Id,
+        gameData.player2Name,
+        gameData.result,
+        gameData.gameDate,
+        gameData.gameTime,
+        gameData.gameType,
+        gameData.eventId || '',
+        gameData.notes || '',
+        gameData.recordedBy,
+        gameData.recordedAt,
+        gameData.opening || '',
+        gameData.endgame || '',
+        gameData.ratingChange ? JSON.stringify(gameData.ratingChange) : '',
+        gameData.isVerified,
+        gameData.verifiedBy || '',
+        gameData.verifiedAt || ''
+      ];
+
+      const response = await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'games!A:S',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [gameRow]
+        }
+      });
+
+      console.log('✅ Game added successfully:', gameId);
+      return gameId;
+    } catch (error) {
+      console.error('❌ Failed to add game:', error);
+      throw error;
+    }
+  }
+
+  async getGames(filters?: any): Promise<any[]> {
+    const spreadsheetId = this.getSpreadsheetId('rankings');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'games!A:S',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return [];
+      }
+
+      // Skip header row and convert to GameData objects
+      let games = rows.slice(1).map((row, index) => ({
+        id: row[0] || `game_${index}`,
+        player1Id: row[1] || '',
+        player1Name: row[2] || '',
+        player2Id: row[3] || '',
+        player2Name: row[4] || '',
+        result: row[5] as 'player1' | 'player2' | 'draw',
+        gameDate: row[6] || '',
+        gameTime: parseInt(row[7]) || 0,
+        gameType: row[8] as 'ladder' | 'tournament' | 'friendly' | 'practice',
+        eventId: row[9] || undefined,
+        notes: row[10] || undefined,
+        recordedBy: row[11] || '',
+        recordedAt: row[12] || '',
+        opening: row[13] || undefined,
+        endgame: row[14] || undefined,
+        ratingChange: row[15] ? JSON.parse(row[15]) : undefined,
+        isVerified: row[16] === 'true',
+        verifiedBy: row[17] || undefined,
+        verifiedAt: row[18] || undefined
+      })).filter(game => game.id);
+
+      // Apply filters if provided
+      if (filters) {
+        if (filters.playerId) {
+          games = games.filter(game => 
+            game.player1Id === filters.playerId || game.player2Id === filters.playerId
+          );
+        }
+        if (filters.gameType) {
+          games = games.filter(game => game.gameType === filters.gameType);
+        }
+        if (filters.dateFrom) {
+          games = games.filter(game => game.gameDate >= filters.dateFrom);
+        }
+        if (filters.dateTo) {
+          games = games.filter(game => game.gameDate <= filters.dateTo);
+        }
+        if (filters.result) {
+          games = games.filter(game => game.result === filters.result);
+        }
+        if (filters.eventId) {
+          games = games.filter(game => game.eventId === filters.eventId);
+        }
+        if (filters.isVerified !== undefined) {
+          games = games.filter(game => game.isVerified === filters.isVerified);
+        }
+      }
+
+      // Sort by date (newest first)
+      return games.sort((a, b) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime());
+    } catch (error) {
+      console.error('Error reading games from Google Sheets:', error);
+      throw new Error('Failed to retrieve games from Google Sheets');
+    }
+  }
+
+  async getPlayerGames(playerId: string): Promise<any[]> {
+    return this.getGames({ playerId });
+  }
+
+  async setupParentsAdminColumn(): Promise<{ message: string; headers: string[]; rowsUpdated: number }> {
+    const spreadsheetId = this.getSpreadsheetId('rankings');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Check if admin column already exists by reading the headers
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'parents!1:1',
+      });
+
+      const headers = response.data.values?.[0] || [];
+      const hasAdminColumn = headers.includes('Is Admin');
+
+      if (hasAdminColumn) {
+        return {
+          message: 'Admin column already exists in parents sheet',
+          headers: headers,
+          rowsUpdated: 0
+        };
+      }
+
+      // Add the admin column header
+      const updatedHeaders = [...headers, 'Is Admin'];
+      
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: 'parents!1:1',
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [updatedHeaders]
+        }
+      });
+
+      // Add 'false' to all existing rows for the admin column
+      const allRowsResponse = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'parents!A:O',
+      });
+
+      const rows = allRowsResponse.data.values || [];
+      let rowsUpdated = 0;
+      
+      if (rows.length > 1) {
+        // Update existing rows to add 'false' for admin column
+        const updatePromises = [];
+        for (let i = 1; i < rows.length; i++) {
+          const row = rows[i];
+          if (row.length < 15) { // If row doesn't have admin column yet
+            const updatedRow = [...row, 'false'];
+            updatePromises.push(
+            this.sheets.spreadsheets.values.update({
+              spreadsheetId,
+              range: `parents!A${i + 1}:O${i + 1}`,
+              valueInputOption: 'RAW',
+              requestBody: {
+                values: [updatedRow]
+              }
+            })
+            );
+            rowsUpdated++;
+          }
+        }
+        
+        if (updatePromises.length > 0) {
+          await Promise.all(updatePromises);
+        }
+      }
+
+      console.log('✅ Admin column added to parents sheet');
+      return {
+        message: 'Admin column added successfully to parents sheet',
+        headers: updatedHeaders,
+        rowsUpdated
+      };
+    } catch (error) {
+      console.error('❌ Failed to setup admin column:', error);
+      throw error;
+    }
+  }
+
+  async initializeGamesSheet(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('rankings');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Check if games sheet exists
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId
+      });
+
+      const gamesSheetExists = spreadsheet.data.sheets?.some(
+        sheet => sheet.properties?.title === 'games'
+      );
+
+      if (!gamesSheetExists) {
+        // Create games sheet
+        await this.sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: 'games',
+                  gridProperties: {
+                    rowCount: 1000,
+                    columnCount: 19
+                  }
+                }
+              }
+            }]
+          }
+        });
+
+        // Add headers
+        const headers = [
+          'Game ID',
+          'Player 1 ID',
+          'Player 1 Name',
+          'Player 2 ID',
+          'Player 2 Name',
+          'Result',
+          'Game Date',
+          'Game Time (min)',
+          'Game Type',
+          'Event ID',
+          'Notes',
+          'Recorded By',
+          'Recorded At',
+          'Opening',
+          'Endgame',
+          'Rating Change',
+          'Is Verified',
+          'Verified By',
+          'Verified At'
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: 'games!A1:S1',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [headers]
+          }
+        });
+
+        console.log('✅ Games sheet initialized successfully');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize games sheet:', error);
+      throw error;
+    }
+  }
 
 }
 
