@@ -11,7 +11,15 @@ export function useAdmin() {
     const checkAdminStatus = () => {
       try {
         const session = clientAuthService.getCurrentParentSession()
-        setIsAdmin(session?.isAdmin || false)
+        
+        // In development, check if we're using the dev email
+        if (process.env.NODE_ENV === 'development') {
+          const isDevAdmin = session?.email === 'dev@example.com'
+          console.log('🔍 Admin check - Development mode:', { email: session?.email, isAdmin: isDevAdmin })
+          setIsAdmin(isDevAdmin)
+        } else {
+          setIsAdmin(session?.isAdmin || false)
+        }
       } catch (error) {
         console.error('Error checking admin status:', error)
         setIsAdmin(false)
@@ -26,7 +34,12 @@ export function useAdmin() {
     const handleAuthStateChange = (event: CustomEvent) => {
       const { authenticated, session } = event.detail
       if (authenticated && session) {
-        setIsAdmin(session.isAdmin || false)
+        // In development, check if we're using the dev email
+        if (process.env.NODE_ENV === 'development') {
+          setIsAdmin(session.email === 'dev@example.com')
+        } else {
+          setIsAdmin(session.isAdmin || false)
+        }
       } else {
         setIsAdmin(false)
       }

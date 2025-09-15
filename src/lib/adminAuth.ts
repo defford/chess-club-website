@@ -3,6 +3,12 @@
 import { clientAuthService } from './clientAuth'
 
 export function isAdminAuthenticated(): boolean {
+  // In development, check if we're using the dev email
+  if (process.env.NODE_ENV === 'development') {
+    const session = clientAuthService.getCurrentParentSession()
+    return session?.email === 'dev@example.com'
+  }
+  
   const session = clientAuthService.getCurrentParentSession()
   return session?.isAdmin === true
 }

@@ -72,10 +72,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get player names
-    const players = await googleSheetsService.getPlayers();
-    const player1 = players.find(p => p.id === gameFormData.player1Id);
-    const player2 = players.find(p => p.id === gameFormData.player2Id);
+    // Get player names from students sheet (source of truth)
+    console.log('Getting players from students sheet...');
+    let player1 = null;
+    let player2 = null;
+    
+    try {
+      // Get all students from the students sheet using the new method
+      const students = await googleSheetsService.getAllStudents();
+      
+      const student1 = students.find(s => s.id === gameFormData.player1Id);
+      const student2 = students.find(s => s.id === gameFormData.player2Id);
+      
+      if (student1) {
+        player1 = {
+          id: gameFormData.player1Id,
+          name: student1.name,
+          grade: student1.grade,
+          wins: 0,
+          losses: 0,
+          points: 0,
+          rank: 999,
+          lastActive: student1.timestamp || new Date().toISOString(),
+          email: '' // Will be filled from parent data if needed
+        };
+      }
+      
+      if (student2) {
+        player2 = {
+          id: gameFormData.player2Id,
+          name: student2.name,
+          grade: student2.grade,
+          wins: 0,
+          losses: 0,
+          points: 0,
+          rank: 999,
+          lastActive: student2.timestamp || new Date().toISOString(),
+          email: '' // Will be filled from parent data if needed
+        };
+      }
+    } catch (error) {
+      console.error('Error getting players from students sheet:', error);
+    }
 
     if (!player1 || !player2) {
       return NextResponse.json(
@@ -130,9 +168,80 @@ export async function POST(request: NextRequest) {
 // Helper function to update player statistics
 async function updatePlayerStats(player1Id: string, player2Id: string, result: string) {
   try {
-    const players = await googleSheetsService.getPlayers();
-    const player1 = players.find(p => p.id === player1Id);
-    const player2 = players.find(p => p.id === player2Id);
+    console.log('Updating player stats from students sheet...');
+    
+    // Get players from students sheet and add them to rankings if needed
+    const students = await googleSheetsService.getAllStudents();
+    const student1 = students.find(s => s.id === player1Id);
+    const student2 = students.find(s => s.id === player2Id);
+    
+    let player1 = null;
+    let player2 = null;
+    
+    // Check if players already exist in rankings
+    const existingPlayers = await googleSheetsService.getPlayers();
+    const existingPlayer1 = existingPlayers.find(p => p.name === student1?.name);
+    const existingPlayer2 = existingPlayers.find(p => p.name === student2?.name);
+    
+    if (student1) {
+      if (existingPlayer1) {
+        // Player exists in rankings, use existing data
+        player1 = existingPlayer1;
+      } else {
+        // Add player1 to rankings
+        console.log(`Adding ${student1.name} to rankings...`);
+        const newPlayer1Id = await googleSheetsService.addPlayer({
+          name: student1.name,
+          grade: student1.grade,
+          wins: 0,
+          losses: 0,
+          points: 0,
+          lastActive: new Date().toISOString(),
+          email: '' // Students don't have direct email, will be filled from parent if needed
+        });
+        player1 = {
+          id: newPlayer1Id,
+          name: student1.name,
+          grade: student1.grade,
+          wins: 0,
+          losses: 0,
+          points: 0,
+          rank: 999,
+          lastActive: new Date().toISOString(),
+          email: ''
+        };
+      }
+    }
+    
+    if (student2) {
+      if (existingPlayer2) {
+        // Player exists in rankings, use existing data
+        player2 = existingPlayer2;
+      } else {
+        // Add player2 to rankings
+        console.log(`Adding ${student2.name} to rankings...`);
+        const newPlayer2Id = await googleSheetsService.addPlayer({
+          name: student2.name,
+          grade: student2.grade,
+          wins: 0,
+          losses: 0,
+          points: 0,
+          lastActive: new Date().toISOString(),
+          email: '' // Students don't have direct email, will be filled from parent if needed
+        });
+        player2 = {
+          id: newPlayer2Id,
+          name: student2.name,
+          grade: student2.grade,
+          wins: 0,
+          losses: 0,
+          points: 0,
+          rank: 999,
+          lastActive: new Date().toISOString(),
+          email: ''
+        };
+      }
+    }
 
     if (!player1 || !player2) {
       throw new Error('Players not found for stats update');
@@ -167,15 +276,15 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
       player2Points += 0.5;
     }
 
-    // Update both players
-    await googleSheetsService.updatePlayer(player1Id, {
+    // Update both players using their ranking IDs
+    await googleSheetsService.updatePlayer(player1.id, {
       wins: player1Wins,
       losses: player1Losses,
       points: player1Points,
       lastActive: new Date().toISOString()
     });
 
-    await googleSheetsService.updatePlayer(player2Id, {
+    await googleSheetsService.updatePlayer(player2.id, {
       wins: player2Wins,
       losses: player2Losses,
       points: player2Points,

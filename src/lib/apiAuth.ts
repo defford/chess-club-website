@@ -10,6 +10,11 @@ export async function requireAdminAuth(request: NextRequest): Promise<{ isAdmin:
       return { isAdmin: false, error: 'No email provided' }
     }
 
+    // In development, allow dev@example.com to be admin
+    if (process.env.NODE_ENV === 'development' && email === 'dev@example.com') {
+      return { isAdmin: true }
+    }
+
     // Get the parent account from Google Sheets
     const parentAccount = await googleSheetsService.getParentAccount(email)
     

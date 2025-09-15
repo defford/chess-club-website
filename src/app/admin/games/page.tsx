@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { isAdminAuthenticated } from "@/lib/adminAuth"
+import { clientAuthService } from "@/lib/clientAuth"
 import { Gamepad2, Plus, Search, Filter, Download, LogOut, ArrowLeft } from "lucide-react"
 import type { GameData, PlayerData, GameFormData } from "@/lib/types"
 import GameForm from "@/components/admin/GameForm"
@@ -52,8 +53,12 @@ export default function AdminGamesPage() {
       setLoading(true)
       setError(null)
       
+      // Get the current user's email for admin authentication
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+      
       const [gamesResponse, playersResponse] = await Promise.all([
-        fetch('/api/games'),
+        fetch(`/api/games?email=${encodeURIComponent(userEmail)}`),
         fetch('/api/rankings')
       ])
 
@@ -86,7 +91,11 @@ export default function AdminGamesPage() {
       setSubmitting(true)
       setError(null)
 
-      const response = await fetch('/api/games', {
+      // Get the current user's email for admin authentication
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+
+      const response = await fetch(`/api/games?email=${encodeURIComponent(userEmail)}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -295,11 +304,19 @@ export default function AdminGamesPage() {
               <option value="draw">Draws</option>
             </select>
             <Button
-              onClick={() => setShowGameForm(true)}
+              onClick={() => router.push("/admin/games/quick")}
               className="flex items-center gap-2"
             >
               <Plus className="h-4 w-4" />
-              Add Game
+              Quick Add Game
+            </Button>
+            <Button
+              onClick={() => setShowGameForm(true)}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Advanced Form
             </Button>
           </div>
         </div>
@@ -330,7 +347,7 @@ export default function AdminGamesPage() {
                 <Gamepad2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600">No games found</p>
                 <Button 
-                  onClick={() => setShowGameForm(true)}
+                  onClick={() => router.push("/admin/games/quick")}
                   className="mt-4"
                 >
                   Add First Game

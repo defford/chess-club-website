@@ -1315,6 +1315,37 @@ export class GoogleSheetsService {
     }
   }
 
+  async getAllStudents(): Promise<StudentData[]> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'students!A:I',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length < 2) {
+        return [];
+      }
+
+      return rows.slice(1).map(row => ({
+        id: row[0] || '',
+        parentId: row[1] || '',
+        name: row[2] || '',
+        age: row[3] || '',
+        grade: row[4] || '',
+        emergencyContact: row[5] || '',
+        emergencyPhone: row[6] || '',
+        medicalInfo: row[7] || '',
+        timestamp: row[8] || ''
+      }));
+    } catch (error) {
+      console.error('Error getting all students from Google Sheets:', error);
+      throw new Error('Failed to get all students from Google Sheets');
+    }
+  }
+
   async getStudentsByParentEmail(parentEmail: string): Promise<StudentData[]> {
     try {
       // First, get the parent by email to find their ID
