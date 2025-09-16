@@ -208,7 +208,7 @@ export default function AdminRankingsPage() {
                 Record Game Result
               </CardTitle>
               <CardDescription>
-                Each player gets 1 point for playing. Winner gets +1 additional point (0.5 each for draw).
+                Each player gets 1 point for playing. Winner gets +1 additional point (0.5 points for draw).
               </CardDescription>
             </CardHeader>
             <CardContent>

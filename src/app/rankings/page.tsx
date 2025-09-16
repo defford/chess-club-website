@@ -6,7 +6,7 @@ import { Trophy, ChevronUp, ChevronDown } from "lucide-react"
 import { useState, useEffect } from "react"
 import type { PlayerData } from "@/lib/googleSheets"
 
-type SortField = "rank" | "name" | "grade" | "wins" | "losses" | "points"
+type SortField = "rank" | "name" | "grade" | "gamesPlayed" | "wins" | "losses" | "points"
 type SortDirection = "asc" | "desc"
 
 export default function RankingsPage() {
@@ -205,7 +205,7 @@ export default function RankingsPage() {
           <CardHeader>
             <CardTitle>Current Ladder Standings</CardTitle>
             <CardDescription>
-              Click column headers to sort. Points are calculated as: 1 point for playing + 1 point for winning (0.5 each for draw).
+              Click column headers to sort. Points are calculated as: 1 point for playing + 1 point for winning (0.5 points for draw).
             </CardDescription>
           </CardHeader>
           
@@ -222,6 +222,9 @@ export default function RankingsPage() {
                     </th>
                     <th className="text-left p-4 font-medium text-[--color-text-primary]">
                       <SortButton field="grade">Grade</SortButton>
+                    </th>
+                    <th className="text-left p-4 font-medium text-[--color-text-primary]">
+                      <SortButton field="gamesPlayed">Games</SortButton>
                     </th>
                     <th className="text-left p-4 font-medium text-[--color-text-primary]">
                       <SortButton field="wins">Wins</SortButton>
@@ -250,6 +253,9 @@ export default function RankingsPage() {
                       </td>
                       <td className="p-4 text-[--color-text-secondary]">
                         {player.grade}
+                      </td>
+                      <td className="p-4 font-medium text-[--color-text-primary]">
+                        {player.gamesPlayed}
                       </td>
                       <td className="p-4 font-medium text-green-600">
                         {player.wins}

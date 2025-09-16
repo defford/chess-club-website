@@ -49,6 +49,7 @@ interface PlayerData {
   id?: string;
   name: string;
   grade: string;
+  gamesPlayed: number;
   wins: number;
   losses: number;
   points: number;
@@ -160,6 +161,8 @@ interface StudentData {
 export class GoogleSheetsService {
   private sheets;
   private auth;
+  private lastApiCall: number = 0;
+  private readonly API_CALL_DELAY = 100; // 100ms delay between API calls
 
   constructor() {
     // Initialize Google Sheets API with service account credentials for reliable authentication
@@ -195,6 +198,19 @@ export class GoogleSheetsService {
     }
 
     this.sheets = google.sheets({ version: 'v4', auth: this.auth });
+  }
+
+  // Rate limiting helper to prevent API quota exceeded errors
+  private async rateLimit(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastCall = now - this.lastApiCall;
+    
+    if (timeSinceLastCall < this.API_CALL_DELAY) {
+      const delay = this.API_CALL_DELAY - timeSinceLastCall;
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    this.lastApiCall = Date.now();
   }
 
   // Helper method to get spreadsheet ID - now uses single spreadsheet with multiple sheets
@@ -658,7 +674,7 @@ export class GoogleSheetsService {
     try {
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'rankings!A:H',
+        range: 'rankings!A:J',
       });
 
       const rows = response.data.values;
@@ -671,12 +687,13 @@ export class GoogleSheetsService {
         id: row[0] || String(index + 1),
         name: row[1] || '',
         grade: row[2] || '',
-        wins: parseInt(row[3]) || 0,
-        losses: parseInt(row[4]) || 0,
-        points: parseFloat(row[5]) || 0,
-        rank: parseInt(row[6]) || index + 1,
-        lastActive: row[7] || new Date().toISOString(),
-        email: row[8] || '',
+        gamesPlayed: parseInt(row[3]) || 0,
+        wins: parseInt(row[4]) || 0,
+        losses: parseInt(row[5]) || 0,
+        points: parseFloat(row[6]) || 0,
+        rank: parseInt(row[7]) || index + 1,
+        lastActive: row[8] || new Date().toISOString(),
+        email: row[9] || '',
       })).filter(player => player.name).sort((a, b) => (a.rank || 999) - (b.rank || 999));
     } catch (error) {
       console.error('Error reading players from Google Sheets:', error);
@@ -702,6 +719,7 @@ export class GoogleSheetsService {
         playerId,
         player.name,
         player.grade,
+        player.gamesPlayed,
         player.wins,
         player.losses,
         player.points,
@@ -714,7 +732,7 @@ export class GoogleSheetsService {
     try {
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'rankings!A:I',
+        range: 'rankings!A:J',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -755,7 +773,7 @@ export class GoogleSheetsService {
       // Get current player data
       const currentPlayerResponse = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `rankings!A${rowIndex + 1}:I${rowIndex + 1}`,
+        range: `rankings!A${rowIndex + 1}:J${rowIndex + 1}`,
       });
 
       const currentRow = currentPlayerResponse.data.values?.[0] || [];
@@ -765,17 +783,18 @@ export class GoogleSheetsService {
         playerId, // ID stays the same
         updates.name ?? currentRow[1],
         updates.grade ?? currentRow[2],
-        updates.wins ?? currentRow[3],
-        updates.losses ?? currentRow[4],
-        updates.points ?? currentRow[5],
-        updates.rank ?? currentRow[6],
+        updates.gamesPlayed ?? currentRow[3],
+        updates.wins ?? currentRow[4],
+        updates.losses ?? currentRow[5],
+        updates.points ?? currentRow[6],
+        updates.rank ?? currentRow[7],
         updates.lastActive ?? new Date().toISOString(),
-        updates.email ?? currentRow[8]
+        updates.email ?? currentRow[9]
       ];
 
       await this.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `rankings!A${rowIndex + 1}:I${rowIndex + 1}`,
+        range: `rankings!A${rowIndex + 1}:J${rowIndex + 1}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [updatedRow],
@@ -996,12 +1015,99 @@ export class GoogleSheetsService {
       return b.wins - a.wins;
     });
 
-    // Update rankings
+    // Collect players that need rank updates
+    const playersToUpdate = [];
     for (let i = 0; i < sortedPlayers.length; i++) {
       const player = sortedPlayers[i];
       if (player.id && player.rank !== i + 1) {
-        await this.updatePlayer(player.id, { rank: i + 1 });
+        playersToUpdate.push({
+          id: player.id,
+          rank: i + 1
+        });
       }
+    }
+
+    // Batch update rankings if there are players to update
+    if (playersToUpdate.length > 0) {
+      await this.batchUpdatePlayerRanks(playersToUpdate);
+    }
+  }
+
+  // Batch update player ranks to reduce API calls
+  async batchUpdatePlayerRanks(rankUpdates: Array<{id: string, rank: number}>): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('rankings');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Apply rate limiting
+      await this.rateLimit();
+      
+      // Get all current player data in one call
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'rankings!A:I',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return;
+      }
+
+      // Create a map of player updates for quick lookup
+      const updateMap = new Map(rankUpdates.map(update => [update.id, update.rank]));
+
+      // Prepare batch update data
+      const batchUpdates = [];
+      const currentTime = new Date().toISOString();
+
+      for (let i = 1; i < rows.length; i++) { // Skip header row
+        const row = rows[i];
+        const playerId = row[0];
+        
+        if (updateMap.has(playerId)) {
+          const newRank = updateMap.get(playerId)!;
+          
+          // Update the rank and lastActive timestamp
+          const updatedRow = [
+            row[0], // ID
+            row[1], // Name
+            row[2], // Grade
+            row[3], // Wins
+            row[4], // Losses
+            row[5], // Points
+            newRank, // Rank (updated)
+            currentTime, // Last Active (updated)
+            row[8]  // Email
+          ];
+
+          batchUpdates.push({
+            range: `rankings!A${i + 1}:I${i + 1}`,
+            values: [updatedRow]
+          });
+        }
+      }
+
+      // Perform batch update if there are updates to make
+      if (batchUpdates.length > 0) {
+        // Apply rate limiting before batch update
+        await this.rateLimit();
+        
+        await this.sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            valueInputOption: 'RAW',
+            data: batchUpdates
+          }
+        });
+
+        console.log(`✅ Batch updated ${batchUpdates.length} player rankings`);
+      }
+    } catch (error) {
+      console.error('Error batch updating player ranks:', error);
+      throw new Error('Failed to batch update player rankings');
     }
   }
 
@@ -1329,7 +1435,7 @@ export class GoogleSheetsService {
         return [];
       }
 
-      return rows.slice(1).map(row => ({
+      const students = rows.slice(1).map(row => ({
         id: row[0] || '',
         parentId: row[1] || '',
         name: row[2] || '',
@@ -1340,6 +1446,20 @@ export class GoogleSheetsService {
         medicalInfo: row[7] || '',
         timestamp: row[8] || ''
       }));
+
+      // Deduplicate students by ID, keeping the most recent entry (highest timestamp)
+      const studentMap = new Map<string, StudentData>();
+      
+      for (const student of students) {
+        if (!student.id) continue; // Skip students without IDs
+        
+        const existing = studentMap.get(student.id);
+        if (!existing || (student.timestamp && student.timestamp > existing.timestamp)) {
+          studentMap.set(student.id, student);
+        }
+      }
+
+      return Array.from(studentMap.values());
     } catch (error) {
       console.error('Error getting all students from Google Sheets:', error);
       throw new Error('Failed to get all students from Google Sheets');
@@ -1733,6 +1853,158 @@ export class GoogleSheetsService {
 
   async getPlayerGames(playerId: string): Promise<any[]> {
     return this.getGames({ playerId });
+  }
+
+  async getGameStats(): Promise<any> {
+    try {
+      const games = await this.getGames();
+      
+      if (games.length === 0) {
+        return {
+          totalGames: 0,
+          gamesThisMonth: 0,
+          gamesThisWeek: 0,
+          ladderGames: 0,
+          tournamentGames: 0,
+          friendlyGames: 0,
+          practiceGames: 0,
+          averageGameTime: 0,
+          mostActivePlayer: 'N/A',
+          recentGames: []
+        };
+      }
+
+      const now = new Date();
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      // Calculate statistics
+      const totalGames = games.length;
+      const gamesThisMonth = games.filter(game => new Date(game.gameDate) >= thisMonth).length;
+      const gamesThisWeek = games.filter(game => new Date(game.gameDate) >= thisWeek).length;
+      
+      const ladderGames = games.filter(game => game.gameType === 'ladder').length;
+      const tournamentGames = games.filter(game => game.gameType === 'tournament').length;
+      const friendlyGames = games.filter(game => game.gameType === 'friendly').length;
+      const practiceGames = games.filter(game => game.gameType === 'practice').length;
+      
+      const totalGameTime = games.reduce((sum, game) => sum + (game.gameTime || 0), 0);
+      const averageGameTime = totalGames > 0 ? Math.round(totalGameTime / totalGames) : 0;
+
+      // Find most active player
+      const playerGameCounts: { [key: string]: number } = {};
+      games.forEach(game => {
+        if (game.player1Name) {
+          playerGameCounts[game.player1Name] = (playerGameCounts[game.player1Name] || 0) + 1;
+        }
+        if (game.player2Name) {
+          playerGameCounts[game.player2Name] = (playerGameCounts[game.player2Name] || 0) + 1;
+        }
+      });
+      
+      const mostActivePlayer = Object.keys(playerGameCounts).reduce((a, b) => 
+        playerGameCounts[a] > playerGameCounts[b] ? a : b, 'N/A'
+      );
+
+      // Get recent games (already sorted by date in getGames)
+      const recentGames = games.slice(0, 10);
+
+      return {
+        totalGames,
+        gamesThisMonth,
+        gamesThisWeek,
+        ladderGames,
+        tournamentGames,
+        friendlyGames,
+        practiceGames,
+        averageGameTime,
+        mostActivePlayer,
+        recentGames
+      };
+    } catch (error) {
+      console.error('Error calculating game stats:', error);
+      throw new Error('Failed to calculate game statistics');
+    }
+  }
+
+  async getPlayerGameStats(playerId: string): Promise<any> {
+    try {
+      const playerGames = await this.getPlayerGames(playerId);
+      
+      if (playerGames.length === 0) {
+        return {
+          totalGames: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          winRate: 0,
+          gamesThisMonth: 0,
+          gamesThisWeek: 0,
+          ladderGames: 0,
+          tournamentGames: 0,
+          friendlyGames: 0,
+          practiceGames: 0,
+          averageGameTime: 0,
+          recentGames: []
+        };
+      }
+
+      const now = new Date();
+      const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const thisWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+      // Calculate player-specific statistics
+      const totalGames = playerGames.length;
+      const gamesThisMonth = playerGames.filter(game => new Date(game.gameDate) >= thisMonth).length;
+      const gamesThisWeek = playerGames.filter(game => new Date(game.gameDate) >= thisWeek).length;
+      
+      const ladderGames = playerGames.filter(game => game.gameType === 'ladder').length;
+      const tournamentGames = playerGames.filter(game => game.gameType === 'tournament').length;
+      const friendlyGames = playerGames.filter(game => game.gameType === 'friendly').length;
+      const practiceGames = playerGames.filter(game => game.gameType === 'practice').length;
+      
+      const totalGameTime = playerGames.reduce((sum, game) => sum + (game.gameTime || 0), 0);
+      const averageGameTime = totalGames > 0 ? Math.round(totalGameTime / totalGames) : 0;
+
+      // Calculate wins, losses, draws
+      let wins = 0, losses = 0, draws = 0;
+      playerGames.forEach(game => {
+        if (game.result === 'draw') {
+          draws++;
+        } else if (
+          (game.result === 'player1' && game.player1Id === playerId) ||
+          (game.result === 'player2' && game.player2Id === playerId)
+        ) {
+          wins++;
+        } else {
+          losses++;
+        }
+      });
+
+      const winRate = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
+
+      // Get recent games (already sorted by date in getGames)
+      const recentGames = playerGames.slice(0, 10);
+
+      return {
+        totalGames,
+        wins,
+        losses,
+        draws,
+        winRate,
+        gamesThisMonth,
+        gamesThisWeek,
+        ladderGames,
+        tournamentGames,
+        friendlyGames,
+        practiceGames,
+        averageGameTime,
+        recentGames
+      };
+    } catch (error) {
+      console.error('Error calculating player game stats:', error);
+      throw new Error('Failed to calculate player game statistics');
+    }
   }
 
   async setupParentsAdminColumn(): Promise<{ message: string; headers: string[]; rowsUpdated: number }> {

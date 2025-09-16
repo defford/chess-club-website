@@ -171,32 +171,37 @@ export default function QuickGamePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-[--color-accent]">
-              Quick Add Game
-            </h1>
-            <p className="text-[--color-text-primary] mt-1">
-              Record a chess game quickly and easily
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => router.push("/admin/games")}
-              variant="outline"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Games
-            </Button>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+        {/* Header - Mobile Responsive */}
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[--color-accent]">
+                Quick Add Game
+              </h1>
+              <p className="text-[--color-text-primary] mt-1 text-sm sm:text-base">
+                Record a chess game quickly and easily
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={() => router.push("/admin/games")}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Back to Games</span>
+                <span className="sm:hidden">Back</span>
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+                <span className="sm:hidden">Logout</span>
+              </Button>
+            </div>
           </div>
         </div>
 

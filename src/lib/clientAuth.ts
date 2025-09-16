@@ -5,6 +5,7 @@ export interface ParentSession {
   parentId: string;
   email: string;
   loginTime: number;
+  isSelfRegistered?: boolean;
 }
 
 export class ClientAuthService {
@@ -39,7 +40,8 @@ export class ClientAuthService {
       return {
         parentId: 'dev-parent-123',
         email: 'dev@example.com',
-        loginTime: Date.now()
+        loginTime: Date.now(),
+        isSelfRegistered: false
       };
     }
     

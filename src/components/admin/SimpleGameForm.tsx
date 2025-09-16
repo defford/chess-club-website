@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Search, X, ArrowLeft, ArrowRight, Minus } from "lucide-react"
@@ -27,6 +27,37 @@ export default function SimpleGameForm({
   const [showWhiteDropdown, setShowWhiteDropdown] = useState(false)
   const [showBlackDropdown, setShowBlackDropdown] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Refs for dropdown containers
+  const whiteDropdownRef = useRef<HTMLDivElement>(null)
+  const blackDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node
+      
+      // Close white dropdown if clicked outside
+      if (showWhiteDropdown && whiteDropdownRef.current && !whiteDropdownRef.current.contains(target)) {
+        setShowWhiteDropdown(false)
+      }
+      
+      // Close black dropdown if clicked outside
+      if (showBlackDropdown && blackDropdownRef.current && !blackDropdownRef.current.contains(target)) {
+        setShowBlackDropdown(false)
+      }
+    }
+
+    // Add event listener when dropdowns are open
+    if (showWhiteDropdown || showBlackDropdown) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    // Cleanup event listener
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showWhiteDropdown, showBlackDropdown])
 
   // Filter players based on search
   const filteredWhitePlayers = players.filter(player => 
@@ -106,26 +137,27 @@ export default function SimpleGameForm({
     return player ? player.name : ''
   }
 
-  const getWhitePlayerName = () => getPlayerName(whitePlayerId)
-  const getBlackPlayerName = () => getPlayerName(blackPlayerId)
+  const getWhitePlayerName = () => whitePlayerId ? getPlayerName(whitePlayerId) : ''
+  const getBlackPlayerName = () => blackPlayerId ? getPlayerName(blackPlayerId) : ''
 
   return (
     <Card className="w-full max-w-2xl mx-auto">
-      <CardHeader>
+      <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle>Add Game</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">Add Game</CardTitle>
           </div>
           <Button
             variant="ghost"
             size="sm"
             onClick={onCancel}
             disabled={isLoading}
+            className="p-2"
           >
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <CardDescription>
+        <CardDescription className="text-sm">
           Select players and result to record a chess game
         </CardDescription>
       </CardHeader>
@@ -138,7 +170,7 @@ export default function SimpleGameForm({
               <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
                 ⚪ White Player *
               </label>
-              <div className="relative">
+              <div className="relative" ref={whiteDropdownRef}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
@@ -159,9 +191,9 @@ export default function SimpleGameForm({
                     {filteredWhitePlayers.length > 0 ? (
                       filteredWhitePlayers.map(player => (
                         <button
-                          key={player.id}
+                          key={player.id || player.name}
                           type="button"
-                          onClick={() => selectPlayer(player.id, player.name, true)}
+                          onClick={() => selectPlayer(player.id || '', player.name, true)}
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
                         >
                           <div className="font-medium">{player.name}</div>
@@ -184,20 +216,20 @@ export default function SimpleGameForm({
               <label className="block text-sm font-medium text-[--color-text-primary] mb-3">
                 Game Result *
               </label>
-              <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center justify-center gap-2 sm:gap-4">
                 {/* White Wins */}
                 <button
                   type="button"
                   onClick={() => setResult('white')}
-                  className={`flex flex-col items-center p-4 border-2 rounded-lg transition-colors ${
+                  className={`flex flex-col items-center p-3 sm:p-4 border-2 rounded-lg transition-colors min-w-0 flex-1 ${
                     result === 'white'
                       ? 'border-green-500 bg-green-50 text-green-700'
                       : 'border-gray-300 hover:border-gray-400'
                   } ${errors.result ? 'border-red-500' : ''}`}
                   disabled={isLoading || !whitePlayerId || !blackPlayerId}
                 >
-                  <ArrowRight className="h-6 w-6 mb-1" />
-                  <span className="text-sm font-medium">
+                  
+                  <span className="text-xs sm:text-sm font-medium text-center leading-tight">
                     {getWhitePlayerName() || 'White'} Wins
                   </span>
                 </button>
@@ -206,30 +238,28 @@ export default function SimpleGameForm({
                 <button
                   type="button"
                   onClick={() => setResult('draw')}
-                  className={`flex flex-col items-center p-4 border-2 rounded-lg transition-colors ${
+                  className={`flex flex-col items-center p-3 sm:p-4 border-2 rounded-lg transition-colors min-w-0 flex-1 ${
                     result === 'draw'
                       ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
                       : 'border-gray-300 hover:border-gray-400'
                   } ${errors.result ? 'border-red-500' : ''}`}
                   disabled={isLoading || !whitePlayerId || !blackPlayerId}
                 >
-                  <Minus className="h-6 w-6 mb-1" />
-                  <span className="text-sm font-medium">Draw</span>
+                  <span className="text-xs sm:text-sm font-medium">Draw</span>
                 </button>
 
                 {/* Black Wins */}
                 <button
                   type="button"
                   onClick={() => setResult('black')}
-                  className={`flex flex-col items-center p-4 border-2 rounded-lg transition-colors ${
+                  className={`flex flex-col items-center p-3 sm:p-4 border-2 rounded-lg transition-colors min-w-0 flex-1 ${
                     result === 'black'
                       ? 'border-green-500 bg-green-50 text-green-700'
                       : 'border-gray-300 hover:border-gray-400'
                   } ${errors.result ? 'border-red-500' : ''}`}
                   disabled={isLoading || !whitePlayerId || !blackPlayerId}
                 >
-                  <ArrowLeft className="h-6 w-6 mb-1" />
-                  <span className="text-sm font-medium">
+                  <span className="text-xs sm:text-sm font-medium text-center leading-tight">
                     {getBlackPlayerName() || 'Black'} Wins
                   </span>
                 </button>
@@ -244,7 +274,7 @@ export default function SimpleGameForm({
               <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
                 ⚫ Black Player *
               </label>
-              <div className="relative">
+              <div className="relative" ref={blackDropdownRef}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
                   type="text"
@@ -265,9 +295,9 @@ export default function SimpleGameForm({
                     {filteredBlackPlayers.length > 0 ? (
                       filteredBlackPlayers.map(player => (
                         <button
-                          key={player.id}
+                          key={player.id || player.name}
                           type="button"
-                          onClick={() => selectPlayer(player.id, player.name, false)}
+                          onClick={() => selectPlayer(player.id || '', player.name, false)}
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
                         >
                           <div className="font-medium">{player.name}</div>
@@ -287,19 +317,21 @@ export default function SimpleGameForm({
           </div>
 
           {/* Submit Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
+          <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
             <Button
               type="button"
               variant="outline"
               onClick={onCancel}
               disabled={isLoading}
+              className="w-full sm:w-auto order-2 sm:order-1"
             >
               Cancel
             </Button>
             <Button
               type="submit"
+              variant="outline"
               disabled={isLoading}
-              className="flex items-center gap-2"
+              className="flex items-center justify-center gap-2 w-full sm:w-auto order-1 sm:order-2"
             >
               {isLoading ? 'Saving...' : 'Add Game'}
             </Button>

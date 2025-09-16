@@ -193,6 +193,7 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
         const newPlayer1Id = await googleSheetsService.addPlayer({
           name: student1.name,
           grade: student1.grade,
+          gamesPlayed: 0,
           wins: 0,
           losses: 0,
           points: 0,
@@ -203,6 +204,7 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
           id: newPlayer1Id,
           name: student1.name,
           grade: student1.grade,
+          gamesPlayed: 0,
           wins: 0,
           losses: 0,
           points: 0,
@@ -223,6 +225,7 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
         const newPlayer2Id = await googleSheetsService.addPlayer({
           name: student2.name,
           grade: student2.grade,
+          gamesPlayed: 0,
           wins: 0,
           losses: 0,
           points: 0,
@@ -233,6 +236,7 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
           id: newPlayer2Id,
           name: student2.name,
           grade: student2.grade,
+          gamesPlayed: 0,
           wins: 0,
           losses: 0,
           points: 0,
@@ -251,14 +255,21 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
     // Each player gets 1 point for playing
     // Winner gets +1 additional point (total 2)
     // Draw: each player gets +0.5 additional point (total 1.5 each)
+    // Final scoring: Win = 2 points, Loss = 1 point, Draw = 1.5 points
     
     let player1Points = player1.points + 1; // Base point for playing
     let player2Points = player2.points + 1; // Base point for playing
     
     let player1Wins = player1.wins;
     let player1Losses = player1.losses;
+    let player1GamesPlayed = player1.gamesPlayed;
     let player2Wins = player2.wins;
     let player2Losses = player2.losses;
+    let player2GamesPlayed = player2.gamesPlayed;
+
+    // Both players played a game
+    player1GamesPlayed += 1;
+    player2GamesPlayed += 1;
 
     if (result === 'player1') {
       // Player 1 wins
@@ -278,6 +289,7 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
 
     // Update both players using their ranking IDs
     await googleSheetsService.updatePlayer(player1.id, {
+      gamesPlayed: player1GamesPlayed,
       wins: player1Wins,
       losses: player1Losses,
       points: player1Points,
@@ -285,6 +297,7 @@ async function updatePlayerStats(player1Id: string, player2Id: string, result: s
     });
 
     await googleSheetsService.updatePlayer(player2.id, {
+      gamesPlayed: player2GamesPlayed,
       wins: player2Wins,
       losses: player2Losses,
       points: player2Points,

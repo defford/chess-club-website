@@ -89,31 +89,32 @@ export default function GameForm({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <CardHeader>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 sm:p-4 z-50">
+      <Card className="w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Gamepad2 className="h-6 w-6 text-[--color-primary]" />
-              <CardTitle>Record New Game</CardTitle>
+              <Gamepad2 className="h-5 w-5 sm:h-6 sm:w-6 text-[--color-primary]" />
+              <CardTitle className="text-lg sm:text-xl">Record New Game</CardTitle>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={onCancel}
               disabled={isLoading}
+              className="p-2"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          <CardDescription>
+          <CardDescription className="text-sm">
             Enter the details for the chess game
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Players */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
                   Player 1 *
@@ -195,7 +196,7 @@ export default function GameForm({
             </div>
 
             {/* Game Details */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
                   Game Date
@@ -308,19 +309,20 @@ export default function GameForm({
             </div>
 
             {/* Submit Buttons */}
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={onCancel}
                 disabled={isLoading}
+                className="w-full sm:w-auto order-2 sm:order-1"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="flex items-center gap-2"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto order-1 sm:order-2"
               >
                 <Save className="h-4 w-4" />
                 {isLoading ? 'Saving...' : 'Save Game'}

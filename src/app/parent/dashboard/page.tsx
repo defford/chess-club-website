@@ -24,31 +24,6 @@ interface PlayerWithRanking {
   } | null
 }
 
-interface ParentSession {
-  parentId: string
-  email: string
-  loginTime: number
-  isSelfRegistered?: boolean
-}
-
-// Client-safe session management
-const getParentSession = (): ParentSession | null => {
-  if (typeof window === 'undefined') return null
-  
-  try {
-    const stored = localStorage.getItem('chess-club-parent-auth')
-    if (!stored) return null
-    
-    return JSON.parse(stored) as ParentSession
-  } catch {
-    return null
-  }
-}
-
-const clearParentSession = (): void => {
-  clientAuthService.logoutParent()
-}
-
 export default function ParentDashboard() {
   const router = useRouter()
   const [players, setPlayers] = useState<PlayerWithRanking[]>([])
@@ -67,8 +42,13 @@ export default function ParentDashboard() {
   })
 
   useEffect(() => {
-    // Check authentication
-    const session = getParentSession()
+    // Check authentication using the same service as login page
+    if (!clientAuthService.isParentAuthenticated()) {
+      router.push('/parent/login')
+      return
+    }
+
+    const session = clientAuthService.getCurrentParentSession()
     if (!session) {
       router.push('/parent/login')
       return
@@ -184,7 +164,7 @@ export default function ParentDashboard() {
   }
 
   const handleLogout = () => {
-    clearParentSession()
+    clientAuthService.logoutParent()
     router.push('/')
   }
 

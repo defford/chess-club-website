@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const playerData: Omit<PlayerData, 'id' | 'rank'> = await request.json();
     
     // Validate required fields
-    const requiredFields = ['name', 'grade', 'wins', 'losses', 'points', 'lastActive'];
+    const requiredFields = ['name', 'grade', 'gamesPlayed', 'wins', 'losses', 'points', 'lastActive'];
     
     for (const field of requiredFields) {
       if (playerData[field as keyof typeof playerData] === undefined || playerData[field as keyof typeof playerData] === null) {

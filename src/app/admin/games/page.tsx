@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { isAdminAuthenticated } from "@/lib/adminAuth"
 import { clientAuthService } from "@/lib/clientAuth"
-import { Gamepad2, Plus, Search, Filter, Download, LogOut, ArrowLeft } from "lucide-react"
+import { Gamepad2, Plus, Search, Filter, Download, LogOut, ArrowLeft, BarChart3 } from "lucide-react"
 import type { GameData, PlayerData, GameFormData } from "@/lib/types"
 import GameForm from "@/components/admin/GameForm"
 
@@ -177,83 +177,88 @@ export default function AdminGamesPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-[--color-accent]">
-              Game Management
-            </h1>
-            <p className="text-[--color-text-primary] mt-1">
-              Record and manage chess games
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => router.push("/admin")}
-              variant="outline"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <Button
-              onClick={handleLogout}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+        {/* Header - Mobile Responsive */}
+        <div className="mb-6 md:mb-8">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-[--color-accent]">
+                Game Management
+              </h1>
+              <p className="text-[--color-text-primary] mt-1 text-sm sm:text-base">
+                Record and manage chess games
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={() => router.push("/admin")}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Back</span>
+              </Button>
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
+                <span className="sm:hidden">Logout</span>
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6">
+        {/* Quick Stats - Mobile Responsive */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 md:mb-8">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
+                <p className="text-xs sm:text-sm font-medium text-[--color-text-primary]">
                   Total Games
                 </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
+                <p className="text-lg sm:text-2xl font-bold text-[--color-accent]">
                   {games.length}
                 </p>
               </div>
-              <Gamepad2 className="h-8 w-8 text-[--color-primary]" />
+              <Gamepad2 className="h-6 w-6 sm:h-8 sm:w-8 text-[--color-primary]" />
             </div>
           </Card>
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
+                <p className="text-xs sm:text-sm font-medium text-[--color-text-primary]">
                   Ladder Games
                 </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
+                <p className="text-lg sm:text-2xl font-bold text-[--color-accent]">
                   {games.filter(g => g.gameType === 'ladder').length}
                 </p>
               </div>
-              <Gamepad2 className="h-8 w-8 text-blue-500" />
+              <Gamepad2 className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
             </div>
           </Card>
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  Tournament Games
+                <p className="text-xs sm:text-sm font-medium text-[--color-text-primary]">
+                  Tournament
                 </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
+                <p className="text-lg sm:text-2xl font-bold text-[--color-accent]">
                   {games.filter(g => g.gameType === 'tournament').length}
                 </p>
               </div>
-              <Gamepad2 className="h-8 w-8 text-purple-500" />
+              <Gamepad2 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
             </div>
           </Card>
-          <Card className="p-6">
+          <Card className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
+                <p className="text-xs sm:text-sm font-medium text-[--color-text-primary]">
                   This Month
                 </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
+                <p className="text-lg sm:text-2xl font-bold text-[--color-accent]">
                   {games.filter(g => {
                     const gameDate = new Date(g.gameDate)
                     const now = new Date()
@@ -262,66 +267,85 @@ export default function AdminGamesPage() {
                   }).length}
                 </p>
               </div>
-              <Gamepad2 className="h-8 w-8 text-green-500" />
+              <Gamepad2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-500" />
             </div>
           </Card>
         </div>
 
-        {/* Controls */}
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <input
-                type="text"
-                placeholder="Search games by player name or notes..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-              />
-            </div>
+        {/* Controls - Mobile Responsive */}
+        <div className="space-y-4 mb-6">
+          {/* Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Search games by player name or notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent text-base"
+            />
           </div>
-          <div className="flex gap-2">
-            <select
-              value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary]"
-            >
-              <option value="all">All Types</option>
-              <option value="ladder">Ladder</option>
-              <option value="tournament">Tournament</option>
-              <option value="friendly">Friendly</option>
-              <option value="practice">Practice</option>
-            </select>
-            <select
-              value={filterResult}
-              onChange={(e) => setFilterResult(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary]"
-            >
-              <option value="all">All Results</option>
-              <option value="player1">Player 1 Wins</option>
-              <option value="player2">Player 2 Wins</option>
-              <option value="draw">Draws</option>
-            </select>
-            <Button
-              onClick={() => router.push("/admin/games/quick")}
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Quick Add Game
-            </Button>
-            <Button
-              onClick={() => setShowGameForm(true)}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Advanced Form
-            </Button>
+          
+          {/* Filters and Actions */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-2 flex-1">
+              <select
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] text-base"
+              >
+                <option value="all">All Types</option>
+                <option value="ladder">Ladder</option>
+                <option value="tournament">Tournament</option>
+                <option value="friendly">Friendly</option>
+                <option value="practice">Practice</option>
+              </select>
+              <select
+                value={filterResult}
+                onChange={(e) => setFilterResult(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] text-base"
+              >
+                <option value="all">All Results</option>
+                <option value="player1">Player 1 Wins</option>
+                <option value="player2">Player 2 Wins</option>
+                <option value="draw">Draws</option>
+              </select>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button
+                onClick={() => router.push("/admin/games/quick")}
+                variant="outline"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Quick Add Game</span>
+                <span className="sm:hidden">Quick Add</span>
+              </Button>
+              <Button
+                onClick={() => setShowGameForm(true)}
+                variant="outline"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline">Advanced Form</span>
+                <span className="sm:hidden">Advanced</span>
+              </Button>
+              <Button
+                onClick={() => router.push("/admin/games/stats")}
+                variant="outline"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Statistics</span>
+                <span className="sm:hidden">Stats</span>
+              </Button>
+            </div>
           </div>
         </div>
 
-        {/* Games Table */}
+        {/* Games Display - Mobile Responsive */}
         <Card>
           <CardHeader>
             <CardTitle>Game History</CardTitle>
@@ -354,53 +378,107 @@ export default function AdminGamesPage() {
                 </Button>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Date</th>
-                      <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Players</th>
-                      <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Result</th>
-                      <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Type</th>
-                      <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Duration</th>
-                      <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredGames.map((game) => (
-                      <tr key={game.id} className="border-b hover:bg-gray-50">
-                        <td className="py-3 px-4 text-[--color-text-primary]">
-                          {new Date(game.gameDate).toLocaleDateString()}
-                        </td>
-                        <td className="py-3 px-4 text-[--color-text-primary]">
-                          <div className="font-medium">
-                            {game.player1Name} vs {game.player2Name}
+              <div className="space-y-4">
+                {/* Desktop Table View */}
+                <div className="hidden lg:block overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Date</th>
+                        <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Players</th>
+                        <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Result</th>
+                        <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Type</th>
+                        <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Duration</th>
+                        <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredGames.map((game) => (
+                        <tr 
+                          key={game.id} 
+                          className="border-b hover:bg-gray-50 cursor-pointer"
+                          onClick={() => router.push(`/admin/games/${game.id}`)}
+                        >
+                          <td className="py-3 px-4 text-[--color-text-primary]">
+                            {new Date(game.gameDate).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-4 text-[--color-text-primary]">
+                            <div className="font-medium">
+                              {game.player1Name} vs {game.player2Name}
+                            </div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getResultColor(game.result)}`}>
+                              {getResultLabel(game.result, game)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getGameTypeColor(game.gameType)}`}>
+                              {game.gameType}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-[--color-text-primary]">
+                            {game.gameTime > 0 ? `${game.gameTime} min` : '-'}
+                          </td>
+                          <td className="py-3 px-4 text-[--color-text-primary]">
+                            {game.notes ? (
+                              <span className="truncate max-w-xs block" title={game.notes}>
+                                {game.notes}
+                              </span>
+                            ) : '-'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Mobile Card View */}
+                <div className="lg:hidden space-y-3">
+                  {filteredGames.map((game) => (
+                    <Card 
+                      key={game.id} 
+                      className="p-4 hover:shadow-md transition-shadow cursor-pointer"
+                      onClick={() => router.push(`/admin/games/${game.id}`)}
+                    >
+                      <div className="space-y-3">
+                        {/* Header with Date and Type */}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <p className="text-sm font-medium text-[--color-text-primary]">
+                              {new Date(game.gameDate).toLocaleDateString()}
+                            </p>
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getGameTypeColor(game.gameType)}`}>
+                              {game.gameType}
+                            </span>
                           </div>
-                        </td>
-                        <td className="py-3 px-4">
                           <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getResultColor(game.result)}`}>
                             {getResultLabel(game.result, game)}
                           </span>
-                        </td>
-                        <td className="py-3 px-4">
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getGameTypeColor(game.gameType)}`}>
-                            {game.gameType}
+                        </div>
+
+                        {/* Players */}
+                        <div>
+                          <p className="font-medium text-[--color-text-primary]">
+                            {game.player1Name} vs {game.player2Name}
+                          </p>
+                        </div>
+
+                        {/* Game Details */}
+                        <div className="flex justify-between items-center text-sm text-[--color-text-secondary]">
+                          <span>
+                            {game.gameTime > 0 ? `${game.gameTime} min` : 'No duration'}
                           </span>
-                        </td>
-                        <td className="py-3 px-4 text-[--color-text-primary]">
-                          {game.gameTime > 0 ? `${game.gameTime} min` : '-'}
-                        </td>
-                        <td className="py-3 px-4 text-[--color-text-primary]">
-                          {game.notes ? (
-                            <span className="truncate max-w-xs block" title={game.notes}>
+                          {game.notes && (
+                            <span className="truncate max-w-32" title={game.notes}>
                               {game.notes}
                             </span>
-                          ) : '-'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </div>
             )}
           </CardContent>

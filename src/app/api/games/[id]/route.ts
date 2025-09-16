@@ -4,11 +4,12 @@ import { googleSheetsService } from '@/lib/googleSheets';
 // GET /api/games/[id] - Get a specific game
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const games = await googleSheetsService.getGames();
-    const game = games.find(g => g.id === params.id);
+    const game = games.find(g => g.id === id);
     
     if (!game) {
       return NextResponse.json(
@@ -30,14 +31,15 @@ export async function GET(
 // PUT /api/games/[id] - Update a specific game
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const updates = await request.json();
     
     // Validate that the game exists
     const games = await googleSheetsService.getGames();
-    const game = games.find(g => g.id === params.id);
+    const game = games.find(g => g.id === id);
     
     if (!game) {
       return NextResponse.json(
@@ -47,7 +49,7 @@ export async function PUT(
     }
 
     // Update the game
-    await googleSheetsService.updateGame(params.id, updates);
+    await googleSheetsService.updateGame(id, updates);
     
     return NextResponse.json(
       { message: 'Game updated successfully' },
@@ -65,12 +67,13 @@ export async function PUT(
 // DELETE /api/games/[id] - Delete a specific game
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     // Validate that the game exists
     const games = await googleSheetsService.getGames();
-    const game = games.find(g => g.id === params.id);
+    const game = games.find(g => g.id === id);
     
     if (!game) {
       return NextResponse.json(
@@ -80,7 +83,7 @@ export async function DELETE(
     }
 
     // Delete the game
-    await googleSheetsService.deleteGame(params.id);
+    await googleSheetsService.deleteGame(id);
     
     return NextResponse.json(
       { message: 'Game deleted successfully' },

@@ -4,10 +4,11 @@ import { googleSheetsService } from '@/lib/googleSheets';
 // GET /api/games/player/[playerId] - Get all games for a specific player
 export async function GET(
   request: NextRequest,
-  { params }: { params: { playerId: string } }
+  { params }: { params: Promise<{ playerId: string }> }
 ) {
   try {
-    const games = await googleSheetsService.getPlayerGames(params.playerId);
+    const { playerId } = await params;
+    const games = await googleSheetsService.getPlayerGames(playerId);
     
     return NextResponse.json(games);
   } catch (error) {
