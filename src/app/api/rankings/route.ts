@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleSheetsService } from '@/lib/googleSheets';
+import { KVCacheService } from '@/lib/kv';
 import type { PlayerData } from '@/lib/googleSheets';
 
 export async function GET() {
   try {
-    const players = await googleSheetsService.getPlayers();
-    return NextResponse.json(players, { status: 200 });
+    const players = await KVCacheService.getRankings();
+    return NextResponse.json(players, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=1800'
+      }
+    });
   } catch (error) {
     console.error('Rankings API GET error:', error);
     return NextResponse.json(

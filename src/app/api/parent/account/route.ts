@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleSheetsService } from '@/lib/googleSheets';
+import { KVCacheService } from '@/lib/kv';
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,8 +15,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get parent data (includes name)
-    const parentData = await googleSheetsService.getParentByEmail(email);
+    // Get parent data (includes name) - using cache
+    const parentData = await KVCacheService.getParentByEmail(email);
     
     if (!parentData) {
       return NextResponse.json(
@@ -24,8 +25,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get parent account details for additional info
-    const parentAccount = await googleSheetsService.getParentAccount(email);
+    // Get parent account details for additional info - using cache
+    const parentAccount = await KVCacheService.getParentAccount(email);
 
     return NextResponse.json({
       id: parentData.id,

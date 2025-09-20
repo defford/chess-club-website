@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
 import type { EventData } from '@/lib/googleSheets';
 
 export async function PUT(
@@ -11,7 +11,7 @@ export async function PUT(
     const { id } = params;
     const updates: Partial<EventData> = await request.json();
     
-    await googleSheetsService.updateEvent(id, updates);
+    await enhancedGoogleSheetsService.updateEvent(id, updates);
     
     return NextResponse.json(
       { message: 'Event updated successfully' },

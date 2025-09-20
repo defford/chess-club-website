@@ -18,6 +18,12 @@ RESEND_API_KEY=re_GTe1ZAV7_8DxsmmeVt8RR5vkpVn675iLj
 GOOGLE_CLOUD_PROJECT_ID=poetic-chariot-470917-k3
 GOOGLE_SHEETS_ID=1UXg4FVsE33IBmk6SkwfvZSV1XlDJ_5csihhye90IVac
 
+# High-Performance Caching (after enabling Upstash Redis)
+# UPSTASH_REDIS_REST_URL=(from Upstash dashboard)
+# UPSTASH_REDIS_REST_TOKEN=(from Upstash dashboard)
+WEBHOOK_SECRET=your_secure_webhook_secret_here
+REVALIDATE_TOKEN=your_revalidation_token_here
+
 # Note: Google Service Account credentials may need to be configured separately
 # Check if additional Google authentication is needed for production
 ```

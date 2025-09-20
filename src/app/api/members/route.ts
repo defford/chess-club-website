@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { googleSheetsService, type RegistrationData } from '@/lib/googleSheets';
+import { KVCacheService } from '@/lib/kv';
 
 // Interface for Member data that combines registration info with member-specific fields
 export interface MemberData extends RegistrationData {
@@ -11,8 +12,8 @@ export interface MemberData extends RegistrationData {
 
 export async function GET() {
   try {
-    // Use the new consolidated method that gets data from parents and students sheets
-    const registrations = await googleSheetsService.getMembersFromParentsAndStudents();
+    // Use the cached version for better performance
+    const registrations = await KVCacheService.getMembers();
     
     // Convert registrations to member format
     const members: MemberData[] = registrations.map((registration, index) => {
@@ -43,7 +44,12 @@ export async function GET() {
       };
     });
     
-    return NextResponse.json(members, { status: 200 });
+    return NextResponse.json(members, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=7200'
+      }
+    });
   } catch (error) {
     console.error('Members API GET error:', error);
     return NextResponse.json(
