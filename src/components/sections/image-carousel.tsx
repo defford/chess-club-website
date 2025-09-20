@@ -15,7 +15,7 @@ const images = [
   {
     src: "/images/491381142_10171354577070165_4202854025260736222_n.jpg",
     alt: "Chess club with digital board and engaged students",
-    caption: `${"Learning with \n modern technology"}`,
+    caption: `${"Group learning and \n collaboration"}`,
     textStyle: "large",
     textPosition: "top-left"
   },

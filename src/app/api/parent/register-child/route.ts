@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleSheetsService } from '@/lib/googleSheets';
 import { emailService } from '@/lib/email';
-import { cleanDataService, CleanMemberData } from '@/lib/cleanDataService';
 
 interface ChildRegistrationData {
   playerName: string;
@@ -41,53 +40,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get parent information from existing clean data
-    const existingMembers = await cleanDataService.getMembersByParentEmail(data.parentEmail);
-    if (!existingMembers || existingMembers.length === 0) {
+    // Get parent information from parents sheet
+    const parent = await googleSheetsService.getParentByEmail(data.parentEmail);
+    if (!parent) {
       return NextResponse.json(
         { error: 'Parent account not found. Please contact support.' },
         { status: 404 }
       );
     }
-    
-    // Use parent info from first existing member
-    const parentInfo = existingMembers[0];
 
-    // Generate unique member ID for the child
-    const studentId = `mbr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Add child directly to clean structure (no legacy sheets)
-    const cleanData: CleanMemberData = {
-      memberId: studentId,
-      parentName: parentInfo.parentName,
-      parentEmail: parentInfo.parentEmail,
-      parentPhone: parentInfo.parentPhone,
+    // Add student registration to students sheet
+    const studentData = {
+      parentId: parent.id,
       playerName: data.playerName,
       playerAge: data.playerAge,
       playerGrade: data.playerGrade,
       emergencyContact: data.emergencyContact,
       emergencyPhone: data.emergencyPhone,
-      medicalInfo: data.medicalInfo || '',
-      hearAboutUs: 'Parent Dashboard Registration',
-      provincialInterest: '',
-      volunteerInterest: '',
-      consent: true, // Implied consent through parent account
-      photoConsent: parentInfo.photoConsent,
-      valuesAcknowledgment: true, // Implied acknowledgment through parent account
-      newsletter: parentInfo.newsletter,
-      createAccount: false,
-      registrationDate: new Date().toISOString().split('T')[0],
-      isActive: true,
-      parentLoginEnabled: true
+      medicalInfo: data.medicalInfo || ''
     };
-    
-    await cleanDataService.addMemberToCleanStructure(cleanData);
+
+    const studentId = await googleSheetsService.addStudentRegistration(studentData);
 
     // Prepare email data 
     const emailRegistrationData = {
-      parentName: parentInfo.parentName,
-      parentEmail: parentInfo.parentEmail,
-      parentPhone: parentInfo.parentPhone,
+      parentName: parent.name,
+      parentEmail: parent.email,
+      parentPhone: parent.phone,
       playerName: data.playerName,
       playerAge: data.playerAge,
       playerGrade: data.playerGrade,
@@ -98,9 +77,9 @@ export async function POST(request: NextRequest) {
       provincialInterest: '',
       volunteerInterest: '',
       consent: true,
-      photoConsent: parentInfo.photoConsent,
+      photoConsent: parent.photoConsent,
       valuesAcknowledgment: true,
-      newsletter: parentInfo.newsletter
+      newsletter: parent.newsletter
     };
 
     // Send confirmation email

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleSheetsService } from '@/lib/googleSheets';
 import { emailService } from '@/lib/email';
-import { cleanDataService, CleanMemberData } from '@/lib/cleanDataService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -38,21 +37,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate unique member ID
-    const memberId = `mbr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    // Add directly to clean structure (no legacy sheets)
-    const cleanData: CleanMemberData = {
-      memberId: memberId,
+    // Add parent registration to parents sheet
+    const parentData = {
       parentName: data.parentName,
       parentEmail: data.parentEmail,
       parentPhone: data.parentPhone,
-      playerName: data.playerName,
-      playerAge: data.playerAge,
-      playerGrade: data.playerGrade,
-      emergencyContact: data.emergencyContact,
-      emergencyPhone: data.emergencyPhone,
-      medicalInfo: data.medicalInfo || '',
       hearAboutUs: data.hearAboutUs || '',
       provincialInterest: data.provincialInterest || '',
       volunteerInterest: data.volunteerInterest || '',
@@ -60,13 +49,23 @@ export async function POST(request: NextRequest) {
       photoConsent: data.photoConsent || false,
       valuesAcknowledgment: data.valuesAcknowledgment,
       newsletter: data.newsletter || false,
-      createAccount: data.createAccount || false,
-      registrationDate: new Date().toISOString().split('T')[0],
-      isActive: true,
-      parentLoginEnabled: data.createAccount || false
+      createAccount: data.createAccount || false
     };
 
-    await cleanDataService.addMemberToCleanStructure(cleanData);
+    const parentId = await googleSheetsService.addParentRegistration(parentData);
+
+    // Add student registration to students sheet
+    const studentData = {
+      parentId: parentId,
+      playerName: data.playerName,
+      playerAge: data.playerAge,
+      playerGrade: data.playerGrade,
+      emergencyContact: data.emergencyContact,
+      emergencyPhone: data.emergencyPhone,
+      medicalInfo: data.medicalInfo || ''
+    };
+
+    await googleSheetsService.addStudentRegistration(studentData);
 
     // Send confirmation email
     try {

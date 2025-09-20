@@ -1,38 +1,14 @@
 import jwt from 'jsonwebtoken';
 import { emailService } from './email';
 import { googleSheetsService } from './googleSheets';
+import type {
+  ParentAccount,
+  MagicLinkToken,
+  ParentSession
+} from './types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-here';
 const MAGIC_LINK_EXPIRY = 15 * 60 * 1000; // 15 minutes in milliseconds
-
-export interface ParentAccount {
-  id: string;
-  email: string;
-  createdDate: string;
-  lastLogin: string;
-  isActive: boolean;
-  isSelfRegistered?: boolean;
-  registrationType?: 'parent' | 'self';
-}
-
-export interface MagicLinkToken {
-  email: string;
-  type: 'login' | 'approval_request' | 'approval_response';
-  playerId?: string;
-  requesterId?: string;
-  action?: 'approve' | 'deny';
-  emailExistsInRegistrations?: boolean;
-  isSelfRegistered?: boolean;
-  exp: number;
-}
-
-export interface ParentSession {
-  parentId: string;
-  email: string;
-  loginTime: number;
-  isSelfRegistered?: boolean;
-  registrationType?: 'parent' | 'self';
-}
 
 class ParentAuthService {
   private readonly AUTH_KEY = 'chess-club-parent-auth';
@@ -149,7 +125,7 @@ class ParentAuthService {
 
   // SMS integration layer (ready for Twilio)
   private async sendSms(phoneNumber: string, message: string): Promise<void> {
-    // TODO: Implement Twilio SMS sending
+    // SMS functionality is not yet implemented
     // For now, we'll log and fallback to email notification
     console.log(`SMS would be sent to ${phoneNumber}: ${message}`);
     

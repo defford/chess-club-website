@@ -1,160 +1,18 @@
 import { google } from 'googleapis';
-
-interface RegistrationData {
-  parentName: string;
-  parentEmail: string;
-  parentPhone: string;
-  playerName: string;
-  playerAge: string;
-  playerGrade: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
-  hearAboutUs: string;
-  provincialInterest: string;
-  volunteerInterest: string;
-  consent: boolean;
-  photoConsent: boolean;
-  valuesAcknowledgment: boolean;
-  newsletter: boolean;
-  // Additional metadata
-  timestamp?: string;
-  rowIndex?: number;
-}
-
-interface EventData {
-  id?: string;
-  name: string;
-  date: string;
-  time: string;
-  location: string;
-  participants: number;
-  maxParticipants: number;
-  description: string;
-  category: 'tournament' | 'workshop' | 'training' | 'social';
-  ageGroups: string;
-  status?: 'active' | 'cancelled' | 'completed';
-  lastUpdated?: string;
-}
-
-interface EventRegistrationData {
-  eventId: string;
-  playerName: string;
-  playerGrade: string;
-  additionalNotes: string;
-  timestamp?: string;
-}
-
-interface PlayerData {
-  id?: string;
-  name: string;
-  grade: string;
-  wins: number;
-  losses: number;
-  points: number;
-  rank?: number;
-  lastActive: string;
-  email?: string;
-}
-
-interface ParentAccount {
-  id: string;
-  email: string;
-  createdDate: string;
-  lastLogin: string;
-  isActive: boolean;
-  isSelfRegistered?: boolean;
-  registrationType?: 'parent' | 'self';
-}
-
-interface PlayerOwnership {
-  playerId: string;
-  playerName: string;
-  playerEmail: string;
-  ownerParentId: string;
-  pendingParentId?: string;
-  approvalStatus: 'none' | 'pending' | 'approved' | 'denied';
-  claimDate: string;
-}
-
-interface PlayerOwnershipData extends RegistrationData {
-  playerId: string;
-  parentAccountId?: string;
-}
-
-interface ParentRegistrationData {
-  parentName: string;
-  parentEmail: string;
-  parentPhone: string;
-  hearAboutUs: string;
-  provincialInterest: string;
-  volunteerInterest: string;
-  consent: boolean;
-  photoConsent: boolean;
-  valuesAcknowledgment: boolean;
-  newsletter: boolean;
-  createAccount?: boolean;
-  registrationType?: 'parent' | 'self';
-}
-
-interface StudentRegistrationData {
-  parentId: string;
-  playerName: string;
-  playerAge: string;
-  playerGrade: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
-}
-
-interface SelfRegistrationData {
-  playerName: string;
-  playerAge: string;
-  playerGrade: string;
-  playerEmail: string;
-  playerPhone: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
-  hearAboutUs: string;
-  provincialInterest: string;
-  volunteerInterest: string;
-  consent: boolean;
-  photoConsent: boolean;
-  valuesAcknowledgment: boolean;
-  newsletter: boolean;
-  createAccount?: boolean;
-}
-
-// New interfaces for separate sheets
-interface ParentData {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  hearAboutUs: string;
-  provincialInterest: string;
-  volunteerInterest: string;
-  consent: boolean;
-  photoConsent: boolean;
-  valuesAcknowledgment: boolean;
-  newsletter: boolean;
-  createAccount: boolean;
-  timestamp: string;
-  registrationType?: 'parent' | 'self';
-}
-
-interface StudentData {
-  id: string;
-  parentId: string;
-  name: string;
-  age: string;
-  grade: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
-  timestamp: string;
-}
+import type {
+  RegistrationData,
+  EventData,
+  EventRegistrationData,
+  PlayerData,
+  ParentAccount,
+  PlayerOwnership,
+  PlayerOwnershipData,
+  ParentRegistrationData,
+  StudentRegistrationData,
+  SelfRegistrationData,
+  ParentData,
+  StudentData
+} from './types';
 
 export class GoogleSheetsService {
   private sheets;
@@ -208,6 +66,7 @@ export class GoogleSheetsService {
     return spreadsheetId;
   }
 
+  // @deprecated Use addParentRegistration + addStudentRegistration instead
   async addRegistration(data: RegistrationData): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
@@ -788,6 +647,7 @@ export class GoogleSheetsService {
 
 
   // Members/Registration Management Methods
+  // @deprecated Use getMembersFromParentsAndStudents instead
   async getRegistrations(): Promise<RegistrationData[]> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
@@ -1571,11 +1431,110 @@ export class GoogleSheetsService {
 
   // Initialize parent account and player ownership sheets
 
+  // NEW CONSOLIDATED METHOD: Get members data from parents and students sheets
+  async getMembersFromParentsAndStudents(): Promise<RegistrationData[]> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
 
+    try {
+      // Get all parents and students data in parallel
+      const [parentsResponse, studentsResponse] = await Promise.all([
+        this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'parents!A:N',
+        }),
+        this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'students!A:I',
+        })
+      ]);
+
+      const parentRows = parentsResponse.data.values;
+      const studentRows = studentsResponse.data.values;
+
+      if (!parentRows || parentRows.length < 2 || !studentRows || studentRows.length < 2) {
+        return [];
+      }
+
+      // Create parent lookup map
+      const parentMap = new Map();
+      parentRows.slice(1).forEach(row => {
+        if (row[0]) { // parent ID
+          parentMap.set(row[0], {
+            id: row[0],
+            name: row[1] || '',
+            email: row[2] || '',
+            phone: row[3] || '',
+            hearAboutUs: row[4] || '',
+            provincialInterest: row[5] || '',
+            volunteerInterest: row[6] || '',
+            consent: row[7] === 'Yes',
+            photoConsent: row[8] === 'Yes',
+            valuesAcknowledgment: row[9] === 'Yes',
+            newsletter: row[10] === 'Yes',
+            createAccount: row[11] === 'Yes',
+            timestamp: row[12] || '',
+            registrationType: (row[13] as 'parent' | 'self') || 'parent'
+          });
+        }
+      });
+
+      // Convert students to RegistrationData format by joining with parent data
+      const members: RegistrationData[] = [];
+      studentRows.slice(1).forEach((row, index) => {
+        if (row[0] && row[1]) { // student ID and parent ID
+          const parent = parentMap.get(row[1]);
+          if (parent) {
+            members.push({
+              parentName: parent.name,
+              parentEmail: parent.email,
+              parentPhone: parent.phone,
+              playerName: row[2] || '',
+              playerAge: row[3] || '',
+              playerGrade: row[4] || '',
+              emergencyContact: row[5] || '',
+              emergencyPhone: row[6] || '',
+              medicalInfo: row[7] || '',
+              hearAboutUs: parent.hearAboutUs,
+              provincialInterest: parent.provincialInterest,
+              volunteerInterest: parent.volunteerInterest,
+              consent: parent.consent,
+              photoConsent: parent.photoConsent,
+              valuesAcknowledgment: parent.valuesAcknowledgment,
+              newsletter: parent.newsletter,
+              timestamp: row[8] || parent.timestamp,
+              rowIndex: index + 2 // Approximate row number
+            });
+          }
+        }
+      });
+
+      return members.filter(member => member.playerName); // Only include valid members
+    } catch (error) {
+      console.error('Error reading members from parents and students sheets:', error);
+      throw new Error('Failed to retrieve members from parents and students sheets');
+    }
+  }
 
 }
 
 export const googleSheetsService = new GoogleSheetsService();
 
-// Export interfaces for use in other files
-export type { RegistrationData, EventData, EventRegistrationData, PlayerData, ParentAccount, PlayerOwnership, PlayerOwnershipData };
+// Re-export types for backward compatibility
+export type { 
+  RegistrationData, 
+  EventData, 
+  EventRegistrationData, 
+  PlayerData, 
+  ParentAccount, 
+  PlayerOwnership, 
+  PlayerOwnershipData,
+  ParentRegistrationData,
+  StudentRegistrationData,
+  SelfRegistrationData,
+  ParentData,
+  StudentData
+} from './types';

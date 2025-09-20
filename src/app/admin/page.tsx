@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
-import { getMemberStats } from "@/lib/members"
 import { Users, Calendar, Trophy, Settings, LogOut } from "lucide-react"
 import Link from "next/link"
 
@@ -14,6 +13,21 @@ export default function AdminDashboard() {
   const [isAuth, setIsAuth] = useState(false)
   const [memberStats, setMemberStats] = useState<any>(null)
   const router = useRouter()
+
+  const loadMemberStats = async () => {
+    try {
+      const response = await fetch('/api/members')
+      if (response.ok) {
+        const members = await response.json()
+        setMemberStats({
+          total: members.length,
+          active: members.filter((m: any) => m.isActive !== false).length
+        })
+      }
+    } catch (error) {
+      console.error('Failed to load member stats:', error)
+    }
+  }
 
   useEffect(() => {
     const checkAuth = () => {
@@ -26,8 +40,8 @@ export default function AdminDashboard() {
       } else {
         // Refresh session timestamp
         refreshSession()
-        // Load member stats
-        setMemberStats(getMemberStats())
+        // Load member stats from API
+        loadMemberStats()
       }
     }
 

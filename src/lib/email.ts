@@ -1,66 +1,10 @@
 import { Resend } from 'resend';
-
-interface RegistrationData {
-  parentName: string;
-  parentEmail: string;
-  parentPhone: string;
-  playerName: string;
-  playerAge: string;
-  playerGrade: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
-  hearAboutUs: string;
-  provincialInterest: string;
-  volunteerInterest: string;
-  consent: boolean;
-  photoConsent: boolean;
-  valuesAcknowledgment: boolean;
-  newsletter: boolean;
-}
-
-interface ParentRegistrationData {
-  parentName: string;
-  parentEmail: string;
-  parentPhone: string;
-  hearAboutUs: string;
-  provincialInterest: string;
-  volunteerInterest: string;
-  consent: boolean;
-  photoConsent: boolean;
-  valuesAcknowledgment: boolean;
-  newsletter: boolean;
-  createAccount?: boolean;
-}
-
-interface StudentRegistrationData {
-  parentId: string;
-  playerName: string;
-  playerAge: string;
-  playerGrade: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
-}
-
-interface SelfRegistrationData {
-  playerName: string;
-  playerAge: string;
-  playerGrade: string;
-  playerEmail: string;
-  playerPhone: string;
-  emergencyContact: string;
-  emergencyPhone: string;
-  medicalInfo: string;
-  hearAboutUs: string;
-  provincialInterest: string;
-  volunteerInterest: string;
-  consent: boolean;
-  photoConsent: boolean;
-  valuesAcknowledgment: boolean;
-  newsletter: boolean;
-  createAccount?: boolean;
-}
+import type {
+  RegistrationData,
+  ParentRegistrationData,
+  StudentRegistrationData,
+  SelfRegistrationData
+} from './types';
 
 class EmailService {
   private resend: Resend;

@@ -11,7 +11,8 @@ export interface MemberData extends RegistrationData {
 
 export async function GET() {
   try {
-    const registrations = await googleSheetsService.getRegistrations();
+    // Use the new consolidated method that gets data from parents and students sheets
+    const registrations = await googleSheetsService.getMembersFromParentsAndStudents();
     
     // Convert registrations to member format
     const members: MemberData[] = registrations.map((registration, index) => {
