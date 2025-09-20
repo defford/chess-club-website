@@ -8,10 +8,12 @@ export interface CacheConfig {
 }
 
 export class KVCacheService {
-  private static redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL!,
-    token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-  });
+  private static redis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+    ? new Redis({
+        url: process.env.KV_REST_API_URL,
+        token: process.env.KV_REST_API_TOKEN,
+      })
+    : null;
 
   private static readonly CACHE_KEYS = {
     EVENTS: 'events:all',
@@ -35,7 +37,7 @@ export class KVCacheService {
 
   // Check if Redis is available (for local development fallback)
   private static isRedisAvailable(): boolean {
-    return !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
   }
 
   // Generic cache get with fallback to Google Sheets
@@ -52,7 +54,7 @@ export class KVCacheService {
       }
 
       // Try cache first
-      const cached = await this.redis.get<T>(cacheKey);
+      const cached = await this.redis!.get<T>(cacheKey);
       if (cached !== null && cached !== undefined) {
         console.log(`Cache HIT: ${cacheKey}`);
         return cached;
@@ -82,7 +84,7 @@ export class KVCacheService {
     try {
       if (!this.isRedisAvailable()) return;
       
-      await this.redis.setex(cacheKey, config.ttl, data);
+      await this.redis!.setex(cacheKey, config.ttl, data);
       
       // Track key by tags for invalidation
       await this.trackKeyByTags(cacheKey, config.tags);
@@ -107,7 +109,7 @@ export class KVCacheService {
     try {
       if (!this.isRedisAvailable()) return;
       
-      await this.redis.del(cacheKey);
+      await this.redis!.del(cacheKey);
       console.log(`Cache INVALIDATED: ${cacheKey}`);
     } catch (error) {
       console.error(`Cache invalidation error for ${cacheKey}:`, error);
@@ -124,7 +126,7 @@ export class KVCacheService {
       
       for (const tag of tags) {
         const tagKey = `tag:${tag}`;
-        const keys = await this.redis.smembers(tagKey);
+        const keys = await this.redis!.smembers(tagKey);
         
         if (keys && Array.isArray(keys)) {
           keys.forEach(key => keysToInvalidate.add(key as string));
@@ -133,11 +135,11 @@ export class KVCacheService {
       
       if (keysToInvalidate.size > 0) {
         // Delete all keys
-        await this.redis.del(...Array.from(keysToInvalidate));
+        await this.redis!.del(...Array.from(keysToInvalidate));
         
         // Clean up tag sets
         for (const tag of tags) {
-          await this.redis.del(`tag:${tag}`);
+          await this.redis!.del(`tag:${tag}`);
         }
         
         console.log(`Invalidated ${keysToInvalidate.size} keys for tags: ${tags.join(', ')}`);
@@ -153,9 +155,9 @@ export class KVCacheService {
       if (!this.isRedisAvailable()) return;
       
       for (const tag of tags) {
-        await this.redis.sadd(`tag:${tag}`, key);
+        await this.redis!.sadd(`tag:${tag}`, key);
         // Set expiry on tag set to clean up old entries
-        await this.redis.expire(`tag:${tag}`, 86400); // 24 hours
+        await this.redis!.expire(`tag:${tag}`, 86400); // 24 hours
       }
     } catch (error) {
       console.error(`Tag tracking error:`, error);

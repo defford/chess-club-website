@@ -27,7 +27,7 @@ const CONFIG = {
   WEBHOOK_SECRET: 'your-webhook-secret-here',
   
   // Sheets to monitor for changes
-  MONITORED_SHEETS: ['events', 'rankings', 'parents', 'students', 'player_ownership', 'event registrations'],
+  MONITORED_SHEETS: ['events', 'event registrations', 'rankings', 'parents', 'students', 'games'],
   
   // Debounce time in milliseconds (to batch rapid changes)
   DEBOUNCE_MS: 2000
@@ -36,11 +36,11 @@ const CONFIG = {
 // Cache tag mapping
 const SHEET_TO_CACHE_TAG = {
   'events': 'events',
+  'event registrations': 'event-registrations',
   'rankings': 'rankings',
   'parents': 'members',
   'students': 'members',
-  'player_ownership': 'parent-data',
-  'event registrations': 'event-registrations'
+  'games': 'rankings'  // Games affect rankings
 };
 
 // Global variable to track pending changes
