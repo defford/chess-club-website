@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parentAuthService } from '@/lib/parentAuth';
 import { googleSheetsService } from '@/lib/googleSheets';
+import { KVCacheService } from '@/lib/kv';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,8 +16,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get parent account
-    const parentAccount = await googleSheetsService.getParentAccount(parentEmail);
+    // Get parent account - using cache
+    const parentAccount = await KVCacheService.getParentAccount(parentEmail);
     if (!parentAccount) {
       return NextResponse.json(
         { error: 'Parent account not found' },
@@ -24,15 +25,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get parent's players
-    const players = await googleSheetsService.getParentPlayers(parentAccount.id);
+    // Get parent's players - using cache
+    const players = await KVCacheService.getParentPlayers(parentAccount.id);
 
     // For each player, get their ranking information if available
     const playersWithRankings = await Promise.all(
       players.map(async (player) => {
         try {
-          // Try to find the player in rankings by name
-          const allPlayers = await googleSheetsService.getPlayers();
+          // Try to find the player in rankings by name - using cache
+          const allPlayers = await KVCacheService.getRankings();
           const playerRanking = allPlayers.find(p => 
             p.name.toLowerCase() === player.playerName.toLowerCase()
           );

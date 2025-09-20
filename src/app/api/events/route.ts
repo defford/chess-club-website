@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleSheetsService } from '@/lib/googleSheets';
+import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
+import { KVCacheService } from '@/lib/kv';
 import type { EventData } from '@/lib/googleSheets';
 
 export async function GET() {
   try {
-    const events = await googleSheetsService.getEvents();
-    return NextResponse.json(events, { status: 200 });
+    const events = await KVCacheService.getEvents();
+    return NextResponse.json(events, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=3600'
+      }
+    });
   } catch (error) {
     console.error('Events API GET error:', error);
     return NextResponse.json(
@@ -38,7 +45,7 @@ export async function POST(request: NextRequest) {
       status: eventData.status || 'active' as const,
     };
 
-    const eventId = await googleSheetsService.addEvent(eventWithDefaults);
+    const eventId = await enhancedGoogleSheetsService.addEvent(eventWithDefaults);
     
     return NextResponse.json(
       { message: 'Event created successfully', eventId },

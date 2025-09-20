@@ -105,7 +105,7 @@ export function Header() {
           <div className="hidden md:block">
             <span className="font-heading font-bold text-lg text-[#1C1F33]">
               Central NL Scholastic Chess Club
-            </span> {/* TODO: make this a link to the home page */}
+            </span>
           </div>
         </Link>
 

@@ -1,13 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { googleSheetsService } from '@/lib/googleSheets';
-
-interface EventRegistrationData {
-  eventId: string;
-  playerName: string;
-  playerGrade: string;
-  additionalNotes: string;
-  timestamp?: string;
-}
+import type { EventRegistrationData } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   try {
