@@ -132,16 +132,10 @@ export default function SimpleGameForm({
     }
   }
 
-  const getPlayerName = (playerId: string) => {
-    const player = players.find(p => p.id === playerId)
-    return player ? player.name : ''
-  }
 
-  const getWhitePlayerName = () => whitePlayerId ? getPlayerName(whitePlayerId) : ''
-  const getBlackPlayerName = () => blackPlayerId ? getPlayerName(blackPlayerId) : ''
 
   return (
-    <Card className="w-full max-w-2xl mx-auto">
+    <Card className="w-full max-w-4xl mx-auto">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -158,18 +152,21 @@ export default function SimpleGameForm({
           </Button>
         </div>
         <CardDescription className="text-sm">
-          Select players and result to record a chess game
+          Select players and result to record a chess game ({players.length} players available)
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Players Selection with Result in Between */}
-          <div className="space-y-6">
-            {/* White Player */}
-            <div>
-              <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                ⚪ White Player *
-              </label>
+          {/* Battle Layout: White Player | VS | Black Player */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6 items-start">
+            {/* White Player Section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="text-2xl">♔</div>
+                <label className="text-sm font-medium text-[--color-text-primary]">
+                  White Player *
+                </label>
+              </div>
               <div className="relative" ref={whiteDropdownRef}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
@@ -181,7 +178,7 @@ export default function SimpleGameForm({
                     setShowWhiteDropdown(true)
                   }}
                   onFocus={() => setShowWhiteDropdown(true)}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] ${
+                  className={`w-full pl-10 pr-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] ${
                     errors.whitePlayer ? 'border-red-500' : 'border-gray-300'
                   }`}
                   disabled={isLoading}
@@ -211,69 +208,71 @@ export default function SimpleGameForm({
               )}
             </div>
 
-            {/* Result Selection - Between Players */}
-            <div>
-              <label className="block text-sm font-medium text-[--color-text-primary] mb-3">
-                Game Result *
-              </label>
-              <div className="flex items-center justify-center gap-2 sm:gap-4">
-                {/* White Wins */}
+            {/* VS Section with Result Buttons */}
+            <div className="flex flex-col items-center justify-center space-y-4 py-4">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-600 mb-2">VS</div>
+                <div className="text-xs text-gray-500">Game Result</div>
+              </div>
+              
+              {/* Result Buttons - Chess Notation Style */}
+              <div className="flex flex-col gap-2 w-full max-w-32">
+                {/* White Wins - 1-0 */}
                 <button
                   type="button"
                   onClick={() => setResult('white')}
-                  className={`flex flex-col items-center p-3 sm:p-4 border-2 rounded-lg transition-colors min-w-0 flex-1 ${
+                  className={`px-4 py-2 border-2 rounded-md transition-colors text-sm font-medium ${
                     result === 'white'
                       ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-300 hover:border-gray-400'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-700'
                   } ${errors.result ? 'border-red-500' : ''}`}
                   disabled={isLoading || !whitePlayerId || !blackPlayerId}
                 >
-                  
-                  <span className="text-xs sm:text-sm font-medium text-center leading-tight">
-                    {getWhitePlayerName() || 'White'} Wins
-                  </span>
+                  1-0
                 </button>
 
-                {/* Draw */}
+                {/* Draw - ½-½ */}
                 <button
                   type="button"
                   onClick={() => setResult('draw')}
-                  className={`flex flex-col items-center p-3 sm:p-4 border-2 rounded-lg transition-colors min-w-0 flex-1 ${
+                  className={`px-4 py-2 border-2 rounded-md transition-colors text-sm font-medium ${
                     result === 'draw'
                       ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
-                      : 'border-gray-300 hover:border-gray-400'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-700'
                   } ${errors.result ? 'border-red-500' : ''}`}
                   disabled={isLoading || !whitePlayerId || !blackPlayerId}
                 >
-                  <span className="text-xs sm:text-sm font-medium">Draw</span>
+                  ½-½
                 </button>
 
-                {/* Black Wins */}
+                {/* Black Wins - 0-1 */}
                 <button
                   type="button"
                   onClick={() => setResult('black')}
-                  className={`flex flex-col items-center p-3 sm:p-4 border-2 rounded-lg transition-colors min-w-0 flex-1 ${
+                  className={`px-4 py-2 border-2 rounded-md transition-colors text-sm font-medium ${
                     result === 'black'
                       ? 'border-green-500 bg-green-50 text-green-700'
-                      : 'border-gray-300 hover:border-gray-400'
+                      : 'border-gray-300 hover:border-gray-400 text-gray-700'
                   } ${errors.result ? 'border-red-500' : ''}`}
                   disabled={isLoading || !whitePlayerId || !blackPlayerId}
                 >
-                  <span className="text-xs sm:text-sm font-medium text-center leading-tight">
-                    {getBlackPlayerName() || 'Black'} Wins
-                  </span>
+                  0-1
                 </button>
               </div>
+              
               {errors.result && (
-                <p className="text-red-500 text-sm mt-2 text-center">{errors.result}</p>
+                <p className="text-red-500 text-xs text-center">{errors.result}</p>
               )}
             </div>
 
-            {/* Black Player */}
-            <div>
-              <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                ⚫ Black Player *
-              </label>
+            {/* Black Player Section */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="text-2xl">♚</div>
+                <label className="text-sm font-medium text-[--color-text-primary]">
+                  Black Player *
+                </label>
+              </div>
               <div className="relative" ref={blackDropdownRef}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
@@ -285,7 +284,7 @@ export default function SimpleGameForm({
                     setShowBlackDropdown(true)
                   }}
                   onFocus={() => setShowBlackDropdown(true)}
-                  className={`w-full pl-10 pr-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] ${
+                  className={`w-full pl-10 pr-4 py-3 border rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] ${
                     errors.blackPlayer ? 'border-red-500' : 'border-gray-300'
                   }`}
                   disabled={isLoading}

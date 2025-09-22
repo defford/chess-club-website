@@ -204,6 +204,7 @@ export interface PlayerData {
   grade: string;
   gamesPlayed: number;
   wins: number;
+  draws: number;
   losses: number;
   points: number;
   rank?: number;
@@ -302,4 +303,30 @@ export interface GameResult {
   player1Id: string;
   player2Id: string;
   result: 'player1' | 'player2' | 'draw';
+}
+
+// Ladder Session Management Types
+export interface LadderSession {
+  id: string;
+  date: string; // YYYY-MM-DD format
+  createdAt: string;
+  isActive: boolean;
+  gameCount: number;
+  playerCount: number;
+}
+
+export interface LadderSessionData {
+  sessionId: string;
+  date: string;
+  players: PlayerData[];
+  games: GameData[];
+  createdAt: string;
+  lastUpdated: string;
+}
+
+export interface LadderSessionFilters {
+  dateFrom?: string;
+  dateTo?: string;
+  isActive?: boolean;
+  limit?: number;
 }

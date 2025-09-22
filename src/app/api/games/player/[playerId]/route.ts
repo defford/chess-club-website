@@ -8,7 +8,42 @@ export async function GET(
 ) {
   try {
     const { playerId } = await params;
-    const games = await googleSheetsService.getPlayerGames(playerId);
+    const { searchParams } = new URL(request.url);
+    
+    // Parse date filtering parameters
+    const dateFrom = searchParams.get('dateFrom');
+    const dateTo = searchParams.get('dateTo');
+    
+    // First try to get games by playerId
+    let games = await googleSheetsService.getPlayerGames(playerId);
+    
+    // If no games found by ID, try to get all games and filter by name
+    if (games.length === 0) {
+      const allGames = await googleSheetsService.getGames();
+      
+      // Filter games where the playerId matches either player1Name or player2Name
+      games = allGames.filter(game => 
+        game.player1Name === playerId || game.player2Name === playerId
+      );
+    }
+    
+    // Apply date filtering if date parameters are provided
+    if (dateFrom || dateTo) {
+      games = games.filter(game => {
+        // Convert game date to YYYY-MM-DD format for comparison
+        const gameDateStr = game.gameDate.split('T')[0]; // Remove time part if present
+        
+        if (dateFrom) {
+          if (gameDateStr < dateFrom) return false;
+        }
+        
+        if (dateTo) {
+          if (gameDateStr > dateTo) return false;
+        }
+        
+        return true;
+      });
+    }
     
     return NextResponse.json(games);
   } catch (error) {

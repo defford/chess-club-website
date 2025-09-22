@@ -129,58 +129,6 @@ export default function AdminDashboard() {
           </Button>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  Total Members
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">0</p>
-              </div>
-              <Users className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  Active Members
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
-                  {memberStats?.active || 0}
-                </p>
-              </div>
-              <Calendar className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  Ranked Players
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">0</p>
-              </div>
-              <Trophy className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  This Month
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
-                  {new Date().toLocaleDateString('en-US', { month: 'long' })}
-                </p>
-              </div>
-              <Settings className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
-        </div>
-
         {/* Admin Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {adminCards.map((card) => {

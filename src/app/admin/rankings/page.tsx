@@ -90,6 +90,7 @@ export default function AdminRankingsPage() {
         alert("Game result recorded successfully!")
         resetGameForm()
         loadPlayers() // Refresh the rankings
+        localStorage.setItem('gameAdded', Date.now().toString())
       } else {
         const error = await response.json()
         alert(`Error: ${error.error || 'Failed to record game result'}`)

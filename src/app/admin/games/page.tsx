@@ -10,6 +10,7 @@ import { clientAuthService } from "@/lib/clientAuth"
 import { Gamepad2, Plus, Search, Filter, Download, LogOut, ArrowLeft, BarChart3 } from "lucide-react"
 import type { GameData, PlayerData, GameFormData } from "@/lib/types"
 import GameForm from "@/components/admin/GameForm"
+import SimpleGameForm from "@/components/admin/SimpleGameForm"
 
 export default function AdminGamesPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -18,6 +19,7 @@ export default function AdminGamesPage() {
   const [games, setGames] = useState<GameData[]>([])
   const [players, setPlayers] = useState<PlayerData[]>([])
   const [showGameForm, setShowGameForm] = useState(false)
+  const [showQuickForm, setShowQuickForm] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState("all")
   const [filterResult, setFilterResult] = useState("all")
@@ -59,17 +61,31 @@ export default function AdminGamesPage() {
       
       const [gamesResponse, playersResponse] = await Promise.all([
         fetch(`/api/games?email=${encodeURIComponent(userEmail)}`),
-        fetch('/api/rankings')
+        fetch('/api/members')
       ])
 
       if (!gamesResponse.ok || !playersResponse.ok) {
         throw new Error('Failed to fetch data')
       }
 
-      const [gamesData, playersData] = await Promise.all([
+      const [gamesData, membersData] = await Promise.all([
         gamesResponse.json(),
         playersResponse.json()
       ])
+
+      // Transform members data to PlayerData format for the game form
+      const playersData = membersData.map((member: any) => ({
+        id: member.id,
+        name: member.playerName,
+        grade: member.playerGrade,
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        points: 0,
+        rank: 0,
+        lastActive: member.timestamp || new Date().toISOString(),
+        email: member.parentEmail || ''
+      }))
 
       setGames(gamesData)
       setPlayers(playersData)
@@ -111,6 +127,10 @@ export default function AdminGamesPage() {
       // Refresh the games list
       await loadData()
       setShowGameForm(false)
+      setShowQuickForm(false)
+      
+      // Dispatch event to notify other components that a game was added
+      localStorage.setItem('gameAdded', Date.now().toString())
     } catch (err) {
       console.error('Error creating game:', err)
       setError(err instanceof Error ? err.message : 'Failed to create game')
@@ -315,7 +335,7 @@ export default function AdminGamesPage() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
-                onClick={() => router.push("/admin/games/quick")}
+                onClick={() => setShowQuickForm(!showQuickForm)}
                 variant="outline"
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
@@ -345,6 +365,18 @@ export default function AdminGamesPage() {
           </div>
         </div>
 
+        {/* Quick Game Form - Dropdown Section */}
+        {showQuickForm && (
+          <div className="mb-6">
+            <SimpleGameForm
+              players={players}
+              onSubmit={handleGameSubmit}
+              onCancel={() => setShowQuickForm(false)}
+              isLoading={submitting}
+            />
+          </div>
+        )}
+
         {/* Games Display - Mobile Responsive */}
         <Card>
           <CardHeader>
@@ -371,7 +403,7 @@ export default function AdminGamesPage() {
                 <Gamepad2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p className="text-gray-600">No games found</p>
                 <Button 
-                  onClick={() => router.push("/admin/games/quick")}
+                  onClick={() => setShowQuickForm(true)}
                   className="mt-4"
                 >
                   Add First Game

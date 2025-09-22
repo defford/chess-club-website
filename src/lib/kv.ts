@@ -1,6 +1,6 @@
 import { Redis } from '@upstash/redis';
-import { googleSheetsService } from './googleSheets';
-import type { EventData, PlayerData, RegistrationData } from './types';
+import { enhancedGoogleSheetsService } from './googleSheetsEnhanced';
+import type { EventData, PlayerData, RegistrationData, LadderSession, LadderSessionData, LadderSessionFilters } from './types';
 
 export interface CacheConfig {
   ttl: number; // seconds
@@ -21,6 +21,10 @@ export class KVCacheService {
     PARENT_PLAYERS: (parentId: string) => `parent_players:${parentId}`,
     PARENT_ACCOUNT: (email: string) => `parent_account:${email}`,
     STUDENTS_BY_PARENT: (parentId: string) => `students:parent:${parentId}`,
+    LADDER_SESSIONS: 'ladder_sessions:all',
+    LADDER_SESSION: (sessionId: string) => `ladder_session:${sessionId}`,
+    LADDER_SESSION_BY_DATE: (date: string) => `ladder_session:date:${date}`,
+    CURRENT_LADDER_SESSION: 'ladder_session:current',
   } as const;
 
   private static readonly CACHE_CONFIG: Record<string, CacheConfig> = {
@@ -31,6 +35,9 @@ export class KVCacheService {
     parentPlayers: { ttl: 1800, tags: ['parent-data'] }, // 30 minutes
     parentAccount: { ttl: 3600, tags: ['parent-data'] }, // 1 hour
     studentsByParent: { ttl: 3600, tags: ['parent-data', 'members'] }, // 1 hour
+    ladderSessions: { ttl: 3600, tags: ['ladder-sessions'] }, // 1 hour
+    ladderSession: { ttl: 1800, tags: ['ladder-sessions'] }, // 30 minutes
+    currentLadderSession: { ttl: 300, tags: ['ladder-sessions'] }, // 5 minutes
   };
 
   // Check if Redis is available (for local development fallback)
@@ -166,7 +173,7 @@ export class KVCacheService {
   static async getEvents(): Promise<EventData[]> {
     return this.getCachedData(
       this.CACHE_KEYS.EVENTS,
-      () => googleSheetsService.getEvents(),
+      () => enhancedGoogleSheetsService.getEvents(),
       this.CACHE_CONFIG.events
     );
   }
@@ -174,7 +181,7 @@ export class KVCacheService {
   static async getRankings(): Promise<PlayerData[]> {
     return this.getCachedData(
       this.CACHE_KEYS.RANKINGS,
-      () => googleSheetsService.getPlayers(),
+      () => enhancedGoogleSheetsService.getPlayers(),
       this.CACHE_CONFIG.rankings
     );
   }
@@ -182,7 +189,7 @@ export class KVCacheService {
   static async getMembers(): Promise<RegistrationData[]> {
     return this.getCachedData(
       this.CACHE_KEYS.MEMBERS,
-      () => googleSheetsService.getMembersFromParentsAndStudents(),
+      () => enhancedGoogleSheetsService.getMembersFromParentsAndStudents(),
       this.CACHE_CONFIG.members
     );
   }
@@ -192,7 +199,7 @@ export class KVCacheService {
     const cacheKey = `event_registrations:player:${playerName}`;
     return this.getCachedData(
       cacheKey,
-      () => googleSheetsService.getEventRegistrationsByPlayer(playerName),
+      () => enhancedGoogleSheetsService.getEventRegistrationsByPlayer(playerName),
       { ttl: 300, tags: ['event-registrations'] } // 5 minutes
     );
   }
@@ -200,7 +207,7 @@ export class KVCacheService {
   static async getParentAccount(email: string) {
     return this.getCachedData(
       this.CACHE_KEYS.PARENT_ACCOUNT(email),
-      () => googleSheetsService.getParentAccount(email),
+      () => enhancedGoogleSheetsService.getParentAccount(email),
       this.CACHE_CONFIG.parentAccount
     );
   }
@@ -208,7 +215,7 @@ export class KVCacheService {
   static async getParentPlayers(parentAccountId: string) {
     return this.getCachedData(
       this.CACHE_KEYS.PARENT_PLAYERS(parentAccountId),
-      () => googleSheetsService.getParentPlayers(parentAccountId),
+      () => enhancedGoogleSheetsService.getParentPlayers(parentAccountId),
       this.CACHE_CONFIG.parentPlayers
     );
   }
@@ -216,16 +223,139 @@ export class KVCacheService {
   static async getStudentsByParentId(parentId: string) {
     return this.getCachedData(
       this.CACHE_KEYS.STUDENTS_BY_PARENT(parentId),
-      () => googleSheetsService.getStudentsByParentId(parentId),
+      () => enhancedGoogleSheetsService.getStudentsByParentId(parentId),
       this.CACHE_CONFIG.studentsByParent
     );
+  }
+
+  // Ladder Session Management Methods
+  static async getLadderSessions(filters?: LadderSessionFilters): Promise<LadderSession[]> {
+    const cacheKey = filters ? `ladder_sessions:filtered:${JSON.stringify(filters)}` : this.CACHE_KEYS.LADDER_SESSIONS;
+    return this.getCachedData(
+      cacheKey,
+      () => this.getLadderSessionsFromStorage(filters),
+      this.CACHE_CONFIG.ladderSessions
+    );
+  }
+
+  static async getLadderSession(sessionId: string): Promise<LadderSessionData | null> {
+    return this.getCachedData(
+      this.CACHE_KEYS.LADDER_SESSION(sessionId),
+      () => this.getLadderSessionFromStorage(sessionId),
+      this.CACHE_CONFIG.ladderSession
+    );
+  }
+
+  static async getLadderSessionByDate(date: string): Promise<LadderSessionData | null> {
+    return this.getCachedData(
+      this.CACHE_KEYS.LADDER_SESSION_BY_DATE(date),
+      () => this.getLadderSessionByDateFromStorage(date),
+      this.CACHE_CONFIG.ladderSession
+    );
+  }
+
+  static async getCurrentLadderSession(): Promise<LadderSessionData | null> {
+    return this.getCachedData(
+      this.CACHE_KEYS.CURRENT_LADDER_SESSION,
+      () => this.getCurrentLadderSessionFromStorage(),
+      this.CACHE_CONFIG.currentLadderSession
+    );
+  }
+
+  static async createLadderSession(date: string): Promise<LadderSessionData> {
+    const sessionId = `session_${date}_${Date.now()}`;
+    const sessionData: LadderSessionData = {
+      sessionId,
+      date,
+      players: [],
+      games: [],
+      createdAt: new Date().toISOString(),
+      lastUpdated: new Date().toISOString()
+    };
+
+    // Store in cache
+    await this.setCachedData(
+      this.CACHE_KEYS.LADDER_SESSION(sessionId),
+      sessionData,
+      this.CACHE_CONFIG.ladderSession
+    );
+
+    await this.setCachedData(
+      this.CACHE_KEYS.LADDER_SESSION_BY_DATE(date),
+      sessionData,
+      this.CACHE_CONFIG.ladderSession
+    );
+
+    // Update current session
+    await this.setCachedData(
+      this.CACHE_KEYS.CURRENT_LADDER_SESSION,
+      sessionData,
+      this.CACHE_CONFIG.currentLadderSession
+    );
+
+    // Invalidate sessions list cache
+    await this.invalidateByTags(['ladder-sessions']);
+
+    return sessionData;
+  }
+
+  static async updateLadderSession(sessionId: string, sessionData: LadderSessionData): Promise<void> {
+    sessionData.lastUpdated = new Date().toISOString();
+
+    // Update all relevant cache keys
+    await this.setCachedData(
+      this.CACHE_KEYS.LADDER_SESSION(sessionId),
+      sessionData,
+      this.CACHE_CONFIG.ladderSession
+    );
+
+    await this.setCachedData(
+      this.CACHE_KEYS.LADDER_SESSION_BY_DATE(sessionData.date),
+      sessionData,
+      this.CACHE_CONFIG.ladderSession
+    );
+
+    // If this is the current session, update it too
+    const currentSession = await this.getCurrentLadderSession();
+    if (currentSession && currentSession.sessionId === sessionId) {
+      await this.setCachedData(
+        this.CACHE_KEYS.CURRENT_LADDER_SESSION,
+        sessionData,
+        this.CACHE_CONFIG.currentLadderSession
+      );
+    }
+
+    // Invalidate sessions list cache
+    await this.invalidateByTags(['ladder-sessions']);
+  }
+
+  // Private helper methods for fallback when cache is not available
+  private static async getLadderSessionsFromStorage(filters?: LadderSessionFilters): Promise<LadderSession[]> {
+    // For now, return empty array - this would be implemented to read from persistent storage
+    // In a real implementation, this might read from a database or file system
+    return [];
+  }
+
+  private static async getLadderSessionFromStorage(sessionId: string): Promise<LadderSessionData | null> {
+    // For now, return null - this would be implemented to read from persistent storage
+    return null;
+  }
+
+  private static async getLadderSessionByDateFromStorage(date: string): Promise<LadderSessionData | null> {
+    // For now, return null - this would be implemented to read from persistent storage
+    return null;
+  }
+
+  private static async getCurrentLadderSessionFromStorage(): Promise<LadderSessionData | null> {
+    // For now, return null - this would be implemented to read from persistent storage
+    return null;
   }
 
   static async getParentByEmail(email: string) {
     const cacheKey = `parent:email:${email}`;
     return this.getCachedData(
       cacheKey,
-      () => googleSheetsService.getParentByEmail(email),
+      () => enhancedGoogleSheetsService.getParentByEmail(email),
       { ttl: 3600, tags: ['parent-data'] }
     );
   }

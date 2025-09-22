@@ -48,10 +48,6 @@ export async function POST(request: NextRequest) {
         invalidatedKeys = ['members:all', 'parent-data:*'];
         break;
         
-      case 'player_ownership':
-        await KVCacheService.invalidateByTags(['parent-data']);
-        invalidatedKeys = ['parent-data:*'];
-        break;
         
       case 'event registrations':
         await KVCacheService.invalidateByTags(['event-registrations']);

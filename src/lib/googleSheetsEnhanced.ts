@@ -54,14 +54,25 @@ export class EnhancedGoogleSheetsService extends GoogleSheetsService {
   }
 
   async recalculateRankings(): Promise<void> {
-    // Recalculate rankings
-    await super.recalculateRankings();
-    
-    // Invalidate rankings cache
+    // Rankings are now calculated dynamically from games
+    // Just invalidate cache to force fresh calculation
     await KVCacheService.invalidateKey('rankings:all');
     await KVCacheService.invalidateByTags(['rankings']);
     
-    console.log('Rankings recalculated, cache invalidated');
+    console.log('Rankings cache invalidated - will be recalculated from games on next request');
+  }
+
+  // Override game methods with cache invalidation
+  async addGame(gameData: any): Promise<string> {
+    // Write to Google Sheets
+    const gameId = await super.addGame(gameData);
+    
+    // Invalidate rankings cache since rankings are calculated from games
+    await KVCacheService.invalidateKey('rankings:all');
+    await KVCacheService.invalidateByTags(['rankings']);
+    
+    console.log(`Game added: ${gameId}, rankings cache invalidated`);
+    return gameId;
   }
 
   // Override registration methods with cache invalidation
@@ -160,55 +171,7 @@ export class EnhancedGoogleSheetsService extends GoogleSheetsService {
     console.log(`Parent account updated: ${parentId}, cache invalidated`);
   }
 
-  // Override player ownership methods with cache invalidation
-  async addPlayerOwnership(ownership: any): Promise<void> {
-    // Write to Google Sheets
-    await super.addPlayerOwnership(ownership);
-    
-    // Invalidate parent players cache
-    await KVCacheService.invalidateKey(`parent_players:${ownership.ownerParentId}`);
-    if (ownership.pendingParentId) {
-      await KVCacheService.invalidateKey(`parent_players:${ownership.pendingParentId}`);
-    }
-    await KVCacheService.invalidateByTags(['parent-data']);
-    
-    console.log(`Player ownership added: ${ownership.playerId}, cache invalidated`);
-  }
 
-  async updatePlayerOwnership(playerId: string, updates: any): Promise<void> {
-    // Get current ownership to invalidate old parent cache
-    const currentOwnership = await this.getPlayerOwnership(playerId);
-    
-    // Write to Google Sheets
-    await super.updatePlayerOwnership(playerId, updates);
-    
-    // Invalidate relevant parent players caches
-    if (currentOwnership?.ownerParentId) {
-      await KVCacheService.invalidateKey(`parent_players:${currentOwnership.ownerParentId}`);
-    }
-    if (updates.ownerParentId) {
-      await KVCacheService.invalidateKey(`parent_players:${updates.ownerParentId}`);
-    }
-    if (updates.pendingParentId) {
-      await KVCacheService.invalidateKey(`parent_players:${updates.pendingParentId}`);
-    }
-    await KVCacheService.invalidateByTags(['parent-data']);
-    
-    console.log(`Player ownership updated: ${playerId}, cache invalidated`);
-  }
-
-  async autoLinkExistingStudentsToParent(parentAccountId: string, parentEmail: string): Promise<void> {
-    // Perform auto-linking
-    await super.autoLinkExistingStudentsToParent(parentAccountId, parentEmail);
-    
-    // Invalidate parent-specific caches
-    await KVCacheService.invalidateKey(`parent_players:${parentAccountId}`);
-    await KVCacheService.invalidateKey(`parent_account:${parentEmail}`);
-    await KVCacheService.invalidateKey(`parent:email:${parentEmail}`);
-    await KVCacheService.invalidateByTags(['parent-data']);
-    
-    console.log(`Students auto-linked to parent: ${parentEmail}, cache invalidated`);
-  }
 }
 
 // Export enhanced instance

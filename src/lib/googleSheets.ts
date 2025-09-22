@@ -522,40 +522,8 @@ export class GoogleSheetsService {
 
   // Rankings/Ladder Management Methods
   async getPlayers(): Promise<PlayerData[]> {
-    const spreadsheetId = this.getSpreadsheetId('rankings');
-    
-    if (!spreadsheetId) {
-      throw new Error('Google Sheets rankings ID not configured');
-    }
-
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'rankings!A:J',
-      });
-
-      const rows = response.data.values;
-      if (!rows || rows.length <= 1) {
-        return [];
-      }
-
-      // Skip header row and convert to PlayerData objects
-      return rows.slice(1).map((row, index) => ({
-        id: row[0] || String(index + 1),
-        name: row[1] || '',
-        grade: row[2] || '',
-        gamesPlayed: parseInt(row[3]) || 0,
-        wins: parseInt(row[4]) || 0,
-        losses: parseInt(row[5]) || 0,
-        points: parseFloat(row[6]) || 0,
-        rank: parseInt(row[7]) || index + 1,
-        lastActive: row[8] || new Date().toISOString(),
-        email: row[9] || '',
-      })).filter(player => player.name).sort((a, b) => (a.rank || 999) - (b.rank || 999));
-    } catch (error) {
-      console.error('Error reading players from Google Sheets:', error);
-      throw new Error('Failed to retrieve players from Google Sheets');
-    }
+    // Now calculate rankings dynamically from games sheet
+    return await this.calculateRankingsFromGames();
   }
 
   async addPlayer(player: Omit<PlayerData, 'id' | 'rank'>): Promise<string> {
@@ -578,6 +546,7 @@ export class GoogleSheetsService {
         player.grade,
         player.gamesPlayed,
         player.wins,
+        player.draws || 0,
         player.losses,
         player.points,
         newRank,
@@ -589,7 +558,7 @@ export class GoogleSheetsService {
     try {
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'rankings!A:J',
+        range: 'rankings!A:K',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -630,7 +599,7 @@ export class GoogleSheetsService {
       // Get current player data
       const currentPlayerResponse = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: `rankings!A${rowIndex + 1}:J${rowIndex + 1}`,
+        range: `rankings!A${rowIndex + 1}:K${rowIndex + 1}`,
       });
 
       const currentRow = currentPlayerResponse.data.values?.[0] || [];
@@ -642,16 +611,17 @@ export class GoogleSheetsService {
         updates.grade ?? currentRow[2],
         updates.gamesPlayed ?? currentRow[3],
         updates.wins ?? currentRow[4],
-        updates.losses ?? currentRow[5],
-        updates.points ?? currentRow[6],
-        updates.rank ?? currentRow[7],
+        updates.draws ?? currentRow[5],
+        updates.losses ?? currentRow[6],
+        updates.points ?? currentRow[7],
+        updates.rank ?? currentRow[8],
         updates.lastActive ?? new Date().toISOString(),
-        updates.email ?? currentRow[9]
+        updates.email ?? currentRow[10]
       ];
 
       await this.sheets.spreadsheets.values.update({
         spreadsheetId,
-        range: `rankings!A${rowIndex + 1}:J${rowIndex + 1}`,
+        range: `rankings!A${rowIndex + 1}:K${rowIndex + 1}`,
         valueInputOption: 'RAW',
         requestBody: {
           values: [updatedRow],
@@ -861,34 +831,120 @@ export class GoogleSheetsService {
     }
   }
 
+  // Calculate rankings dynamically from games sheet
+  async calculateRankingsFromGames(): Promise<PlayerData[]> {
+    try {
+      // Get all games
+      const games = await this.getGames();
+      
+      // Get all registered players from members data
+      const registrations = await this.getMembersFromParentsAndStudents();
+      const members = registrations.map((registration, index) => ({
+        ...registration,
+        id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`
+      }));
+
+      // Initialize player stats
+      const playerStats = new Map<string, {
+        id: string;
+        name: string;
+        grade: string;
+        gamesPlayed: number;
+        wins: number;
+        draws: number;
+        losses: number;
+        points: number;
+        rank?: number;
+        lastActive: string;
+        email: string;
+      }>();
+
+      // Initialize all registered players
+      members.forEach(member => {
+        playerStats.set(member.id, {
+          id: member.id,
+          name: member.playerName,
+          grade: member.playerGrade,
+          gamesPlayed: 0,
+          wins: 0,
+          draws: 0,
+          losses: 0,
+          points: 0,
+          lastActive: member.timestamp || new Date().toISOString(),
+          email: member.parentEmail || ''
+        });
+      });
+
+      // Process each game to calculate stats
+      games.forEach(game => {
+        const player1Stats = playerStats.get(game.player1Id);
+        const player2Stats = playerStats.get(game.player2Id);
+
+        if (player1Stats && player2Stats) {
+          // Both players played a game
+          player1Stats.gamesPlayed += 1;
+          player2Stats.gamesPlayed += 1;
+          
+          // Update last active
+          const gameDate = new Date(game.gameDate);
+          const player1LastActive = new Date(player1Stats.lastActive);
+          const player2LastActive = new Date(player2Stats.lastActive);
+          
+          if (gameDate > player1LastActive) {
+            player1Stats.lastActive = game.gameDate;
+          }
+          if (gameDate > player2LastActive) {
+            player2Stats.lastActive = game.gameDate;
+          }
+
+          // Calculate points and stats based on result
+          if (game.result === 'player1') {
+            // Player 1 wins
+            player1Stats.points += 2; // 1 for playing + 1 for winning
+            player2Stats.points += 1; // 1 for playing
+            player1Stats.wins += 1;
+            player2Stats.losses += 1;
+          } else if (game.result === 'player2') {
+            // Player 2 wins
+            player2Stats.points += 2; // 1 for playing + 1 for winning
+            player1Stats.points += 1; // 1 for playing
+            player2Stats.wins += 1;
+            player1Stats.losses += 1;
+          } else if (game.result === 'draw') {
+            // Draw
+            player1Stats.points += 1.5; // 1 for playing + 0.5 for drawing
+            player2Stats.points += 1.5; // 1 for playing + 0.5 for drawing
+            player1Stats.draws += 1;
+            player2Stats.draws += 1;
+          }
+        }
+      });
+
+      // Convert to array and sort by points (descending), then wins (descending)
+      const players = Array.from(playerStats.values()).sort((a, b) => {
+        if (b.points !== a.points) {
+          return b.points - a.points;
+        }
+        return b.wins - a.wins;
+      });
+
+      // Assign ranks
+      players.forEach((player, index) => {
+        player.rank = index + 1;
+      });
+
+      return players;
+    } catch (error) {
+      console.error('Error calculating rankings from games:', error);
+      throw new Error('Failed to calculate rankings from games');
+    }
+  }
+
   // Helper method to recalculate all player rankings based on points
   async recalculateRankings(): Promise<void> {
-    const players = await this.getPlayers();
-    
-    // Sort by points (descending), then by wins (descending) for tiebreaker
-    const sortedPlayers = players.sort((a, b) => {
-      if (b.points !== a.points) {
-        return b.points - a.points;
-      }
-      return b.wins - a.wins;
-    });
-
-    // Collect players that need rank updates
-    const playersToUpdate = [];
-    for (let i = 0; i < sortedPlayers.length; i++) {
-      const player = sortedPlayers[i];
-      if (player.id && player.rank !== i + 1) {
-        playersToUpdate.push({
-          id: player.id,
-          rank: i + 1
-        });
-      }
-    }
-
-    // Batch update rankings if there are players to update
-    if (playersToUpdate.length > 0) {
-      await this.batchUpdatePlayerRanks(playersToUpdate);
-    }
+    // This method is now deprecated - rankings are calculated dynamically
+    // Keeping for backward compatibility but it's a no-op
+    console.log('recalculateRankings() called - rankings are now calculated dynamically from games');
   }
 
   // Batch update player ranks to reduce API calls
@@ -906,7 +962,7 @@ export class GoogleSheetsService {
       // Get all current player data in one call
       const response = await this.sheets.spreadsheets.values.get({
         spreadsheetId,
-        range: 'rankings!A:I',
+        range: 'rankings!A:K',
       });
 
       const rows = response.data.values;
@@ -1131,120 +1187,6 @@ export class GoogleSheetsService {
     }
   }
 
-  // Player Ownership Management Methods
-  async getPlayerOwnership(playerId: string): Promise<PlayerOwnership | null> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'player_ownership!A:G',
-      });
-
-      const rows = response.data.values;
-      if (!rows || rows.length <= 1) {
-        return null;
-      }
-
-      // Find ownership by player ID
-      const ownershipRow = rows.slice(1).find(row => row[0] === playerId);
-      if (!ownershipRow) {
-        return null;
-      }
-
-      return {
-        playerId: ownershipRow[0] || '',
-        playerName: ownershipRow[1] || '',
-        playerEmail: ownershipRow[2] || '',
-        ownerParentId: ownershipRow[3] || '',
-        pendingParentId: ownershipRow[4] || undefined,
-        approvalStatus: (ownershipRow[5] as 'none' | 'pending' | 'approved' | 'denied') || 'none',
-        claimDate: ownershipRow[6] || ''
-      };
-    } catch (error) {
-      console.error('Error reading player ownership from Google Sheets:', error);
-      return null;
-    }
-  }
-
-  async addPlayerOwnership(ownership: PlayerOwnership): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    const values = [
-      [
-        ownership.playerId,
-        ownership.playerName,
-        ownership.playerEmail,
-        ownership.ownerParentId,
-        ownership.pendingParentId || '',
-        ownership.approvalStatus,
-        ownership.claimDate
-      ]
-    ];
-
-    try {
-      await this.sheets.spreadsheets.values.append({
-        spreadsheetId,
-        range: 'player_ownership!A:G',
-        valueInputOption: 'RAW',
-        insertDataOption: 'INSERT_ROWS',
-        requestBody: {
-          values,
-        },
-      });
-    } catch (error) {
-      console.error('Error adding player ownership to Google Sheets:', error);
-      throw new Error('Failed to add player ownership to Google Sheets');
-    }
-  }
-
-  async updatePlayerOwnership(playerId: string, updates: Partial<PlayerOwnership>): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'player_ownership!A:G',
-      });
-
-      const rows = response.data.values;
-      if (!rows || rows.length <= 1) {
-        throw new Error('Player ownership not found');
-      }
-
-      // Find the row to update
-      const rowIndex = rows.slice(1).findIndex(row => row[0] === playerId);
-      if (rowIndex === -1) {
-        throw new Error('Player ownership not found');
-      }
-
-      const actualRowIndex = rowIndex + 2; // Account for header row and 0-based index
-      const currentRow = rows[rowIndex + 1];
-
-      // Apply updates
-      const updatedRow = [
-        currentRow[0], // playerId (never changes)
-        updates.playerName !== undefined ? updates.playerName : currentRow[1],
-        updates.playerEmail !== undefined ? updates.playerEmail : currentRow[2],
-        updates.ownerParentId !== undefined ? updates.ownerParentId : currentRow[3],
-        updates.pendingParentId !== undefined ? (updates.pendingParentId || '') : currentRow[4],
-        updates.approvalStatus !== undefined ? updates.approvalStatus : currentRow[5],
-        updates.claimDate !== undefined ? updates.claimDate : currentRow[6]
-      ];
-
-      await this.sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `player_ownership!A${actualRowIndex}:G${actualRowIndex}`,
-        valueInputOption: 'RAW',
-        requestBody: {
-          values: [updatedRow],
-        },
-      });
-    } catch (error) {
-      console.error('Error updating player ownership in Google Sheets:', error);
-      throw new Error('Failed to update player ownership in Google Sheets');
-    }
-  }
 
   async getStudentsByParentId(parentId: string): Promise<StudentData[]> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
@@ -1480,106 +1422,7 @@ export class GoogleSheetsService {
     }
   }
 
-  async autoLinkExistingStudentsToParent(parentAccountId: string, parentEmail: string): Promise<void> {
-    const spreadsheetId = this.getSpreadsheetId('registrations');
-    
-    try {
-      // First, get the parent ID from the parents sheet using the email
-      const parent = await this.getParentByEmail(parentEmail);
-      if (!parent) {
-        console.log(`No parent found with email ${parentEmail} in parents sheet`);
-        return; // No parent found in parents sheet
-      }
 
-      const parentId = parent.id;
-      
-      // Get all students for this parent from the students sheet
-      const students = await this.getStudentsByParentId(parentId);
-      
-      if (students.length === 0) {
-        console.log(`No students found for parent ${parentId}`);
-        return; // No players to link
-      }
-
-      console.log(`Found ${students.length} students for parent ${parentId}, linking to parent account ${parentAccountId}`);
-
-      // For each student, create or update ownership record
-      for (const student of students) {
-        const playerId = student.id;
-        
-        // Check if ownership record already exists
-        const existingOwnership = await this.getPlayerOwnership(playerId);
-        
-        if (!existingOwnership) {
-          // Create new ownership record
-          const now = new Date().toISOString();
-          await this.sheets.spreadsheets.values.append({
-            spreadsheetId,
-            range: 'player_ownership!A:G',
-            valueInputOption: 'RAW',
-            insertDataOption: 'INSERT_ROWS',
-            requestBody: {
-              values: [[
-                playerId,
-                student.name,
-                parentEmail,
-                parentAccountId, // Use parent account ID for ownership
-                '', // pendingParentId
-                'approved', // approvalStatus
-                now // claimDate
-              ]]
-            }
-          });
-          console.log(`Created ownership record for player ${playerId} (${student.name})`);
-        } else if (!existingOwnership.ownerParentId || existingOwnership.ownerParentId === '') {
-          // Update existing record to assign ownership
-          await this.updatePlayerOwnership(playerId, {
-            ownerParentId: parentAccountId, // Use parent account ID for ownership
-            approvalStatus: 'approved'
-          });
-          console.log(`Updated ownership record for player ${playerId} (${student.name})`);
-        } else {
-          console.log(`Player ${playerId} (${student.name}) already has owner ${existingOwnership.ownerParentId}`);
-        }
-        // If player already has an owner, don't override it
-      }
-    } catch (error) {
-      console.error('Error auto-linking students to parent:', error);
-      throw new Error('Failed to auto-link students to parent');
-    }
-  }
-
-  // Player ID Migration Method
-  async generatePlayerIdsForExistingRegistrations(): Promise<void> {
-    try {
-      const registrations = await this.getRegistrations();
-      
-      for (const registration of registrations) {
-        // Generate unique player ID based on registration data
-        const playerId = `plyr_${registration.playerName}_${registration.parentEmail}_${registration.timestamp}`.replace(/[^a-zA-Z0-9_]/g, '_');
-        
-        // Check if player ownership already exists
-        const existingOwnership = await this.getPlayerOwnership(playerId);
-        
-        if (!existingOwnership) {
-          // Create ownership record with the registering parent as initial owner
-          const ownership: PlayerOwnership = {
-            playerId,
-            playerName: registration.playerName,
-            playerEmail: registration.parentEmail,
-            ownerParentId: '', // Will be set when parent creates account
-            approvalStatus: 'none',
-            claimDate: registration.timestamp || new Date().toISOString()
-          };
-          
-          await this.addPlayerOwnership(ownership);
-        }
-      }
-    } catch (error) {
-      console.error('Error generating player IDs for existing registrations:', error);
-      throw new Error('Failed to generate player IDs for existing registrations');
-    }
-  }
 
   // Initialize parent account and player ownership sheets
 

@@ -1,12 +1,7 @@
 // Client-safe authentication utilities
 // This file only contains browser-safe code without Node.js dependencies
 
-export interface ParentSession {
-  parentId: string;
-  email: string;
-  loginTime: number;
-  isSelfRegistered?: boolean;
-}
+import type { ParentSession } from './types';
 
 export class ClientAuthService {
   private readonly AUTH_KEY = 'chess-club-parent-auth';
@@ -41,7 +36,8 @@ export class ClientAuthService {
         parentId: 'dev-parent-123',
         email: 'dev@example.com',
         loginTime: Date.now(),
-        isSelfRegistered: false
+        isSelfRegistered: false,
+        isAdmin: true
       };
     }
     

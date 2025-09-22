@@ -17,6 +17,10 @@ const navigation = [
   // { name: "Admin", href: "/admin" },
 ]
 
+const authenticatedNavigation = [
+  { name: "Ladder", href: "/ladder" },
+]
+
 export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const [isAuthenticated, setIsAuthenticated] = React.useState(false)
@@ -134,6 +138,17 @@ export function Header() {
             </Link>
           ))}
           
+          {/* Authenticated Navigation */}
+          {isAuthenticated && authenticatedNavigation.map((item) => (
+            <Link
+              key={item.name}
+              href={item.href}
+              className="text-sm font-medium text-[--color-text-primary] transition-colors hover:text-[--color-primary]"
+            >
+              {item.name}
+            </Link>
+          ))}
+          
           {/* Authentication Section */}
           {isAuthenticated ? (
             <Dropdown
@@ -203,6 +218,18 @@ export function Header() {
         <div className="md:hidden">
           <div className="space-y-1 px-4 pb-3 pt-2 bg-white border-t">
             {navigation.map((item) => (
+              <Link
+                key={item.name}
+                href={item.href}
+                className="block px-3 py-2 text-base font-medium text-[--color-text-primary] hover:bg-[--color-neutral-light] hover:text-[--color-primary] rounded-md"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {item.name}
+              </Link>
+            ))}
+            
+            {/* Mobile Authenticated Navigation */}
+            {isAuthenticated && authenticatedNavigation.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}

@@ -366,7 +366,7 @@ export default function GameStatsPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button
-                  onClick={() => router.push('/admin/games/quick')}
+                  onClick={() => router.push('/admin/games')}
                   className="w-full flex items-center justify-center gap-2"
                 >
                   <Gamepad2 className="h-4 w-4" />

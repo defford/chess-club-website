@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
 import { GameData, GameFormData, BulkGameData } from '@/lib/types';
 import { requireAdminAuth } from '@/lib/apiAuth';
+import { KVCacheService } from '@/lib/kv';
 
 // GET /api/games - List all games with optional filters
 export async function GET(request: NextRequest) {
@@ -24,7 +25,7 @@ export async function GET(request: NextRequest) {
       Object.entries(filters).filter(([_, value]) => value !== undefined)
     );
 
-    const games = await googleSheetsService.getGames(cleanFilters);
+    const games = await enhancedGoogleSheetsService.getGames(cleanFilters);
     
     return NextResponse.json(games);
   } catch (error) {
@@ -72,47 +73,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get player names from students sheet (source of truth)
-    console.log('Getting players from students sheet...');
+    // Get player names from members data (source of truth for the frontend)
+    console.log('Getting players from members data...');
     let player1 = null;
     let player2 = null;
     
     try {
-      // Get all students from the students sheet using the new method
-      const students = await googleSheetsService.getAllStudents();
+      // Get all members using the same method as the frontend
+      const registrations = await enhancedGoogleSheetsService.getMembersFromParentsAndStudents();
       
-      const student1 = students.find(s => s.id === gameFormData.player1Id);
-      const student2 = students.find(s => s.id === gameFormData.player2Id);
+      // Add IDs to members data (same logic as /api/members endpoint)
+      const members = registrations.map((registration, index) => ({
+        ...registration,
+        id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`
+      }));
       
-      if (student1) {
+      const member1 = members.find(m => m.id === gameFormData.player1Id);
+      const member2 = members.find(m => m.id === gameFormData.player2Id);
+      
+      if (member1) {
         player1 = {
           id: gameFormData.player1Id,
-          name: student1.name,
-          grade: student1.grade,
+          name: member1.playerName,
+          grade: member1.playerGrade,
           wins: 0,
           losses: 0,
           points: 0,
           rank: 999,
-          lastActive: student1.timestamp || new Date().toISOString(),
-          email: '' // Will be filled from parent data if needed
+          lastActive: member1.timestamp || new Date().toISOString(),
+          email: member1.parentEmail || ''
         };
       }
       
-      if (student2) {
+      if (member2) {
         player2 = {
           id: gameFormData.player2Id,
-          name: student2.name,
-          grade: student2.grade,
+          name: member2.playerName,
+          grade: member2.playerGrade,
           wins: 0,
           losses: 0,
           points: 0,
           rank: 999,
-          lastActive: student2.timestamp || new Date().toISOString(),
-          email: '' // Will be filled from parent data if needed
+          lastActive: member2.timestamp || new Date().toISOString(),
+          email: member2.parentEmail || ''
         };
       }
     } catch (error) {
-      console.error('Error getting players from students sheet:', error);
+      console.error('Error getting players from members data:', error);
     }
 
     if (!player1 || !player2) {
@@ -142,11 +149,8 @@ export async function POST(request: NextRequest) {
       isVerified: false,
     };
 
-    // Add game to Google Sheets
-    const gameId = await googleSheetsService.addGame(gameData);
-
-    // Update player statistics
-    await updatePlayerStats(gameFormData.player1Id, gameFormData.player2Id, gameFormData.result);
+    // Add game to Google Sheets (rankings will be calculated dynamically)
+    const gameId = await enhancedGoogleSheetsService.addGame(gameData);
 
     return NextResponse.json(
       { 
@@ -165,149 +169,3 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Helper function to update player statistics
-async function updatePlayerStats(player1Id: string, player2Id: string, result: string) {
-  try {
-    console.log('Updating player stats from students sheet...');
-    
-    // Get players from students sheet and add them to rankings if needed
-    const students = await googleSheetsService.getAllStudents();
-    const student1 = students.find(s => s.id === player1Id);
-    const student2 = students.find(s => s.id === player2Id);
-    
-    let player1 = null;
-    let player2 = null;
-    
-    // Check if players already exist in rankings
-    const existingPlayers = await googleSheetsService.getPlayers();
-    const existingPlayer1 = existingPlayers.find(p => p.name === student1?.name);
-    const existingPlayer2 = existingPlayers.find(p => p.name === student2?.name);
-    
-    if (student1) {
-      if (existingPlayer1) {
-        // Player exists in rankings, use existing data
-        player1 = existingPlayer1;
-      } else {
-        // Add player1 to rankings
-        console.log(`Adding ${student1.name} to rankings...`);
-        const newPlayer1Id = await googleSheetsService.addPlayer({
-          name: student1.name,
-          grade: student1.grade,
-          gamesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          points: 0,
-          lastActive: new Date().toISOString(),
-          email: '' // Students don't have direct email, will be filled from parent if needed
-        });
-        player1 = {
-          id: newPlayer1Id,
-          name: student1.name,
-          grade: student1.grade,
-          gamesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          points: 0,
-          rank: 999,
-          lastActive: new Date().toISOString(),
-          email: ''
-        };
-      }
-    }
-    
-    if (student2) {
-      if (existingPlayer2) {
-        // Player exists in rankings, use existing data
-        player2 = existingPlayer2;
-      } else {
-        // Add player2 to rankings
-        console.log(`Adding ${student2.name} to rankings...`);
-        const newPlayer2Id = await googleSheetsService.addPlayer({
-          name: student2.name,
-          grade: student2.grade,
-          gamesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          points: 0,
-          lastActive: new Date().toISOString(),
-          email: '' // Students don't have direct email, will be filled from parent if needed
-        });
-        player2 = {
-          id: newPlayer2Id,
-          name: student2.name,
-          grade: student2.grade,
-          gamesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          points: 0,
-          rank: 999,
-          lastActive: new Date().toISOString(),
-          email: ''
-        };
-      }
-    }
-
-    if (!player1 || !player2) {
-      throw new Error('Players not found for stats update');
-    }
-
-    // Calculate new points based on scoring system:
-    // Each player gets 1 point for playing
-    // Winner gets +1 additional point (total 2)
-    // Draw: each player gets +0.5 additional point (total 1.5 each)
-    // Final scoring: Win = 2 points, Loss = 1 point, Draw = 1.5 points
-    
-    let player1Points = player1.points + 1; // Base point for playing
-    let player2Points = player2.points + 1; // Base point for playing
-    
-    let player1Wins = player1.wins;
-    let player1Losses = player1.losses;
-    let player1GamesPlayed = player1.gamesPlayed;
-    let player2Wins = player2.wins;
-    let player2Losses = player2.losses;
-    let player2GamesPlayed = player2.gamesPlayed;
-
-    // Both players played a game
-    player1GamesPlayed += 1;
-    player2GamesPlayed += 1;
-
-    if (result === 'player1') {
-      // Player 1 wins
-      player1Points += 1; // Additional point for winning
-      player1Wins += 1;
-      player2Losses += 1;
-    } else if (result === 'player2') {
-      // Player 2 wins
-      player2Points += 1; // Additional point for winning
-      player2Wins += 1;
-      player1Losses += 1;
-    } else {
-      // Draw - each player gets 0.5 additional points
-      player1Points += 0.5;
-      player2Points += 0.5;
-    }
-
-    // Update both players using their ranking IDs
-    await googleSheetsService.updatePlayer(player1.id, {
-      gamesPlayed: player1GamesPlayed,
-      wins: player1Wins,
-      losses: player1Losses,
-      points: player1Points,
-      lastActive: new Date().toISOString()
-    });
-
-    await googleSheetsService.updatePlayer(player2.id, {
-      gamesPlayed: player2GamesPlayed,
-      wins: player2Wins,
-      losses: player2Losses,
-      points: player2Points,
-      lastActive: new Date().toISOString()
-    });
-
-    // Recalculate rankings after updating both players
-    await googleSheetsService.recalculateRankings();
-  } catch (error) {
-    console.error('Error updating player stats:', error);
-    throw error;
-  }
-}
