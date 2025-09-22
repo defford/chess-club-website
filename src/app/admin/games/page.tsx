@@ -84,7 +84,8 @@ export default function AdminGamesPage() {
         points: 0,
         rank: 0,
         lastActive: member.timestamp || new Date().toISOString(),
-        email: member.parentEmail || ''
+        email: member.parentEmail || '',
+        isSystemPlayer: member.isSystemPlayer || false // Preserve system player flag
       }))
 
       setGames(gamesData)

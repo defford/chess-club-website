@@ -210,6 +210,7 @@ export interface PlayerData {
   rank?: number;
   lastActive: string;
   email?: string;
+  isSystemPlayer?: boolean; // Flag to identify system players (like Unknown Opponent)
 }
 
 // Parent Account Management Interfaces
@@ -329,4 +330,39 @@ export interface LadderSessionFilters {
   dateTo?: string;
   isActive?: boolean;
   limit?: number;
+}
+
+// Achievement System Types
+export interface Achievement {
+  id: string;
+  playerId: string;
+  playerName: string;
+  type: AchievementType;
+  title: string;
+  description: string;
+  earnedAt: string;
+  gameId?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export type AchievementType = 
+  | 'first_win'
+  | 'win_streak_3'
+  | 'win_streak_5'
+  | 'win_streak_10'
+  | 'games_played_10'
+  | 'games_played_25'
+  | 'games_played_50'
+  | 'perfect_week'
+  | 'comeback_king'
+  | 'giant_slayer'
+  | 'draw_master'
+  | 'first_draw'
+  | 'undefeated_month';
+
+export interface AchievementNotification {
+  id: string;
+  playerName: string;
+  achievement: Achievement;
+  timestamp: string;
 }

@@ -169,6 +169,7 @@ export function LadderPageClient() {
 
   const sortedPlayers = [...ladderPlayers]
     .filter(player => player.points > 0)
+    .filter(player => !player.id?.startsWith('unknown_')) // Filter out system players
     .filter(player => selectedGrade === "all" || player.grade === selectedGrade)
     .sort((a, b) => {
       let aValue: any = a[sortField]

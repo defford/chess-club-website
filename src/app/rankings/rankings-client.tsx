@@ -61,6 +61,7 @@ export function RankingsPageClient({ initialPlayers = [] }: RankingsPageClientPr
 
   const sortedPlayers = [...allPlayers]
     .filter(player => player.points > 0) // Only show players with more than 0 points
+    .filter(player => !player.id?.startsWith('unknown_')) // Filter out system players
     .filter(player => selectedGrade === "all" || player.grade === selectedGrade)
     .sort((a, b) => {
       let aValue: any = a[sortField]

@@ -17,7 +17,7 @@ export class KVCacheService {
 
   // Circuit breaker for quota exceeded errors
   private static quotaExceededUntil: number = 0;
-  private static readonly QUOTA_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+  private static readonly QUOTA_COOLDOWN = process.env.NODE_ENV === 'development' ? 30 * 1000 : 5 * 60 * 1000; // 30 seconds in dev, 5 minutes in prod
 
   private static readonly CACHE_KEYS = {
     EVENTS: 'events:all',
@@ -34,20 +34,25 @@ export class KVCacheService {
   } as const;
 
   private static readonly CACHE_CONFIG: Record<string, CacheConfig> = {
-    events: { ttl: 7200, tags: ['events'] }, // 2 hours (increased)
-    rankings: { ttl: 3600, tags: ['rankings'] }, // 1 hour (increased)
-    members: { ttl: 14400, tags: ['members'] }, // 4 hours (increased)
-    eventRegistrations: { ttl: 1800, tags: ['event-registrations'] }, // 30 minutes (increased)
-    parentPlayers: { ttl: 3600, tags: ['parent-data'] }, // 1 hour (increased)
-    parentAccount: { ttl: 7200, tags: ['parent-data'] }, // 2 hours (increased)
-    studentsByParent: { ttl: 7200, tags: ['parent-data', 'members'] }, // 2 hours (increased)
-    ladderSessions: { ttl: 7200, tags: ['ladder-sessions'] }, // 2 hours (increased)
-    ladderSession: { ttl: 3600, tags: ['ladder-sessions'] }, // 1 hour (increased)
-    currentLadderSession: { ttl: 600, tags: ['ladder-sessions'] }, // 10 minutes (increased)
+    events: { ttl: process.env.NODE_ENV === 'development' ? 60 : 7200, tags: ['events'] }, // 1 minute in dev, 2 hours in prod
+    rankings: { ttl: process.env.NODE_ENV === 'development' ? 60 : 3600, tags: ['rankings'] }, // 1 minute in dev, 1 hour in prod
+    members: { ttl: process.env.NODE_ENV === 'development' ? 120 : 14400, tags: ['members'] }, // 2 minutes in dev, 4 hours in prod
+    eventRegistrations: { ttl: process.env.NODE_ENV === 'development' ? 30 : 1800, tags: ['event-registrations'] }, // 30 seconds in dev, 30 minutes in prod
+    parentPlayers: { ttl: process.env.NODE_ENV === 'development' ? 60 : 3600, tags: ['parent-data'] }, // 1 minute in dev, 1 hour in prod
+    parentAccount: { ttl: process.env.NODE_ENV === 'development' ? 120 : 7200, tags: ['parent-data'] }, // 2 minutes in dev, 2 hours in prod
+    studentsByParent: { ttl: process.env.NODE_ENV === 'development' ? 60 : 7200, tags: ['parent-data', 'members'] }, // 1 minute in dev, 2 hours in prod
+    ladderSessions: { ttl: process.env.NODE_ENV === 'development' ? 60 : 7200, tags: ['ladder-sessions'] }, // 1 minute in dev, 2 hours in prod
+    ladderSession: { ttl: process.env.NODE_ENV === 'development' ? 60 : 3600, tags: ['ladder-sessions'] }, // 1 minute in dev, 1 hour in prod
+    currentLadderSession: { ttl: process.env.NODE_ENV === 'development' ? 30 : 600, tags: ['ladder-sessions'] }, // 30 seconds in dev, 10 minutes in prod
   };
 
   // Check if Redis is available (for local development fallback)
   private static isRedisAvailable(): boolean {
+    // In development, always bypass Redis for faster iteration
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Development mode: bypassing Redis cache for faster iteration');
+      return false;
+    }
     return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
   }
 

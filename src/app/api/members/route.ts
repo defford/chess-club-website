@@ -8,6 +8,7 @@ export interface MemberData extends RegistrationData {
   joinDate?: string;
   isActive?: boolean;
   notes?: string;
+  isSystemPlayer?: boolean; // Flag to identify system players (like Unknown Opponent)
 }
 
 export async function GET() {
@@ -43,8 +44,43 @@ export async function GET() {
         notes: '',
       };
     });
+
+    // Add system players for incomplete games
+    const systemPlayers: MemberData[] = [
+      {
+        id: 'unknown_opponent',
+        parentName: 'System',
+        parentEmail: 'system@chessclub.local',
+        parentPhone: 'N/A',
+        playerName: 'Unknown Opponent',
+        playerAge: 'N/A',
+        playerGrade: 'Unknown',
+        emergencyContact: 'N/A',
+        emergencyPhone: 'N/A',
+        medicalInfo: 'N/A',
+        hearAboutUs: 'System Player',
+        provincialInterest: '',
+        volunteerInterest: '',
+        consent: true,
+        photoConsent: false,
+        valuesAcknowledgment: true,
+        newsletter: false,
+        timestamp: new Date().toISOString(),
+        joinDate: new Date().toISOString().split('T')[0],
+        isActive: true,
+        notes: 'System player for incomplete games',
+        isSystemPlayer: true // Flag to identify system players
+      }
+    ];
+
+    // Combine regular members with system players
+    const allMembers = [...members, ...systemPlayers];
     
-    return NextResponse.json(members, { 
+    // Debug logging
+    console.log('Total members:', allMembers.length);
+    console.log('Unknown opponent found:', allMembers.find(m => m.id === 'unknown_opponent'));
+    
+    return NextResponse.json(allMembers, { 
       status: 200,
       headers: {
         'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=7200'

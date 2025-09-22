@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { AchievementNotificationManager } from "@/components/ui/achievement-popup";
 
 export const metadata: Metadata = {
   title: "Central NL Scholastic Chess Club",
@@ -50,6 +51,7 @@ export default function RootLayout({
           {children}
         </main>
         <Footer />
+        <AchievementNotificationManager />
       </body>
     </html>
   );

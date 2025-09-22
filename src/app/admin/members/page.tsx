@@ -21,7 +21,9 @@ import {
   Trophy,
   ChevronDown,
   ChevronRight,
-  Plus
+  Plus,
+  Info,
+  BarChart3
 } from "lucide-react"
 import Link from "next/link"
 
@@ -63,7 +65,7 @@ export default function MemberManagement() {
       }
       const membersList = await response.json()
       setMembers(membersList)
-      setFilteredMembers(membersList)
+      setFilteredMembers(membersList.filter((member: any) => !member.isSystemPlayer)) // Filter out system players
       setError(null)
     } catch (err) {
       console.error('Error fetching members:', err)
@@ -77,15 +79,17 @@ export default function MemberManagement() {
     setSearchQuery(query)
     if (query.trim()) {
       const lowercaseQuery = query.toLowerCase()
-      const filtered = members.filter(member =>
-        member.playerName.toLowerCase().includes(lowercaseQuery) ||
-        member.parentName.toLowerCase().includes(lowercaseQuery) ||
-        member.parentEmail.toLowerCase().includes(lowercaseQuery) ||
-        member.playerGrade.toLowerCase().includes(lowercaseQuery)
-      )
+      const filtered = members
+        .filter((member: any) => !member.isSystemPlayer) // Filter out system players
+        .filter((member: any) =>
+          member.playerName.toLowerCase().includes(lowercaseQuery) ||
+          member.parentName.toLowerCase().includes(lowercaseQuery) ||
+          member.parentEmail.toLowerCase().includes(lowercaseQuery) ||
+          member.playerGrade.toLowerCase().includes(lowercaseQuery)
+        )
       setFilteredMembers(filtered)
     } else {
-      setFilteredMembers(members)
+      setFilteredMembers(members.filter((member: any) => !member.isSystemPlayer)) // Filter out system players
     }
   }
 
@@ -335,10 +339,9 @@ export default function MemberManagement() {
                   <div key={member.id}>
                     {/* List Item - Always Visible */}
                     <div 
-                      className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100 ${
+                      className={`px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 ${
                         index === filteredMembers.length - 1 ? 'border-b-0' : ''
                       }`}
-                      onClick={() => toggleMemberExpansion(member.id || '')}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-4">
@@ -350,14 +353,28 @@ export default function MemberManagement() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-sm text-gray-500">
-                            {isExpanded ? 'Click to collapse' : 'Click to expand'}
-                          </span>
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-gray-400" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-gray-400" />
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleMemberExpansion(member.id || '')
+                            }}
+                            className="flex items-center gap-1 text-xs"
+                          >
+                            <Info className="h-3 w-3" />
+                            Info
+                          </Button>
+                          <Link href={`/admin/members/${member.id}`}>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex items-center gap-1 text-xs hover:bg-black hover:text-white"
+                            >
+                              <BarChart3 className="h-3 w-3" />
+                              Stats
+                            </Button>
+                          </Link>
                         </div>
                       </div>
                     </div>

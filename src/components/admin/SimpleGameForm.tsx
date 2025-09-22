@@ -22,6 +22,7 @@ export default function SimpleGameForm({
   const [whitePlayerId, setWhitePlayerId] = useState("")
   const [blackPlayerId, setBlackPlayerId] = useState("")
   const [result, setResult] = useState<'white' | 'black' | 'draw' | ''>('')
+  const [gameDate, setGameDate] = useState(new Date().toISOString().split('T')[0])
   const [whiteSearch, setWhiteSearch] = useState("")
   const [blackSearch, setBlackSearch] = useState("")
   const [showWhiteDropdown, setShowWhiteDropdown] = useState(false)
@@ -102,7 +103,7 @@ export default function SimpleGameForm({
       player1Id: whitePlayerId,
       player2Id: blackPlayerId,
       result: result === 'white' ? 'player1' : result === 'black' ? 'player2' : 'draw',
-      gameDate: new Date().toISOString().split('T')[0],
+      gameDate: gameDate,
       gameTime: 30, // Default 30 minutes
       gameType: 'ladder',
       notes: ''
@@ -193,8 +194,14 @@ export default function SimpleGameForm({
                           onClick={() => selectPlayer(player.id || '', player.name, true)}
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
                         >
-                          <div className="font-medium">{player.name}</div>
-                          <div className="text-sm text-gray-500">Grade {player.grade}</div>
+                          <div className="font-medium">
+                            {player.name}
+                            {(player as any).isSystemPlayer && ' [System]'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Grade {player.grade}
+                            {(player as any).isSystemPlayer && ' - For incomplete games'}
+                          </div>
                         </button>
                       ))
                     ) : (
@@ -206,9 +213,9 @@ export default function SimpleGameForm({
               {errors.whitePlayer && (
                 <p className="text-red-500 text-sm mt-1">{errors.whitePlayer}</p>
               )}
-            </div>
+          </div>
 
-            {/* VS Section with Result Buttons */}
+          {/* VS Section with Result Buttons */}
             <div className="flex flex-col items-center justify-center space-y-4 py-4">
               <div className="text-center">
                 <div className="text-2xl font-bold text-gray-600 mb-2">VS</div>
@@ -299,8 +306,14 @@ export default function SimpleGameForm({
                           onClick={() => selectPlayer(player.id || '', player.name, false)}
                           className="w-full text-left px-4 py-2 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none"
                         >
-                          <div className="font-medium">{player.name}</div>
-                          <div className="text-sm text-gray-500">Grade {player.grade}</div>
+                          <div className="font-medium">
+                            {player.name}
+                            {(player as any).isSystemPlayer && ' [System]'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            Grade {player.grade}
+                            {(player as any).isSystemPlayer && ' - For incomplete games'}
+                          </div>
                         </button>
                       ))
                     ) : (
@@ -312,6 +325,22 @@ export default function SimpleGameForm({
               {errors.blackPlayer && (
                 <p className="text-red-500 text-sm mt-1">{errors.blackPlayer}</p>
               )}
+            </div>
+          </div>
+
+          {/* Game Date Section */}
+          <div className="flex justify-center">
+            <div className="w-full max-w-xs">
+              <label className="block text-sm font-medium text-[--color-text-primary] mb-2 text-center">
+                Game Date
+              </label>
+              <input
+                type="date"
+                value={gameDate}
+                onChange={(e) => setGameDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] text-center"
+                disabled={isLoading}
+              />
             </div>
           </div>
 

@@ -131,6 +131,7 @@ export default function GameForm({
                   {players.map(player => (
                     <option key={player.id} value={player.id}>
                       {player.name} ({player.grade})
+                      {(player as any).isSystemPlayer && ' [System]'}
                     </option>
                   ))}
                 </select>
@@ -155,6 +156,7 @@ export default function GameForm({
                   {players.map(player => (
                     <option key={player.id} value={player.id}>
                       {player.name} ({player.grade})
+                      {(player as any).isSystemPlayer && ' [System]'}
                     </option>
                   ))}
                 </select>

@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
-import { GameData, GameFormData, BulkGameData } from '@/lib/types';
+import { GameData, GameFormData, AchievementNotification } from '@/lib/types';
 import { requireAdminAuth } from '@/lib/apiAuth';
 import { KVCacheService } from '@/lib/kv';
 import { QuotaHandler } from '@/lib/quotaHandler';
+import { AchievementService } from '@/lib/achievements';
+// import { broadcastAchievement } from '@/app/api/achievements/notifications/route';
 
 // GET /api/games - List all games with optional filters
 export async function GET(request: NextRequest) {
@@ -22,14 +24,14 @@ export async function GET(request: NextRequest) {
 
   // Remove undefined values
   const cleanFilters = Object.fromEntries(
-    Object.entries(filters).filter(([_, value]) => value !== undefined)
+    Object.entries(filters).filter(([, value]) => value !== undefined)
   );
 
   try {
     const games = await KVCacheService.getGames(cleanFilters);
     
     return NextResponse.json(games);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Games API GET error:', error);
     
     // Use quota handler for consistent error handling
@@ -121,11 +123,45 @@ export async function POST(request: NextRequest) {
       // Add IDs to members data (same logic as /api/members endpoint)
       const members = registrations.map((registration, index) => ({
         ...registration,
-        id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`
+        id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`,
+        joinDate: new Date().toISOString().split('T')[0], // Default to today
+        isActive: true, // Default to active
+        notes: '',
       }));
+
+      // Add system players for incomplete games (same as /api/members endpoint)
+      const systemPlayers = [
+        {
+          id: 'unknown_opponent',
+          parentName: 'System',
+          parentEmail: 'system@chessclub.local',
+          parentPhone: 'N/A',
+          playerName: 'Unknown Opponent',
+          playerAge: 'N/A',
+          playerGrade: 'Unknown',
+          emergencyContact: 'N/A',
+          emergencyPhone: 'N/A',
+          medicalInfo: 'N/A',
+          hearAboutUs: 'System Player',
+          provincialInterest: '',
+          volunteerInterest: '',
+          consent: true,
+          photoConsent: false,
+          valuesAcknowledgment: true,
+          newsletter: false,
+          timestamp: new Date().toISOString(),
+          joinDate: new Date().toISOString().split('T')[0],
+          isActive: true,
+          notes: 'System player for incomplete games',
+          isSystemPlayer: true
+        }
+      ];
+
+      // Combine regular members with system players
+      const allMembers = [...members, ...systemPlayers];
       
-      const member1 = members.find(m => m.id === gameFormData.player1Id);
-      const member2 = members.find(m => m.id === gameFormData.player2Id);
+      const member1 = allMembers.find(m => m.id === gameFormData.player1Id);
+      const member2 = allMembers.find(m => m.id === gameFormData.player2Id);
       
       if (member1) {
         player1 = {
@@ -187,12 +223,48 @@ export async function POST(request: NextRequest) {
 
     // Add game to Google Sheets (rankings will be calculated dynamically)
     const gameId = await enhancedGoogleSheetsService.addGame(gameData);
+    
+    // Update game data with the generated ID
+    const finalGameData = { ...gameData, id: gameId };
+
+    // Check for achievements after game is added
+    try {
+      // Get all games and players for achievement checking
+      const allGames = await KVCacheService.getGames();
+      const allPlayers = await enhancedGoogleSheetsService.calculateRankingsFromGames();
+      
+      // Check for new achievements
+      const newAchievements = await AchievementService.checkAchievements(
+        finalGameData,
+        allGames,
+        allPlayers
+      );
+
+      // Broadcast achievement notifications
+      for (const achievement of newAchievements) {
+        const notification: AchievementNotification = {
+          id: `notif_${achievement.id}`,
+          playerName: achievement.playerName,
+          achievement,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Broadcast to all connected clients
+        // broadcastAchievement(notification);
+        
+        // TODO: Store achievement in Google Sheets or database
+        console.log(`Achievement earned: ${achievement.title} by ${achievement.playerName}`);
+      }
+    } catch (error) {
+      console.error('Error checking achievements:', error);
+      // Don't fail the game creation if achievement checking fails
+    }
 
     return NextResponse.json(
       { 
         message: 'Game created successfully',
         gameId,
-        game: { ...gameData, id: gameId }
+        game: finalGameData
       },
       { status: 201 }
     );

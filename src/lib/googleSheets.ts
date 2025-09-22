@@ -18,9 +18,9 @@ export class GoogleSheetsService {
   private sheets;
   private auth;
   private lastApiCall: number = 0;
-  private readonly API_CALL_DELAY = 500; // Increased to 500ms delay between API calls
-  private readonly MAX_RETRIES = 3;
-  private readonly RETRY_DELAY_BASE = 1000; // Base delay for exponential backoff
+  private readonly API_CALL_DELAY = process.env.NODE_ENV === 'development' ? 100 : 500; // Faster in dev
+  private readonly MAX_RETRIES = process.env.NODE_ENV === 'development' ? 2 : 3; // Fewer retries in dev
+  private readonly RETRY_DELAY_BASE = process.env.NODE_ENV === 'development' ? 200 : 1000; // Much faster in dev
 
   constructor() {
     // Initialize Google Sheets API with service account credentials for reliable authentication
@@ -93,7 +93,8 @@ export class GoogleSheetsService {
         
         if (isQuotaError && attempt < this.MAX_RETRIES) {
           const delay = this.RETRY_DELAY_BASE * Math.pow(2, attempt - 1); // Exponential backoff
-          console.warn(`Quota exceeded for ${operationName}, retrying in ${delay}ms (attempt ${attempt}/${this.MAX_RETRIES})`);
+          const env = process.env.NODE_ENV === 'development' ? 'DEV' : 'PROD';
+          console.warn(`[${env}] Quota exceeded for ${operationName}, retrying in ${delay}ms (attempt ${attempt}/${this.MAX_RETRIES})`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
