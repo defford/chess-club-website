@@ -1508,6 +1508,358 @@ export class GoogleSheetsService {
     }
   }
 
+  // Auto-link existing students to a parent account
+  async autoLinkExistingStudentsToParent(parentAccountId: string, parentEmail: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Get all students that have the same email as the parent
+      const students = await this.getStudentsByParentEmail(parentEmail);
+      
+      if (students.length === 0) {
+        console.log(`No students found for parent email: ${parentEmail}`);
+        return;
+      }
+
+      // Check if player_ownership sheet exists, if not create it
+      await this.initializePlayerOwnershipSheet();
+
+      // Get existing ownership records to avoid duplicates
+      const existingOwnershipResponse = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'player_ownership!A:G',
+        }),
+        'getExistingOwnership'
+      );
+
+      const existingOwnershipRows = existingOwnershipResponse.data.values || [];
+      const existingPlayerIds = new Set(
+        existingOwnershipRows.slice(1).map(row => row[0]).filter(Boolean)
+      );
+
+      // Create ownership records for students that don't already have them
+      const newOwnershipRecords = [];
+      for (const student of students) {
+        if (!existingPlayerIds.has(student.id)) {
+          newOwnershipRecords.push([
+            student.id,                    // Player ID
+            student.name,                  // Player Name
+            parentEmail,                   // Parent Email
+            parentAccountId,               // Owner Parent ID
+            '',                           // Pending Parent ID (empty)
+            'approved',                   // Approval Status
+            new Date().toISOString()      // Claim Date
+          ]);
+        }
+      }
+
+      // Add new ownership records if any
+      if (newOwnershipRecords.length > 0) {
+        await this.sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: 'player_ownership!A:G',
+          valueInputOption: 'RAW',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: {
+            values: newOwnershipRecords,
+          },
+        });
+
+        console.log(`✅ Auto-linked ${newOwnershipRecords.length} students to parent ${parentEmail}`);
+      } else {
+        console.log(`All students for ${parentEmail} are already linked`);
+      }
+    } catch (error) {
+      console.error('Error auto-linking students to parent:', error);
+      throw new Error('Failed to auto-link students to parent');
+    }
+  }
+
+  // Get player ownership record by player ID
+  async getPlayerOwnership(playerId: string): Promise<PlayerOwnership | null> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'player_ownership!A:G',
+        }),
+        'getPlayerOwnership'
+      );
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return null;
+      }
+
+      // Find the ownership record for this player
+      const ownershipRow = rows.slice(1).find(row => row[0] === playerId);
+      if (!ownershipRow) {
+        return null;
+      }
+
+      return {
+        playerId: ownershipRow[0],
+        playerName: ownershipRow[1],
+        playerEmail: ownershipRow[2],
+        ownerParentId: ownershipRow[3],
+        pendingParentId: ownershipRow[4] || undefined,
+        approvalStatus: (ownershipRow[5] as 'none' | 'pending' | 'approved' | 'denied') || 'none',
+        claimDate: ownershipRow[6] || new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Error getting player ownership from Google Sheets:', error);
+      throw new Error('Failed to get player ownership from Google Sheets');
+    }
+  }
+
+  // Add new player ownership record
+  async addPlayerOwnership(ownership: PlayerOwnership): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Check if player_ownership sheet exists, if not create it
+      await this.initializePlayerOwnershipSheet();
+
+      const values = [
+        [
+          ownership.playerId,
+          ownership.playerName,
+          ownership.playerEmail,
+          ownership.ownerParentId,
+          ownership.pendingParentId || '',
+          ownership.approvalStatus,
+          ownership.claimDate
+        ]
+      ];
+
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'player_ownership!A:G',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+
+      console.log(`✅ Player ownership added successfully: ${ownership.playerId}`);
+    } catch (error) {
+      console.error('Error adding player ownership to Google Sheets:', error);
+      throw new Error('Failed to add player ownership to Google Sheets');
+    }
+  }
+
+  // Update player ownership record
+  async updatePlayerOwnership(playerId: string, updates: Partial<PlayerOwnership>): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // First, find the row with this player ID
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'player_ownership!A:A',
+      });
+
+      const rows = response.data.values;
+      if (!rows) {
+        throw new Error('No ownership records found');
+      }
+
+      const rowIndex = rows.findIndex(row => row[0] === playerId);
+      if (rowIndex === -1) {
+        throw new Error(`Player ownership record with ID ${playerId} not found`);
+      }
+
+      // Get current ownership data
+      const currentOwnershipResponse = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `player_ownership!A${rowIndex + 1}:G${rowIndex + 1}`,
+      });
+
+      const currentRow = currentOwnershipResponse.data.values?.[0] || [];
+      
+      // Merge updates with current data
+      const updatedRow = [
+        playerId, // ID stays the same
+        updates.playerName ?? currentRow[1],
+        updates.playerEmail ?? currentRow[2],
+        updates.ownerParentId ?? currentRow[3],
+        updates.pendingParentId ?? currentRow[4],
+        updates.approvalStatus ?? currentRow[5],
+        updates.claimDate ?? currentRow[6]
+      ];
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `player_ownership!A${rowIndex + 1}:G${rowIndex + 1}`,
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [updatedRow],
+        },
+      });
+
+      console.log(`✅ Player ownership updated successfully: ${playerId}`);
+    } catch (error) {
+      console.error('Error updating player ownership in Google Sheets:', error);
+      throw new Error('Failed to update player ownership in Google Sheets');
+    }
+  }
+
+  // Generate player IDs for existing registrations (migration method)
+  async generatePlayerIdsForExistingRegistrations(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Get all existing registrations
+      const registrations = await this.getRegistrations();
+      
+      if (registrations.length === 0) {
+        console.log('No existing registrations found to migrate');
+        return;
+      }
+
+      // Initialize player ownership sheet if it doesn't exist
+      await this.initializePlayerOwnershipSheet();
+
+      // Get existing ownership records to avoid duplicates
+      const existingOwnershipResponse = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'player_ownership!A:G',
+        }),
+        'getExistingOwnershipForMigration'
+      );
+
+      const existingOwnershipRows = existingOwnershipResponse.data.values || [];
+      const existingPlayerIds = new Set(
+        existingOwnershipRows.slice(1).map(row => row[0]).filter(Boolean)
+      );
+
+      // Create ownership records for registrations that don't already have them
+      const newOwnershipRecords = [];
+      for (const registration of registrations) {
+        // Generate a consistent player ID based on registration data
+        const playerId = `chld_${registration.playerName}_${registration.parentEmail}_${registration.timestamp || Date.now()}`.replace(/[^a-zA-Z0-9_]/g, '_');
+        
+        if (!existingPlayerIds.has(playerId)) {
+          // Find or create parent account for this registration
+          let parentAccount = await this.getParentAccount(registration.parentEmail);
+          
+          if (!parentAccount) {
+            // Create parent account if it doesn't exist
+            const newParentAccount: ParentAccount = {
+              id: `parent_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+              email: registration.parentEmail,
+              createdDate: registration.timestamp || new Date().toISOString(),
+              lastLogin: new Date().toISOString(),
+              isActive: true,
+              isSelfRegistered: false,
+              registrationType: 'parent',
+              isAdmin: false
+            };
+            
+            await this.addParentAccount(newParentAccount);
+            parentAccount = newParentAccount;
+          }
+
+          newOwnershipRecords.push([
+            playerId,                    // Player ID
+            registration.playerName,     // Player Name
+            registration.parentEmail,    // Parent Email
+            parentAccount.id,           // Owner Parent ID
+            '',                         // Pending Parent ID (empty)
+            'approved',                 // Approval Status
+            registration.timestamp || new Date().toISOString() // Claim Date
+          ]);
+        }
+      }
+
+      // Add new ownership records if any
+      if (newOwnershipRecords.length > 0) {
+        await this.sheets.spreadsheets.values.append({
+          spreadsheetId,
+          range: 'player_ownership!A:G',
+          valueInputOption: 'RAW',
+          insertDataOption: 'INSERT_ROWS',
+          requestBody: {
+            values: newOwnershipRecords,
+          },
+        });
+
+        console.log(`✅ Migration completed: Generated ${newOwnershipRecords.length} player IDs for existing registrations`);
+      } else {
+        console.log('All existing registrations already have player IDs');
+      }
+    } catch (error) {
+      console.error('Error generating player IDs for existing registrations:', error);
+      throw new Error('Failed to generate player IDs for existing registrations');
+    }
+  }
+
+  // Initialize player ownership sheet if it doesn't exist
+  private async initializePlayerOwnershipSheet(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      // Check if player_ownership sheet exists
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId
+      });
+
+      const ownershipSheetExists = spreadsheet.data.sheets?.some(
+        sheet => sheet.properties?.title === 'player_ownership'
+      );
+
+      if (!ownershipSheetExists) {
+        // Create player_ownership sheet
+        await this.sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: 'player_ownership',
+                  gridProperties: {
+                    rowCount: 1000,
+                    columnCount: 7
+                  }
+                }
+              }
+            }]
+          }
+        });
+
+        // Add headers
+        const headers = [
+          'Player ID',
+          'Player Name',
+          'Parent Email',
+          'Owner Parent ID',
+          'Pending Parent ID',
+          'Approval Status',
+          'Claim Date'
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: 'player_ownership!A1:G1',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [headers]
+          }
+        });
+
+        console.log('✅ Player ownership sheet initialized successfully');
+      }
+    } catch (error) {
+      console.error('❌ Failed to initialize player ownership sheet:', error);
+      throw error;
+    }
+  }
+
 
 
   // Initialize parent account and player ownership sheets
