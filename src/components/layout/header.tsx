@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Dropdown } from "@/components/ui/dropdown"
 import { Menu, X, LogOut, LayoutDashboard, Gamepad2, Settings } from "lucide-react"
 import { clientAuthService } from "@/lib/clientAuth"
+import { isAuthenticated as isAdminAuthenticated } from "@/lib/auth"
 import { useAdmin } from "@/hooks/useAdmin"
 
 const navigation = [
@@ -47,7 +48,10 @@ export function Header() {
   // Check authentication status on component mount
   React.useEffect(() => {
     const checkAuth = () => {
-      const authenticated = clientAuthService.isParentAuthenticated()
+      // Check both admin authentication and parent authentication
+      const isAdminAuth = isAdminAuthenticated()
+      const isParentAuth = clientAuthService.isParentAuthenticated()
+      const authenticated = isAdminAuth || isParentAuth
       setIsAuthenticated(authenticated)
       
       if (authenticated) {

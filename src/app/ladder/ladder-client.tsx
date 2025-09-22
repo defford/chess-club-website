@@ -2,9 +2,10 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronUp, ChevronDown, Crown, Medal, Award, Calendar, Clock, Gamepad2, ChevronRight, ChevronLeft } from "lucide-react"
+import { ChevronUp, ChevronDown, Crown, Medal, Award, Gamepad2, ChevronRight } from "lucide-react"
 import { useState, useEffect } from "react"
 import { clientAuthService } from "@/lib/clientAuth"
+import { isAuthenticated as isAdminAuthenticated } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 import type { PlayerData, GameData } from "@/lib/types"
 
@@ -31,7 +32,7 @@ export function LadderPageClient() {
   // Date-based ladder state
   const [selectedDate, setSelectedDate] = useState<string>("")
   const [availableDates, setAvailableDates] = useState<string[]>([])
-  const [dateLoading, setDateLoading] = useState(false)
+  const [, setDateLoading] = useState(false)
   
   const router = useRouter()
 
@@ -46,7 +47,11 @@ export function LadderPageClient() {
 
     const checkAuth = () => {
       try {
-        const authenticated = clientAuthService.isParentAuthenticated()
+        // Check both admin authentication and parent authentication
+        const isAdminAuth = isAdminAuthenticated()
+        const isParentAuth = clientAuthService.isParentAuthenticated()
+        const authenticated = isAdminAuth || isParentAuth
+        
         setIsAuthenticated(authenticated)
         
         if (!authenticated) {
@@ -83,13 +88,14 @@ export function LadderPageClient() {
         url += `?date=${date}`
       }
       
-      // Get current parent session for authentication
+      // Get current parent session for authentication (only if parent is authenticated)
       const parentSession = clientAuthService.getCurrentParentSession()
       const headers: Record<string, string> = {}
       
       if (parentSession?.email) {
         headers['x-user-email'] = parentSession.email
       }
+      // Note: Admin users don't need headers as the ladder API doesn't require authentication
       
       const response = await fetch(url, { headers })
       if (!response.ok) {
@@ -120,13 +126,14 @@ export function LadderPageClient() {
     try {
       setDateLoading(true)
       
-      // Get current parent session for authentication
+      // Get current parent session for authentication (only if parent is authenticated)
       const parentSession = clientAuthService.getCurrentParentSession()
       const headers: Record<string, string> = {}
       
       if (parentSession?.email) {
         headers['x-user-email'] = parentSession.email
       }
+      // Note: Admin users don't need headers as the games API doesn't require authentication
       
       // Generate last 30 days
       const thirtyDaysAgo = new Date()
@@ -218,13 +225,14 @@ export function LadderPageClient() {
     }
     
     try {
-      // Get current parent session for authentication
+      // Get current parent session for authentication (only if parent is authenticated)
       const parentSession = clientAuthService.getCurrentParentSession()
       const headers: Record<string, string> = {}
       
       if (parentSession?.email) {
         headers['x-user-email'] = parentSession.email
       }
+      // Note: Admin users don't need headers as the games API doesn't require authentication
       
       // Fetch games for the player, filtered by the selected date
       let url = `/api/games/player/${encodeURIComponent(searchTerm)}`
@@ -288,18 +296,18 @@ export function LadderPageClient() {
     .filter(player => player.points > 0)
     .filter(player => selectedGrade === "all" || player.grade === selectedGrade)
     .sort((a, b) => {
-      let aValue: any = a[sortField]
-      let bValue: any = b[sortField]
+      let aValue: string | number | undefined = a[sortField]
+      let bValue: string | number | undefined = b[sortField]
 
       if (sortField === "name") {
-        aValue = aValue?.toLowerCase() || ""
-        bValue = bValue?.toLowerCase() || ""
+        aValue = (aValue as string)?.toLowerCase() || ""
+        bValue = (bValue as string)?.toLowerCase() || ""
       }
 
       if (sortDirection === "asc") {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
+        return (aValue || 0) < (bValue || 0) ? -1 : (aValue || 0) > (bValue || 0) ? 1 : 0
       } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
+        return (aValue || 0) > (bValue || 0) ? -1 : (aValue || 0) < (bValue || 0) ? 1 : 0
       }
     })
 
@@ -399,21 +407,6 @@ export function LadderPageClient() {
     }
   }
 
-  const getCurrentDateString = () => {
-    return new Date().toISOString().split('T')[0]
-  }
-
-  const getPreviousDate = () => {
-    if (!selectedDate || availableDates.length === 0) return null
-    const currentIndex = availableDates.findIndex(d => d === selectedDate)
-    return currentIndex > 0 ? availableDates[currentIndex - 1] : null
-  }
-
-  const getNextDate = () => {
-    if (!selectedDate || availableDates.length === 0) return null
-    const currentIndex = availableDates.findIndex(d => d === selectedDate)
-    return currentIndex < availableDates.length - 1 ? availableDates[currentIndex + 1] : null
-  }
 
   const handleDateChange = (date: string) => {
     navigateToDate(date)
