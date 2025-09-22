@@ -6,22 +6,22 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { isAuthenticated, refreshSession } from "@/lib/auth"
 import type { MemberData } from "@/app/api/members/route"
+import QuickAddStudentForm from "@/components/admin/QuickAddStudentForm"
 import { 
   Search, 
   ArrowLeft, 
   Users,
   Mail,
   Phone,
-  Calendar,
   Shield,
   Heart,
-  MapPin,
-  Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Trophy,
-  Eye
+  ChevronDown,
+  ChevronRight,
+  Plus
 } from "lucide-react"
 import Link from "next/link"
 
@@ -33,7 +33,8 @@ export default function MemberManagement() {
   const [searchQuery, setSearchQuery] = useState("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedMember, setSelectedMember] = useState<MemberData | null>(null)
+  const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set())
+  const [showQuickAddForm, setShowQuickAddForm] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -88,6 +89,18 @@ export default function MemberManagement() {
     }
   }
 
+  const toggleMemberExpansion = (memberId: string) => {
+    setExpandedMembers(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(memberId)) {
+        newSet.delete(memberId)
+      } else {
+        newSet.add(memberId)
+      }
+      return newSet
+    })
+  }
+
   // Calculate enhanced stats from loaded members
   const getMemberStats = () => {
     const fullyConsented = members.filter(m => m.consent && m.valuesAcknowledgment)
@@ -137,61 +150,6 @@ export default function MemberManagement() {
   // Get current stats
   const stats = getMemberStats()
 
-  // Render list card for member
-  const renderMemberCard = (member: MemberData) => {
-    const memberId = member.id || member.playerName
-    const hasConsent = member.consent && member.valuesAcknowledgment
-    const hasEmergencyInfo = member.emergencyContact && member.emergencyPhone
-    const hasMedicalInfo = member.medicalInfo && member.medicalInfo.trim() !== ''
-
-    return (
-      <div key={memberId} className="flex items-center justify-between p-4 border-b hover:bg-gray-50 transition-colors">
-        <div className="flex-1">
-          <div className="flex items-center gap-3 mb-1">
-            <h3 className="font-semibold text-[--color-accent]">
-              {member.playerName}
-            </h3>
-            <span className="text-sm text-gray-500">Grade {member.playerGrade}</span>
-            <span className="text-sm text-gray-500">•</span>
-            <span className="text-sm text-gray-500">{member.parentName}</span>
-          </div>
-          <div className="flex items-center gap-4 text-sm text-gray-600">
-            <span>{member.parentEmail}</span>
-            <span>•</span>
-            <span>{member.parentPhone}</span>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            {hasConsent ? (
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            ) : (
-              <XCircle className="h-4 w-4 text-red-600" />
-            )}
-            {hasEmergencyInfo ? (
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            ) : (
-              <XCircle className="h-4 w-4 text-red-600" />
-            )}
-            {hasMedicalInfo ? (
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-            ) : (
-              <CheckCircle className="h-4 w-4 text-green-600" />
-            )}
-          </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedMember(member)}
-            className="flex items-center gap-2"
-          >
-            <Eye className="h-4 w-4" />
-            View Details
-          </Button>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -216,19 +174,19 @@ export default function MemberManagement() {
             </div>
           </div>
           
-          {/* Refresh Button */}
-          <div className="flex justify-end">
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-3">
             <Button
-              onClick={loadMembers}
-              className="flex items-center gap-2 bg-black text-white"
+              onClick={() => setShowQuickAddForm(true)}
+              className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
             >
-              <Search className="h-4 w-4 text-white" />
-              Refresh Data
+              <Plus className="h-4 w-4" />
+              Quick Add Student
             </Button>
           </div>
         </div>
 
-        {/* Enhanced Stats Cards */}
+        {/* Enhanced Stats Cards
         {stats && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <Card className="p-4">
@@ -322,7 +280,7 @@ export default function MemberManagement() {
               </div>
             </Card>
           </div>
-        )}
+        )} */}
 
         {/* Search */}
         <Card className="p-4 mb-6">
@@ -351,7 +309,7 @@ export default function MemberManagement() {
         )}
 
         {/* Members List */}
-        <div className="bg-white rounded-lg border">
+        <div className="space-y-1">
           {!error && filteredMembers.length === 0 ? (
             <div className="p-8 text-center">
               <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
@@ -366,178 +324,240 @@ export default function MemberManagement() {
               </p>
             </div>
           ) : (
-            filteredMembers.map((member) => renderMemberCard(member))
+            <div className="bg-white rounded-lg border">
+              {filteredMembers.map((member, index) => {
+                const registrationDate = member.joinDate ? new Date(member.joinDate) : null;
+                const hasConsent = member.consent && member.valuesAcknowledgment;
+                const hasEmergencyInfo = member.emergencyContact && member.emergencyPhone;
+                const isExpanded = expandedMembers.has(member.id || '');
+                
+                return (
+                  <div key={member.id}>
+                    {/* List Item - Always Visible */}
+                    <div 
+                      className={`px-4 py-3 cursor-pointer hover:bg-gray-50 transition-colors border-b border-gray-100 ${
+                        index === filteredMembers.length - 1 ? 'border-b-0' : ''
+                      }`}
+                      onClick={() => toggleMemberExpansion(member.id || '')}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <span className="font-medium text-[--color-accent]">
+                            {member.playerName}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            Age {member.playerAge}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-gray-500">
+                            {isExpanded ? 'Click to collapse' : 'Click to expand'}
+                          </span>
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4 text-gray-400" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-gray-400" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Expanded Content - Only visible when expanded */}
+                    {isExpanded && (
+                      <div className="bg-gray-50 border-t border-gray-200">
+                        <div className="p-6">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Primary Contact Information */}
+                            <div className="space-y-4">
+                              <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
+                                <Users className="h-4 w-4" />
+                                Parent/Guardian Information
+                              </h4>
+                              <div className="space-y-3 pl-6">
+                                <div className="flex items-center gap-3">
+                                  <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <div>
+                                    <p className="font-medium text-[--color-text-primary]">{member.parentName}</p>
+                                    <p className="text-xs text-[--color-text-secondary]">Parent/Guardian</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-[--color-text-primary]">{member.parentEmail}</p>
+                                    <p className="text-xs text-[--color-text-secondary]">Primary Email</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <div>
+                                    <p className="text-[--color-text-primary]">{member.parentPhone}</p>
+                                    <p className="text-xs text-[--color-text-secondary]">Primary Phone</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Emergency Contact Information */}
+                            <div className="space-y-4">
+                              <h4 className={`font-semibold flex items-center gap-2 ${
+                                hasEmergencyInfo ? 'text-[--color-accent]' : 'text-gray-400'
+                              }`}>
+                                <Shield className="h-4 w-4" />
+                                Emergency Contact
+                                {!hasEmergencyInfo && (
+                                  <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
+                                    Missing Info
+                                  </span>
+                                )}
+                              </h4>
+                              <div className="space-y-3 pl-6">
+                                <div className="flex items-center gap-3">
+                                  <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <div>
+                                    <p className={`font-medium ${
+                                      member.emergencyContact ? 'text-[--color-text-primary]' : 'text-gray-400'
+                                    }`}>
+                                      {member.emergencyContact || 'Not provided'}
+                                    </p>
+                                    <p className="text-xs text-[--color-text-secondary]">Emergency Contact</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                                  <div>
+                                    <p className={`${
+                                      member.emergencyPhone ? 'text-[--color-text-primary]' : 'text-gray-400'
+                                    }`}>
+                                      {member.emergencyPhone || 'Not provided'}
+                                    </p>
+                                    <p className="text-xs text-[--color-text-secondary]">Emergency Phone</p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Additional Information */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pt-6 border-t">
+                            {/* Interests & Preferences */}
+                            <div className="space-y-4">
+                              <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
+                                <Heart className="h-4 w-4" />
+                                Interests & Preferences
+                              </h4>
+                              <div className="space-y-2 pl-6">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-[--color-text-secondary]">Provincial Competitions:</span>
+                                  <span className={`text-sm font-medium ${
+                                    member.provincialInterest?.toLowerCase() === 'yes' 
+                                      ? 'text-green-600' 
+                                      : member.provincialInterest?.toLowerCase() === 'no'
+                                      ? 'text-gray-500'
+                                      : 'text-yellow-600'
+                                  }`}>
+                                    {member.provincialInterest || 'Not specified'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-[--color-text-secondary]">Volunteer Interest:</span>
+                                  <span className={`text-sm font-medium ${
+                                    member.volunteerInterest?.toLowerCase() === 'yes' 
+                                      ? 'text-green-600' 
+                                      : member.volunteerInterest?.toLowerCase() === 'no'
+                                      ? 'text-gray-500'
+                                      : 'text-yellow-600'
+                                  }`}>
+                                    {member.volunteerInterest || 'Not specified'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-sm text-[--color-text-secondary]">Newsletter:</span>
+                                  <span className={`text-sm font-medium ${
+                                    member.newsletter ? 'text-green-600' : 'text-gray-500'
+                                  }`}>
+                                    {member.newsletter ? 'Subscribed' : 'Not subscribed'}
+                                  </span>
+                                </div>
+                                {member.hearAboutUs && (
+                                  <div className="pt-2">
+                                    <p className="text-xs text-[--color-text-secondary] mb-1">How they heard about us:</p>
+                                    <p className="text-sm text-[--color-text-primary]">{member.hearAboutUs}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Medical & Consent Information */}
+                            <div className="space-y-4">
+                              <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
+                                <Shield className="h-4 w-4" />
+                                Medical & Consent
+                              </h4>
+                              <div className="space-y-3 pl-6">
+                                {member.medicalInfo && (
+                                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
+                                    <p className="text-xs text-yellow-700 font-medium mb-1 flex items-center gap-1">
+                                      <AlertTriangle className="h-3 w-3" />
+                                      Medical Information:
+                                    </p>
+                                    <p className="text-sm text-yellow-800">{member.medicalInfo}</p>
+                                  </div>
+                                )}
+                                <div className="grid grid-cols-1 gap-2">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-[--color-text-secondary]">General Consent:</span>
+                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                      member.consent ? 'text-green-600' : 'text-red-600'
+                                    }`}>
+                                      {member.consent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                      {member.consent ? 'Yes' : 'No'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-[--color-text-secondary]">Photo Consent:</span>
+                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                      member.photoConsent ? 'text-green-600' : 'text-red-600'
+                                    }`}>
+                                      {member.photoConsent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                      {member.photoConsent ? 'Yes' : 'No'}
+                                    </span>
+                                  </div>
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-sm text-[--color-text-secondary]">Values Acknowledgment:</span>
+                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${
+                                      member.valuesAcknowledgment ? 'text-green-600' : 'text-red-600'
+                                    }`}>
+                                      {member.valuesAcknowledgment ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                                      {member.valuesAcknowledgment ? 'Yes' : 'No'}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 
-        {/* Modal for List View Details */}
-        {selectedMember && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6 border-b">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-[--color-accent]">
-                    {selectedMember.playerName} - Full Details
-                  </h2>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedMember(null)}
-                    className="flex items-center gap-2"
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Close
-                  </Button>
-                </div>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Contact Information */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-[--color-accent] flex items-center gap-2">
-                      <Users className="h-4 w-4" />
-                      Contact Information
-                    </h3>
-                    <div className="space-y-3 pl-6">
-                      <div className="flex items-center gap-3">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className="font-medium">{selectedMember.parentName}</p>
-                          <p className="text-xs text-gray-500">Parent/Guardian</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Mail className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className="font-medium">{selectedMember.parentEmail}</p>
-                          <p className="text-xs text-gray-500">Primary Email</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className="font-medium">{selectedMember.parentPhone}</p>
-                          <p className="text-xs text-gray-500">Primary Phone</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Emergency Contact */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-[--color-accent] flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Emergency Contact
-                    </h3>
-                    <div className="space-y-3 pl-6">
-                      <div className="flex items-center gap-3">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className={`font-medium ${!selectedMember.emergencyContact ? 'text-gray-400' : ''}`}>
-                            {selectedMember.emergencyContact || 'Not provided'}
-                          </p>
-                          <p className="text-xs text-gray-500">Emergency Contact</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Phone className="h-4 w-4 text-gray-400" />
-                        <div>
-                          <p className={`font-medium ${!selectedMember.emergencyPhone ? 'text-gray-400' : ''}`}>
-                            {selectedMember.emergencyPhone || 'Not provided'}
-                          </p>
-                          <p className="text-xs text-gray-500">Emergency Phone</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Interests & Preferences */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-[--color-accent] flex items-center gap-2">
-                      <Heart className="h-4 w-4" />
-                      Interests & Preferences
-                    </h3>
-                    <div className="space-y-2 pl-6">
-                      <div className="flex justify-between text-sm">
-                        <span>Provincial Interest:</span>
-                        <span className={selectedMember.provincialInterest?.toLowerCase() === 'yes' ? 'text-green-600' : 'text-gray-500'}>
-                          {selectedMember.provincialInterest || 'Not specified'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Volunteer Interest:</span>
-                        <span className={selectedMember.volunteerInterest?.toLowerCase() === 'yes' ? 'text-green-600' : 'text-gray-500'}>
-                          {selectedMember.volunteerInterest || 'Not specified'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span>Newsletter:</span>
-                        <span className={selectedMember.newsletter ? 'text-green-600' : 'text-gray-500'}>
-                          {selectedMember.newsletter ? 'Subscribed' : 'Not subscribed'}
-                        </span>
-                      </div>
-                      {selectedMember.hearAboutUs && (
-                        <div className="pt-2">
-                          <p className="text-xs text-gray-500 mb-1">How they heard about us:</p>
-                          <p className="text-sm">{selectedMember.hearAboutUs}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Medical & Consent */}
-                  <div className="space-y-4">
-                    <h3 className="font-semibold text-[--color-accent] flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      Medical & Consent
-                    </h3>
-                    <div className="space-y-3 pl-6">
-                      {selectedMember.medicalInfo && (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                          <p className="text-xs text-yellow-700 font-medium mb-1 flex items-center gap-1">
-                            <AlertTriangle className="h-3 w-3" />
-                            Medical Information:
-                          </p>
-                          <p className="text-sm text-yellow-800">{selectedMember.medicalInfo}</p>
-                        </div>
-                      )}
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">General Consent:</span>
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                            selectedMember.consent ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {selectedMember.consent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                            {selectedMember.consent ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Photo Consent:</span>
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                            selectedMember.photoConsent ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {selectedMember.photoConsent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                            {selectedMember.photoConsent ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm">Values Acknowledgment:</span>
-                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                            selectedMember.valuesAcknowledgment ? 'text-green-600' : 'text-red-600'
-                          }`}>
-                            {selectedMember.valuesAcknowledgment ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                            {selectedMember.valuesAcknowledgment ? 'Yes' : 'No'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
+      {/* Quick Add Student Form Modal */}
+      {showQuickAddForm && (
+        <QuickAddStudentForm
+          onSuccess={() => {
+            setShowQuickAddForm(false);
+            loadMembers(); // Refresh the members list
+          }}
+          onCancel={() => setShowQuickAddForm(false)}
+        />
+      )}
     </div>
   )
 }

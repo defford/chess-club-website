@@ -9,7 +9,6 @@ import type {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-jwt-secret-here';
 const MAGIC_LINK_EXPIRY = 15 * 60 * 1000; // 15 minutes in milliseconds
-
 class ParentAuthService {
   private readonly AUTH_KEY = 'chess-club-parent-auth';
 
@@ -191,7 +190,8 @@ class ParentAuthService {
       email: account.email,
       loginTime: Date.now(),
       isSelfRegistered: account.isSelfRegistered || isSelfRegistered,
-      registrationType: account.registrationType || (account.isSelfRegistered ? 'self' : 'parent')
+      registrationType: account.registrationType || (account.isSelfRegistered ? 'self' : 'parent'),
+      isAdmin: account.isAdmin || false
     };
 
     // Store session (never expires as requested)

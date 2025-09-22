@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
 import { KVCacheService } from '@/lib/kv';
 import type { PlayerData } from '@/lib/googleSheets';
 
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     const playerData: Omit<PlayerData, 'id' | 'rank'> = await request.json();
     
     // Validate required fields
-    const requiredFields = ['name', 'grade', 'wins', 'losses', 'points', 'lastActive'];
+    const requiredFields = ['name', 'grade', 'gamesPlayed', 'wins', 'losses', 'points', 'lastActive'];
     
     for (const field of requiredFields) {
       if (playerData[field as keyof typeof playerData] === undefined || playerData[field as keyof typeof playerData] === null) {
@@ -37,10 +37,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const playerId = await googleSheetsService.addPlayer(playerData);
+    const playerId = await enhancedGoogleSheetsService.addPlayer(playerData);
     
-    // Recalculate rankings after adding new player
-    await googleSheetsService.recalculateRankings();
+    // Rankings are now calculated dynamically from games
+    // Cache will be invalidated automatically by the enhanced service
     
     return NextResponse.json(
       { message: 'Player added successfully', playerId },

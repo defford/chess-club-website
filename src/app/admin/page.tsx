@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
-import { Users, Calendar, Trophy, Settings, LogOut } from "lucide-react"
+import { Users, Calendar, Trophy, Settings, LogOut, Gamepad2 } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminDashboard() {
@@ -91,6 +91,13 @@ export default function AdminDashboard() {
       count: "Manage games",
     },
     {
+      title: "Game Management",
+      description: "Record and manage chess games",
+      icon: Gamepad2,
+      href: "/admin/games",
+      count: "Record games",
+    },
+    {
       title: "Settings",
       description: "Configure club settings and preferences",
       icon: Settings,
@@ -120,58 +127,6 @@ export default function AdminDashboard() {
             <LogOut className="h-4 w-4" />
             Logout
           </Button>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  Total Members
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">0</p>
-              </div>
-              <Users className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  Active Members
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
-                  {memberStats?.active || 0}
-                </p>
-              </div>
-              <Calendar className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  Ranked Players
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">0</p>
-              </div>
-              <Trophy className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-[--color-text-primary]">
-                  This Month
-                </p>
-                <p className="text-2xl font-bold text-[--color-accent]">
-                  {new Date().toLocaleDateString('en-US', { month: 'long' })}
-                </p>
-              </div>
-              <Settings className="h-8 w-8 text-[--color-primary]" />
-            </div>
-          </Card>
         </div>
 
         {/* Admin Actions */}

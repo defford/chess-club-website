@@ -90,6 +90,7 @@ export default function AdminRankingsPage() {
         alert("Game result recorded successfully!")
         resetGameForm()
         loadPlayers() // Refresh the rankings
+        localStorage.setItem('gameAdded', Date.now().toString())
       } else {
         const error = await response.json()
         alert(`Error: ${error.error || 'Failed to record game result'}`)
@@ -208,7 +209,7 @@ export default function AdminRankingsPage() {
                 Record Game Result
               </CardTitle>
               <CardDescription>
-                Each player gets 1 point for playing. Winner gets +1 additional point (0.5 each for draw).
+                Each player gets 1 point for playing. Winner gets +1 additional point (0.5 points for draw).
               </CardDescription>
             </CardHeader>
             <CardContent>
