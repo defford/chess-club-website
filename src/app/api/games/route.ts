@@ -3,36 +3,72 @@ import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
 import { GameData, GameFormData, BulkGameData } from '@/lib/types';
 import { requireAdminAuth } from '@/lib/apiAuth';
 import { KVCacheService } from '@/lib/kv';
+import { QuotaHandler } from '@/lib/quotaHandler';
 
 // GET /api/games - List all games with optional filters
 export async function GET(request: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  
+  // Parse query parameters for filtering
+  const filters = {
+    playerId: searchParams.get('playerId') || undefined,
+    gameType: searchParams.get('gameType') || undefined,
+    dateFrom: searchParams.get('dateFrom') || undefined,
+    dateTo: searchParams.get('dateTo') || undefined,
+    result: searchParams.get('result') || undefined,
+    eventId: searchParams.get('eventId') || undefined,
+    isVerified: searchParams.get('isVerified') ? searchParams.get('isVerified') === 'true' : undefined,
+  };
+
+  // Remove undefined values
+  const cleanFilters = Object.fromEntries(
+    Object.entries(filters).filter(([_, value]) => value !== undefined)
+  );
+
   try {
-    const { searchParams } = new URL(request.url);
-    
-    // Parse query parameters for filtering
-    const filters = {
-      playerId: searchParams.get('playerId') || undefined,
-      gameType: searchParams.get('gameType') || undefined,
-      dateFrom: searchParams.get('dateFrom') || undefined,
-      dateTo: searchParams.get('dateTo') || undefined,
-      result: searchParams.get('result') || undefined,
-      eventId: searchParams.get('eventId') || undefined,
-      isVerified: searchParams.get('isVerified') ? searchParams.get('isVerified') === 'true' : undefined,
-    };
-
-    // Remove undefined values
-    const cleanFilters = Object.fromEntries(
-      Object.entries(filters).filter(([_, value]) => value !== undefined)
-    );
-
-    const games = await enhancedGoogleSheetsService.getGames(cleanFilters);
+    const games = await KVCacheService.getGames(cleanFilters);
     
     return NextResponse.json(games);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Games API GET error:', error);
-    return NextResponse.json(
-      { error: 'Failed to retrieve games' },
-      { status: 500 }
+    
+    // Use quota handler for consistent error handling
+    return QuotaHandler.handleApiError(
+      error,
+      async () => {
+        // Cache fallback logic - get all games from cache and apply filters
+        const allGames = await KVCacheService.getGames();
+        
+        // Apply filters to cached data
+        let filteredGames = allGames;
+        
+        if (cleanFilters.playerId) {
+          filteredGames = filteredGames.filter(game => 
+            game.player1Id === cleanFilters.playerId || game.player2Id === cleanFilters.playerId
+          );
+        }
+        if (cleanFilters.gameType) {
+          filteredGames = filteredGames.filter(game => game.gameType === cleanFilters.gameType);
+        }
+        if (cleanFilters.dateFrom) {
+          filteredGames = filteredGames.filter(game => game.gameDate >= cleanFilters.dateFrom!);
+        }
+        if (cleanFilters.dateTo) {
+          filteredGames = filteredGames.filter(game => game.gameDate <= cleanFilters.dateTo!);
+        }
+        if (cleanFilters.result) {
+          filteredGames = filteredGames.filter(game => game.result === cleanFilters.result);
+        }
+        if (cleanFilters.eventId) {
+          filteredGames = filteredGames.filter(game => game.eventId === cleanFilters.eventId);
+        }
+        if (cleanFilters.isVerified !== undefined) {
+          filteredGames = filteredGames.filter(game => game.isVerified === cleanFilters.isVerified);
+        }
+        
+        return filteredGames;
+      },
+      'Failed to retrieve games'
     );
   }
 }

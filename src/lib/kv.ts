@@ -15,6 +15,10 @@ export class KVCacheService {
       })
     : null;
 
+  // Circuit breaker for quota exceeded errors
+  private static quotaExceededUntil: number = 0;
+  private static readonly QUOTA_COOLDOWN = 5 * 60 * 1000; // 5 minutes
+
   private static readonly CACHE_KEYS = {
     EVENTS: 'events:all',
     RANKINGS: 'rankings:all', 
@@ -30,21 +34,32 @@ export class KVCacheService {
   } as const;
 
   private static readonly CACHE_CONFIG: Record<string, CacheConfig> = {
-    events: { ttl: 3600, tags: ['events'] }, // 1 hour
-    rankings: { ttl: 1800, tags: ['rankings'] }, // 30 minutes  
-    members: { ttl: 7200, tags: ['members'] }, // 2 hours
-    eventRegistrations: { ttl: 900, tags: ['event-registrations'] }, // 15 minutes
-    parentPlayers: { ttl: 1800, tags: ['parent-data'] }, // 30 minutes
-    parentAccount: { ttl: 3600, tags: ['parent-data'] }, // 1 hour
-    studentsByParent: { ttl: 3600, tags: ['parent-data', 'members'] }, // 1 hour
-    ladderSessions: { ttl: 3600, tags: ['ladder-sessions'] }, // 1 hour
-    ladderSession: { ttl: 1800, tags: ['ladder-sessions'] }, // 30 minutes
-    currentLadderSession: { ttl: 300, tags: ['ladder-sessions'] }, // 5 minutes
+    events: { ttl: 7200, tags: ['events'] }, // 2 hours (increased)
+    rankings: { ttl: 3600, tags: ['rankings'] }, // 1 hour (increased)
+    members: { ttl: 14400, tags: ['members'] }, // 4 hours (increased)
+    eventRegistrations: { ttl: 1800, tags: ['event-registrations'] }, // 30 minutes (increased)
+    parentPlayers: { ttl: 3600, tags: ['parent-data'] }, // 1 hour (increased)
+    parentAccount: { ttl: 7200, tags: ['parent-data'] }, // 2 hours (increased)
+    studentsByParent: { ttl: 7200, tags: ['parent-data', 'members'] }, // 2 hours (increased)
+    ladderSessions: { ttl: 7200, tags: ['ladder-sessions'] }, // 2 hours (increased)
+    ladderSession: { ttl: 3600, tags: ['ladder-sessions'] }, // 1 hour (increased)
+    currentLadderSession: { ttl: 600, tags: ['ladder-sessions'] }, // 10 minutes (increased)
   };
 
   // Check if Redis is available (for local development fallback)
   private static isRedisAvailable(): boolean {
     return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  }
+
+  // Check if we're in a quota exceeded cooldown period
+  private static isQuotaExceeded(): boolean {
+    return Date.now() < this.quotaExceededUntil;
+  }
+
+  // Set quota exceeded state
+  private static setQuotaExceeded(): void {
+    this.quotaExceededUntil = Date.now() + this.QUOTA_COOLDOWN;
+    console.warn(`Quota exceeded - circuit breaker activated for ${this.QUOTA_COOLDOWN / 1000} seconds`);
   }
 
   // Generic cache get with fallback to Google Sheets
@@ -67,6 +82,25 @@ export class KVCacheService {
         return cached;
       }
       
+      // Check if we're in a quota exceeded cooldown period
+      if (this.isQuotaExceeded()) {
+        console.warn(`Quota exceeded cooldown active for ${cacheKey}, attempting to return stale cache data`);
+        
+        // Try to get stale data from cache if available
+        try {
+          const staleData = await this.redis!.get<T>(cacheKey);
+          if (staleData !== null && staleData !== undefined) {
+            console.log(`Returning stale cache data for ${cacheKey}`);
+            return staleData;
+          }
+        } catch (staleError) {
+          console.error(`Failed to get stale data for ${cacheKey}:`, staleError);
+        }
+        
+        // If no stale data available, throw error
+        throw new Error('Quota exceeded and no stale cache data available');
+      }
+      
       console.log(`Cache MISS: ${cacheKey} - fetching from Sheets`);
       // Fallback to Google Sheets
       const freshData = await sheetsFallback();
@@ -75,8 +109,35 @@ export class KVCacheService {
       await this.setCachedData(cacheKey, freshData, config);
       
       return freshData;
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Cache error for ${cacheKey}:`, error);
+      
+      // Check if it's a quota exceeded error
+      const isQuotaError = error?.code === 429 || 
+                         error?.message?.includes('Quota exceeded') ||
+                         error?.message?.includes('quota metric') ||
+                         error?.message?.includes('Read requests per minute');
+      
+      if (isQuotaError) {
+        // Set circuit breaker
+        this.setQuotaExceeded();
+        
+        console.warn(`Quota exceeded for ${cacheKey}, attempting to return stale cache data`);
+        
+        // Try to get stale data from cache if available
+        if (this.isRedisAvailable()) {
+          try {
+            const staleData = await this.redis!.get<T>(cacheKey);
+            if (staleData !== null && staleData !== undefined) {
+              console.log(`Returning stale cache data for ${cacheKey}`);
+              return staleData;
+            }
+          } catch (staleError) {
+            console.error(`Failed to get stale data for ${cacheKey}:`, staleError);
+          }
+        }
+      }
+      
       // Always fallback to Google Sheets on cache errors
       return await sheetsFallback();
     }
@@ -193,6 +254,15 @@ export class KVCacheService {
       this.CACHE_KEYS.MEMBERS,
       () => enhancedGoogleSheetsService.getMembersFromParentsAndStudents(),
       this.CACHE_CONFIG.members
+    );
+  }
+
+  static async getGames(filters?: any): Promise<any[]> {
+    const cacheKey = filters ? `games:filtered:${JSON.stringify(filters)}` : 'games:all';
+    return this.getCachedData(
+      cacheKey,
+      () => enhancedGoogleSheetsService.getGames(filters),
+      { ttl: 1800, tags: ['games'] } // 30 minutes
     );
   }
 

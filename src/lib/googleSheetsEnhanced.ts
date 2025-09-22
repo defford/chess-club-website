@@ -67,11 +67,12 @@ export class EnhancedGoogleSheetsService extends GoogleSheetsService {
     // Write to Google Sheets
     const gameId = await super.addGame(gameData);
     
-    // Invalidate rankings cache since rankings are calculated from games
+    // Invalidate games and rankings cache since rankings are calculated from games
+    await KVCacheService.invalidateKey('games:all');
     await KVCacheService.invalidateKey('rankings:all');
-    await KVCacheService.invalidateByTags(['rankings']);
+    await KVCacheService.invalidateByTags(['games', 'rankings']);
     
-    console.log(`Game added: ${gameId}, rankings cache invalidated`);
+    console.log(`Game added: ${gameId}, games and rankings cache invalidated`);
     return gameId;
   }
 
@@ -169,6 +170,36 @@ export class EnhancedGoogleSheetsService extends GoogleSheetsService {
     await KVCacheService.invalidateByTags(['parent-data']);
     
     console.log(`Parent account updated: ${parentId}, cache invalidated`);
+  }
+
+  // Batch method to get all data efficiently
+  async getAllDataBatch() {
+    return await super.getAllDataBatch();
+  }
+
+  // Override game methods with cache invalidation
+  async updateGame(gameId: string, updates: any): Promise<void> {
+    // Write to Google Sheets
+    await super.updateGame(gameId, updates);
+    
+    // Invalidate games and rankings cache since rankings are calculated from games
+    await KVCacheService.invalidateKey('games:all');
+    await KVCacheService.invalidateKey('rankings:all');
+    await KVCacheService.invalidateByTags(['games', 'rankings']);
+    
+    console.log(`Game updated: ${gameId}, games and rankings cache invalidated`);
+  }
+
+  async deleteGame(gameId: string): Promise<void> {
+    // Write to Google Sheets
+    await super.deleteGame(gameId);
+    
+    // Invalidate games and rankings cache since rankings are calculated from games
+    await KVCacheService.invalidateKey('games:all');
+    await KVCacheService.invalidateKey('rankings:all');
+    await KVCacheService.invalidateByTags(['games', 'rankings']);
+    
+    console.log(`Game deleted: ${gameId}, games and rankings cache invalidated`);
   }
 
 

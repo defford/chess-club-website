@@ -18,7 +18,9 @@ export class GoogleSheetsService {
   private sheets;
   private auth;
   private lastApiCall: number = 0;
-  private readonly API_CALL_DELAY = 100; // 100ms delay between API calls
+  private readonly API_CALL_DELAY = 500; // Increased to 500ms delay between API calls
+  private readonly MAX_RETRIES = 3;
+  private readonly RETRY_DELAY_BASE = 1000; // Base delay for exponential backoff
 
   constructor() {
     // Initialize Google Sheets API with service account credentials for reliable authentication
@@ -67,6 +69,60 @@ export class GoogleSheetsService {
     }
     
     this.lastApiCall = Date.now();
+  }
+
+  // Enhanced retry logic with exponential backoff for quota exceeded errors
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    operationName: string = 'API call'
+  ): Promise<T> {
+    let lastError: any;
+    
+    for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
+      try {
+        await this.rateLimit();
+        return await operation();
+      } catch (error: any) {
+        lastError = error;
+        
+        // Check if it's a quota exceeded error
+        const isQuotaError = error?.code === 429 || 
+                           error?.message?.includes('Quota exceeded') ||
+                           error?.message?.includes('quota metric') ||
+                           error?.message?.includes('Read requests per minute');
+        
+        if (isQuotaError && attempt < this.MAX_RETRIES) {
+          const delay = this.RETRY_DELAY_BASE * Math.pow(2, attempt - 1); // Exponential backoff
+          console.warn(`Quota exceeded for ${operationName}, retrying in ${delay}ms (attempt ${attempt}/${this.MAX_RETRIES})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+        
+        // If it's not a quota error or we've exhausted retries, throw immediately
+        throw error;
+      }
+    }
+    
+    throw lastError;
+  }
+
+  // Batch multiple read operations to reduce API calls
+  private async executeBatchReads<T>(
+    operations: Array<() => Promise<T>>,
+    operationName: string = 'batch read'
+  ): Promise<T[]> {
+    try {
+      await this.rateLimit();
+      
+      // Execute all operations in parallel with a single rate limit
+      const results = await Promise.all(operations.map(op => op()));
+      
+      console.log(`Batch ${operationName} completed: ${operations.length} operations`);
+      return results;
+    } catch (error: any) {
+      console.error(`Batch ${operationName} failed:`, error);
+      throw error;
+    }
   }
 
   // Helper method to get spreadsheet ID - now uses single spreadsheet with multiple sheets
@@ -335,10 +391,13 @@ export class GoogleSheetsService {
     }
 
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'parents!A:N',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'parents!A:N',
+        }),
+        'getParentRegistration'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length < 2) {
@@ -382,10 +441,13 @@ export class GoogleSheetsService {
     }
 
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'events!A:K',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'events!A:K',
+        }),
+        'getEvents'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length <= 1) {
@@ -644,10 +706,13 @@ export class GoogleSheetsService {
     }
 
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'registrations!A:Q',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'registrations!A:Q',
+        }),
+        'getRegistrations'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length <= 1) {
@@ -797,10 +862,13 @@ export class GoogleSheetsService {
     }
 
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'event registrations!A:D',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'event registrations!A:D',
+        }),
+        'getEventRegistrationsByPlayer'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length <= 1) {
@@ -834,11 +902,11 @@ export class GoogleSheetsService {
   // Calculate rankings dynamically from games sheet
   async calculateRankingsFromGames(): Promise<PlayerData[]> {
     try {
-      // Get all games
-      const games = await this.getGames();
-      
-      // Get all registered players from members data
-      const registrations = await this.getMembersFromParentsAndStudents();
+      // Get all games and members data in parallel to reduce API calls
+      const [games, registrations] = await Promise.all([
+        this.getGames(),
+        this.getMembersFromParentsAndStudents()
+      ]);
       const members = registrations.map((registration, index) => ({
         ...registration,
         id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`
@@ -1030,10 +1098,13 @@ export class GoogleSheetsService {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'parents!A:O',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'parents!A:O',
+        }),
+        'getParentAccount'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length <= 1) {
@@ -1192,10 +1263,13 @@ export class GoogleSheetsService {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'students!A:I',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'students!A:I',
+        }),
+        'getStudentsByParentId'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length < 2) {
@@ -1225,10 +1299,13 @@ export class GoogleSheetsService {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'students!A:I',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'students!A:I',
+        }),
+        'getAllStudents'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length < 2) {
@@ -1286,10 +1363,13 @@ export class GoogleSheetsService {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'parents!A:N',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'parents!A:N',
+        }),
+        'getParentByEmail'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length < 2) {
@@ -1332,10 +1412,13 @@ export class GoogleSheetsService {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
     try {
-      const ownershipResponse = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'player_ownership!A:G',
-      });
+      const ownershipResponse = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'player_ownership!A:G',
+        }),
+        'getPlayerOwnership'
+      );
 
       const ownershipRows = ownershipResponse.data.values;
       if (!ownershipRows || ownershipRows.length <= 1) {
@@ -1356,10 +1439,13 @@ export class GoogleSheetsService {
       }
 
       // Get student data for these players from the students sheet
-      const studentsResponse = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'students!A:I',
-      });
+      const studentsResponse = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'students!A:I',
+        }),
+        'getStudentsForParentPlayers'
+      );
 
       const studentRows = studentsResponse.data.values;
       if (!studentRows || studentRows.length < 2) {
@@ -1484,10 +1570,13 @@ export class GoogleSheetsService {
     }
 
     try {
-      const response = await this.sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'games!A:S',
-      });
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'games!A:S',
+        }),
+        'getGames'
+      );
 
       const rows = response.data.values;
       if (!rows || rows.length <= 1) {
@@ -1968,6 +2057,182 @@ export class GoogleSheetsService {
     }
   }
 
+  // Batch method to get all frequently accessed data in one operation
+  async getAllDataBatch(): Promise<{
+    events: EventData[];
+    games: any[];
+    parents: any[];
+    students: any[];
+    members: RegistrationData[];
+  }> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Define all read operations
+      const operations = [
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'events!A:K',
+        }),
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'games!A:S',
+        }),
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'parents!A:N',
+        }),
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'students!A:I',
+        })
+      ];
+
+      // Execute all operations in batch
+      const [eventsResponse, gamesResponse, parentsResponse, studentsResponse] = 
+        await this.executeBatchReads(operations, 'getAllDataBatch');
+
+      // Process events
+      const events: EventData[] = [];
+      const eventRows = eventsResponse.data.values;
+      if (eventRows && eventRows.length > 1) {
+        events.push(...eventRows.slice(1).map((row, index) => ({
+          id: row[0] || String(index + 1),
+          name: row[1] || '',
+          date: row[2] || '',
+          time: row[3] || '',
+          location: row[4] || '',
+          participants: parseInt(row[5]) || 0,
+          maxParticipants: parseInt(row[6]) || 0,
+          description: row[7] || '',
+          category: (row[8] as 'tournament' | 'workshop' | 'training' | 'social') || 'social',
+          ageGroups: row[9] || '',
+          status: (row[10] as 'active' | 'cancelled' | 'completed') || 'active',
+          lastUpdated: row[11] || new Date().toISOString(),
+        })).filter(event => event.name));
+      }
+
+      // Process games
+      const games: any[] = [];
+      const gameRows = gamesResponse.data.values;
+      if (gameRows && gameRows.length > 1) {
+        games.push(...gameRows.slice(1).map((row, index) => ({
+          id: row[0] || `game_${index}`,
+          player1Id: row[1] || '',
+          player1Name: row[2] || '',
+          player2Id: row[3] || '',
+          player2Name: row[4] || '',
+          result: row[5] as 'player1' | 'player2' | 'draw',
+          gameDate: row[6] || '',
+          gameTime: parseInt(row[7]) || 0,
+          gameType: row[8] as 'ladder' | 'tournament' | 'friendly' | 'practice',
+          eventId: row[9] || undefined,
+          notes: row[10] || undefined,
+          recordedBy: row[11] || '',
+          recordedAt: row[12] || '',
+          opening: row[13] || undefined,
+          endgame: row[14] || undefined,
+          ratingChange: row[15] ? JSON.parse(row[15]) : undefined,
+          isVerified: row[16] === 'true',
+          verifiedBy: row[17] || undefined,
+          verifiedAt: row[18] || undefined
+        })).filter(game => game.id));
+      }
+
+      // Process parents
+      const parents: any[] = [];
+      const parentRows = parentsResponse.data.values;
+      if (parentRows && parentRows.length > 1) {
+        parents.push(...parentRows.slice(1).map(row => ({
+          id: row[0],
+          name: row[1] || '',
+          email: row[2] || '',
+          phone: row[3] || '',
+          hearAboutUs: row[4] || '',
+          provincialInterest: row[5] || '',
+          volunteerInterest: row[6] || '',
+          consent: row[7] === 'Yes',
+          photoConsent: row[8] === 'Yes',
+          valuesAcknowledgment: row[9] === 'Yes',
+          newsletter: row[10] === 'Yes',
+          createAccount: row[11] === 'Yes',
+          timestamp: row[12] || '',
+          registrationType: (row[13] as 'parent' | 'self') || 'parent'
+        })).filter(parent => parent.id));
+      }
+
+      // Process students
+      const students: any[] = [];
+      const studentRows = studentsResponse.data.values;
+      if (studentRows && studentRows.length > 1) {
+        students.push(...studentRows.slice(1).map(row => ({
+          id: row[0] || '',
+          parentId: row[1] || '',
+          name: row[2] || '',
+          age: row[3] || '',
+          grade: row[4] || '',
+          emergencyContact: row[5] || '',
+          emergencyPhone: row[6] || '',
+          medicalInfo: row[7] || '',
+          timestamp: row[8] || ''
+        })).filter(student => student.id));
+      }
+
+      // Create parent lookup map
+      const parentMap = new Map();
+      parents.forEach(parent => {
+        if (parent.id) {
+          parentMap.set(parent.id, parent);
+        }
+      });
+
+      // Convert students to RegistrationData format by joining with parent data
+      const members: RegistrationData[] = [];
+      students.forEach((student, index) => {
+        if (student.id && student.parentId) {
+          const parent = parentMap.get(student.parentId);
+          if (parent) {
+            members.push({
+              parentName: parent.name,
+              parentEmail: parent.email,
+              parentPhone: parent.phone,
+              playerName: student.name,
+              playerAge: student.age,
+              playerGrade: student.grade,
+              emergencyContact: student.emergencyContact,
+              emergencyPhone: student.emergencyPhone,
+              medicalInfo: student.medicalInfo,
+              hearAboutUs: parent.hearAboutUs,
+              provincialInterest: parent.provincialInterest,
+              volunteerInterest: parent.volunteerInterest,
+              consent: parent.consent,
+              photoConsent: parent.photoConsent,
+              valuesAcknowledgment: parent.valuesAcknowledgment,
+              newsletter: parent.newsletter,
+              timestamp: student.timestamp || parent.timestamp,
+              rowIndex: index + 2
+            });
+          }
+        }
+      });
+
+      return {
+        events,
+        games,
+        parents,
+        students,
+        members: members.filter(member => member.playerName)
+      };
+    } catch (error) {
+      console.error('Error in getAllDataBatch:', error);
+      throw new Error('Failed to retrieve all data in batch');
+    }
+  }
+
   // NEW CONSOLIDATED METHOD: Get members data from parents and students sheets
   async getMembersFromParentsAndStudents(): Promise<RegistrationData[]> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
@@ -1977,16 +2242,22 @@ export class GoogleSheetsService {
     }
 
     try {
-      // Get all parents and students data in parallel
+      // Get all parents and students data in parallel with retry logic
       const [parentsResponse, studentsResponse] = await Promise.all([
-        this.sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: 'parents!A:N',
-        }),
-        this.sheets.spreadsheets.values.get({
-          spreadsheetId,
-          range: 'students!A:I',
-        })
+        this.executeWithRetry(
+          () => this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'parents!A:N',
+          }),
+          'getParents'
+        ),
+        this.executeWithRetry(
+          () => this.sheets.spreadsheets.values.get({
+            spreadsheetId,
+            range: 'students!A:I',
+          }),
+          'getStudents'
+        )
       ]);
 
       const parentRows = parentsResponse.data.values;

@@ -165,14 +165,6 @@ class ParentAuthService {
 
     await googleSheetsService.addParentAccount(newAccount);
     
-    // Auto-link any existing student registrations to this new parent account
-    try {
-      await googleSheetsService.autoLinkExistingStudentsToParent(parentId, email);
-    } catch (error) {
-      console.error('Failed to auto-link existing students to parent:', error);
-      // Don't fail the account creation if auto-linking fails
-    }
-    
     return newAccount;
   }
 
