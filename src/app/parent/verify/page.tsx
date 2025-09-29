@@ -76,7 +76,9 @@ function ParentVerifyContent() {
           parentId: result.session.parentId,
           email: result.session.email,
           loginTime: Date.now(),
-          isSelfRegistered: result.session.isSelfRegistered || false
+          isSelfRegistered: result.session.isSelfRegistered || false,
+          registrationType: result.session.registrationType,
+          isAdmin: result.session.isAdmin || false
         }
         clientAuthService.setParentSession(sessionData)
         

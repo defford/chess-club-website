@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
               parentId: session.parentId,
               email: session.email,
               isSelfRegistered: session.isSelfRegistered,
-              registrationType: session.registrationType
+              registrationType: session.registrationType,
+              isAdmin: session.isAdmin
             }
           },
           { status: 200 }

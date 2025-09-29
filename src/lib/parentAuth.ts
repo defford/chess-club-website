@@ -160,7 +160,8 @@ class ParentAuthService {
       email,
       createdDate: now,
       lastLogin: now,
-      isActive: true
+      isActive: true,
+      isAdmin: false // New accounts are not admin by default
     };
 
     await googleSheetsService.addParentAccount(newAccount);
