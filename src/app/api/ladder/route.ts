@@ -17,9 +17,11 @@ export async function GET(request: NextRequest) {
       dateTo: targetDate,
       gameType: 'ladder'
     });
+    console.log(`[Ladder API] Retrieved ${games.length} ladder games for date ${targetDate}`);
     
     // Get all players to build the ladder
     const allPlayers = await KVCacheService.getRankings();
+    console.log(`[Ladder API] Retrieved ${allPlayers.length} players from rankings`);
     
     // Calculate stats for each player based only on games from the target date
     const playerStats = new Map<string, {
@@ -154,7 +156,10 @@ export async function GET(request: NextRequest) {
     
     // Convert to array and filter players with overall points > 0 and exclude system players
     // Sort by overall points first, then by daily points for the selected date
-    const ladderPlayers = Array.from(playerStats.values())
+    const allPlayerStats = Array.from(playerStats.values());
+    console.log(`[Ladder API] Total player stats calculated: ${allPlayerStats.length}`);
+    
+    const ladderPlayers = allPlayerStats
       .filter(player => player.overallPoints > 0 && !player.isSystemPlayer) // Show all players with overall points > 0, exclude system players
       .sort((a, b) => {
         // Primary sort: by overall points
@@ -188,6 +193,8 @@ export async function GET(request: NextRequest) {
             .findIndex(p => p.id === player.id) + 1 : 
           null // No daily rank if no daily points
       }));
+
+    console.log(`[Ladder API] Final ladder players: ${ladderPlayers.length} (filtered from ${allPlayerStats.length} total)`);
 
     return NextResponse.json({
       date: targetDate,

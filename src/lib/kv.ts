@@ -9,7 +9,7 @@ export interface CacheConfig {
 }
 
 export class KVCacheService {
-  private static redis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+  private static redis = (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN)
     ? new Redis({
         url: process.env.KV_REST_API_URL,
         token: process.env.KV_REST_API_TOKEN,
@@ -54,7 +54,7 @@ export class KVCacheService {
       console.log('Development mode: bypassing Redis cache for faster iteration');
       return false;
     }
-    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN && this.redis);
   }
 
   // Check if we're in a quota exceeded cooldown period
@@ -82,10 +82,15 @@ export class KVCacheService {
       }
 
       // Try cache first
-      const cached = await this.redis!.get<T>(cacheKey);
-      if (cached !== null && cached !== undefined) {
-        console.log(`Cache HIT: ${cacheKey}`);
-        return cached;
+      try {
+        const cached = await this.redis!.get<T>(cacheKey);
+        if (cached !== null && cached !== undefined) {
+          console.log(`Cache HIT: ${cacheKey}`);
+          return cached;
+        }
+      } catch (cacheError) {
+        console.warn(`Cache read error for ${cacheKey}:`, cacheError);
+        // Continue to fallback to Google Sheets
       }
       
       // Check if we're in a quota exceeded cooldown period
