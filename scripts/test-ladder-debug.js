@@ -21,7 +21,7 @@ const http = require('http');
 // Configuration
 const ENVIRONMENTS = {
   dev: 'http://localhost:3000',
-  prod: 'https://your-production-domain.com' // Replace with your actual production URL
+  prod: 'https://cnlscc.com' // Your actual production URL
 };
 
 const TEST_ENDPOINTS = [
@@ -59,6 +59,12 @@ async function makeRequest(url) {
       });
     }).on('error', (error) => {
       reject(error);
+    });
+    
+    // Add timeout
+    req.setTimeout(10000, () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
     });
   });
 }
@@ -110,8 +116,14 @@ async function runTests(environment, date) {
         }
       } else {
         console.log(`❌ Status: ${result.status}`);
+        if (result.status === 302) {
+          console.log(`   Redirect detected - likely authentication or routing issue`);
+        }
         if (result.data.error) {
           console.log(`   Error: ${result.data.error}`);
+        }
+        if (result.data.message) {
+          console.log(`   Message: ${result.data.message}`);
         }
       }
     } catch (error) {

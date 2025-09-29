@@ -903,15 +903,22 @@ export class GoogleSheetsService {
   // Calculate rankings dynamically from games sheet
   async calculateRankingsFromGames(): Promise<PlayerData[]> {
     try {
+      console.log('[calculateRankingsFromGames] Starting rankings calculation...');
+      
       // Get all games and members data in parallel to reduce API calls
       const [games, registrations] = await Promise.all([
         this.getGames(),
         this.getMembersFromParentsAndStudents()
       ]);
+      
+      console.log(`[calculateRankingsFromGames] Retrieved ${games.length} games and ${registrations.length} registrations`);
+      
       const members = registrations.map((registration, index) => ({
         ...registration,
         id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`
       }));
+      
+      console.log(`[calculateRankingsFromGames] Mapped ${members.length} members with IDs`);
 
       // Initialize player stats
       const playerStats = new Map<string, {
@@ -947,7 +954,14 @@ export class GoogleSheetsService {
       });
 
       // Process each game to calculate stats
-      games.forEach(game => {
+      console.log(`[calculateRankingsFromGames] Processing ${games.length} games...`);
+      let processedGames = 0;
+      const ladderGames = games.filter(game => game.gameType === 'ladder');
+      console.log(`[calculateRankingsFromGames] Found ${ladderGames.length} ladder games`);
+      
+      ladderGames.forEach(game => {
+        processedGames++;
+        console.log(`[calculateRankingsFromGames] Processing game ${processedGames}: ${game.player1Name} vs ${game.player2Name}, result: ${game.result}`);
         // Get or create player1 stats
         let player1Stats = playerStats.get(game.player1Id);
         if (!player1Stats) {
@@ -1026,6 +1040,8 @@ export class GoogleSheetsService {
         }
       });
 
+      console.log(`[calculateRankingsFromGames] Processed ${processedGames} games, created ${playerStats.size} player stats`);
+
       // Convert to array and sort by points (descending), then wins (descending)
       const players = Array.from(playerStats.values()).sort((a, b) => {
         if (b.points !== a.points) {
@@ -1033,6 +1049,9 @@ export class GoogleSheetsService {
         }
         return b.wins - a.wins;
       });
+
+      const playersWithPoints = players.filter(p => p.points > 0);
+      console.log(`[calculateRankingsFromGames] Final rankings: ${players.length} total, ${playersWithPoints.length} with points > 0`);
 
       // Assign ranks
       players.forEach((player, index) => {
@@ -2704,7 +2723,7 @@ export class GoogleSheetsService {
               valuesAcknowledgment: parent.valuesAcknowledgment,
               newsletter: parent.newsletter,
               timestamp: row[8] || parent.timestamp,
-              rowIndex: index + 2 // Approximate row number
+              rowIndex: index + 2 // Row number in Google Sheets (index + 2 because we skip header row)
             });
           }
         }
