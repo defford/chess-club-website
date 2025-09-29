@@ -127,7 +127,7 @@ export class GoogleSheetsService {
   }
 
   // Helper method to get spreadsheet ID - now uses single spreadsheet with multiple sheets
-  private getSpreadsheetId(type: 'registrations' | 'events' | 'rankings'): string {
+  getSpreadsheetId(type: 'registrations' | 'events' | 'rankings'): string {
     // Use single spreadsheet ID for all data types
     const spreadsheetId = process.env.GOOGLE_SHEETS_ID || process.env.GOOGLE_SHEETS_REGISTRATIONS_ID || '';
     
