@@ -1140,7 +1140,7 @@ export class GoogleSheetsService {
         } catch (error) {
           console.error('Error checking if self-registered:', error);
           // Fallback to the createAccount column if we can't determine from student data
-          isSelfRegistered = accountRow[11] === 'true';
+          isSelfRegistered = accountRow[11]?.toString().toLowerCase() === 'true';
           registrationType = isSelfRegistered ? 'self' : 'parent';
         }
       }
@@ -1153,7 +1153,7 @@ export class GoogleSheetsService {
         isActive: true, // Assume active if exists in parents sheet
         isSelfRegistered,
         registrationType,
-        isAdmin: accountRow[14] === 'true' || false // Column O (index 14) for admin status
+        isAdmin: accountRow[14]?.toString().toLowerCase() === 'true' || false // Column O (index 14) for admin status
       };
     } catch (error) {
       console.error('Error reading parent account from Google Sheets:', error);
@@ -1954,7 +1954,7 @@ export class GoogleSheetsService {
         opening: row[13] || undefined,
         endgame: row[14] || undefined,
         ratingChange: row[15] ? JSON.parse(row[15]) : undefined,
-        isVerified: row[16] === 'true',
+        isVerified: row[16]?.toString().toLowerCase() === 'true',
         verifiedBy: row[17] || undefined,
         verifiedAt: row[18] || undefined
       })).filter(game => game.id);
@@ -2490,7 +2490,7 @@ export class GoogleSheetsService {
           opening: row[13] || undefined,
           endgame: row[14] || undefined,
           ratingChange: row[15] ? JSON.parse(row[15]) : undefined,
-          isVerified: row[16] === 'true',
+          isVerified: row[16]?.toString().toLowerCase() === 'true',
           verifiedBy: row[17] || undefined,
           verifiedAt: row[18] || undefined
         })).filter(game => game.id));

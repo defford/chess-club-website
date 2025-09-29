@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Authentication Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .success { color: #28a745; }
+        .error { color: #dc3545; }
+        .warning { color: #ffc107; }
+        .info { color: #17a2b8; }
+        pre {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Admin Authentication Test</h1>
+        <p>This page helps you test admin authentication in development without pushing to production.</p>
+
+        <div class="test-section">
+            <h3>1. Current Session Status</h3>
+            <button onclick="checkCurrentSession()">Check Current Session</button>
+            <div id="session-status"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. Set Test Sessions</h3>
+            <button onclick="setAdminSession()">Set Admin Session</button>
+            <button onclick="setNonAdminSession()">Set Non-Admin Session</button>
+            <button onclick="setDevSession()">Set Dev Session</button>
+            <button onclick="clearSession()">Clear Session</button>
+        </div>
+
+        <div class="test-section">
+            <h3>3. Test API Authentication</h3>
+            <input type="email" id="test-email" placeholder="Enter email to test" value="testadmin@example.com">
+            <button onclick="testApiAuth()">Test API Auth</button>
+            <div id="api-test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. Test Admin Page Access</h3>
+            <button onclick="testAdminPage()">Test Admin Games Page</button>
+            <button onclick="testAdminDashboard()">Test Admin Dashboard</button>
+            <div id="page-test-results"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>5. Quick Actions</h3>
+            <button onclick="runAllTests()">Run All Tests</button>
+            <button onclick="openAdminGames()">Open Admin Games</button>
+            <button onclick="openParentDashboard()">Open Parent Dashboard</button>
+        </div>
+    </div>
+
+    <script>
+        // Test functions
+        function checkCurrentSession() {
+            const session = JSON.parse(localStorage.getItem('chess-club-parent-auth') || 'null');
+            const statusDiv = document.getElementById('session-status');
+            
+            if (!session) {
+                statusDiv.innerHTML = '<p class="error">❌ No session found</p>';
+                return;
+            }
+            
+            const isAdmin = session.isAdmin === true;
+            const isDev = session.email === 'dev@example.com';
+            const isDevelopment = window.location.hostname === 'localhost';
+            
+            let status = `
+                <p class="info">📋 Current Session:</p>
+                <pre>${JSON.stringify(session, null, 2)}</pre>
+                <p><strong>Admin Status:</strong> ${isAdmin ? '<span class="success">✅ Admin</span>' : '<span class="error">❌ Not Admin</span>'}</p>
+                <p><strong>Dev Email:</strong> ${isDev ? '<span class="success">✅ Yes</span>' : '<span class="error">❌ No</span>'}</p>
+                <p><strong>Environment:</strong> ${isDevelopment ? '<span class="info">🔧 Development</span>' : '<span class="warning">🚀 Production</span>'}</p>
+            `;
+            
+            statusDiv.innerHTML = status;
+        }
+
+        function setAdminSession() {
+            const session = {
+                parentId: 'test_admin_123',
+                email: 'testadmin@example.com',
+                loginTime: Date.now(),
+                isSelfRegistered: false,
+                registrationType: 'parent',
+                isAdmin: true
+            };
+            localStorage.setItem('chess-club-parent-auth', JSON.stringify(session));
+            alert('✅ Admin session set! Email: testadmin@example.com, Is Admin: true');
+            checkCurrentSession();
+        }
+
+        function setNonAdminSession() {
+            const session = {
+                parentId: 'test_user_456',
+                email: 'testuser@example.com',
+                loginTime: Date.now(),
+                isSelfRegistered: false,
+                registrationType: 'parent',
+                isAdmin: false
+            };
+            localStorage.setItem('chess-club-parent-auth', JSON.stringify(session));
+            alert('✅ Non-admin session set! Email: testuser@example.com, Is Admin: false');
+            checkCurrentSession();
+        }
+
+        function setDevSession() {
+            const session = {
+                parentId: 'dev-parent-123',
+                email: 'dev@example.com',
+                loginTime: Date.now(),
+                isSelfRegistered: false,
+                isAdmin: true
+            };
+            localStorage.setItem('chess-club-parent-auth', JSON.stringify(session));
+            alert('✅ Dev session set! Email: dev@example.com, Is Admin: true');
+            checkCurrentSession();
+        }
+
+        function clearSession() {
+            localStorage.removeItem('chess-club-parent-auth');
+            alert('✅ Session cleared!');
+            checkCurrentSession();
+        }
+
+        async function testApiAuth() {
+            const email = document.getElementById('test-email').value;
+            const resultsDiv = document.getElementById('api-test-results');
+            
+            if (!email) {
+                resultsDiv.innerHTML = '<p class="error">❌ Please enter an email address</p>';
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<p class="info">🔄 Testing API authentication...</p>';
+            
+            try {
+                const response = await fetch(`/api/test-admin?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+                
+                let html = `
+                    <h4>API Test Results for ${email}:</h4>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                
+                if (data.summary?.overallResult) {
+                    html += '<p class="success">✅ Admin authentication PASSED</p>';
+                } else {
+                    html += '<p class="error">❌ Admin authentication FAILED</p>';
+                }
+                
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                resultsDiv.innerHTML = `<p class="error">❌ API test failed: ${error.message}</p>`;
+            }
+        }
+
+        function testAdminPage() {
+            const resultsDiv = document.getElementById('page-test-results');
+            resultsDiv.innerHTML = '<p class="info">🔄 Testing admin games page access...</p>';
+            
+            // Open in new tab
+            const newWindow = window.open('/admin/games', '_blank');
+            
+            setTimeout(() => {
+                if (newWindow.closed) {
+                    resultsDiv.innerHTML = '<p class="error">❌ Admin games page was closed (likely redirected)</p>';
+                } else {
+                    resultsDiv.innerHTML = '<p class="success">✅ Admin games page opened successfully</p>';
+                }
+            }, 2000);
+        }
+
+        function testAdminDashboard() {
+            const resultsDiv = document.getElementById('page-test-results');
+            resultsDiv.innerHTML = '<p class="info">🔄 Testing admin dashboard access...</p>';
+            
+            // Open in new tab
+            const newWindow = window.open('/admin', '_blank');
+            
+            setTimeout(() => {
+                if (newWindow.closed) {
+                    resultsDiv.innerHTML = '<p class="error">❌ Admin dashboard was closed (likely redirected)</p>';
+                } else {
+                    resultsDiv.innerHTML = '<p class="success">✅ Admin dashboard opened successfully</p>';
+                }
+            }, 2000);
+        }
+
+        function runAllTests() {
+            alert('🧪 Running all tests... Check the console for detailed results!');
+            checkCurrentSession();
+            testApiAuth();
+        }
+
+        function openAdminGames() {
+            window.open('/admin/games', '_blank');
+        }
+
+        function openParentDashboard() {
+            window.open('/parent/dashboard', '_blank');
+        }
+
+        // Load the test script
+        function loadTestScript() {
+            const script = document.createElement('script');
+            script.src = '/test-admin-auth.js';
+            script.onload = () => {
+                console.log('✅ Test script loaded! Use testAdminAuth.runAllTests() in console.');
+            };
+            document.head.appendChild(script);
+        }
+
+        // Initialize
+        window.onload = () => {
+            checkCurrentSession();
+            loadTestScript();
+        };
+    </script>
+</body>
+</html>
