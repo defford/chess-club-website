@@ -18,11 +18,6 @@ export async function GET(request: NextRequest) {
       gameType: 'ladder'
     });
     
-    console.log(`Ladder API - Target date: ${targetDate}`);
-    console.log(`Ladder API - Found ${games.length} games for this date`);
-    
-    console.log(`Ladder API - Sample game dates:`, games.slice(0, 3).map(g => g.gameDate));
-    
     // Get all players to build the ladder
     const allPlayers = await KVCacheService.getRankings();
     
@@ -38,21 +33,37 @@ export async function GET(request: NextRequest) {
       points: number;
       lastActive: string;
       email?: string;
+      isSystemPlayer?: boolean;
+      // Overall stats from rankings
+      overallGamesPlayed: number;
+      overallWins: number;
+      overallLosses: number;
+      overallDraws: number;
+      overallPoints: number;
+      overallRank: number;
     }>();
     
-    // Initialize all players with zero stats
+    // Initialize all players with zero daily stats but include overall stats
     allPlayers.forEach(player => {
       playerStats.set(player.id || player.name, {
         id: player.id || player.name,
         name: player.name,
         grade: player.grade,
-        gamesPlayed: 0,
-        wins: 0,
-        losses: 0,
-        draws: 0,
-        points: 0,
+        gamesPlayed: 0, // Daily games
+        wins: 0, // Daily wins
+        losses: 0, // Daily losses
+        draws: 0, // Daily draws
+        points: 0, // Daily points
         lastActive: player.lastActive,
-        email: player.email
+        email: player.email,
+        isSystemPlayer: player.isSystemPlayer,
+        // Overall stats from rankings
+        overallGamesPlayed: player.gamesPlayed,
+        overallWins: player.wins,
+        overallLosses: player.losses,
+        overallDraws: player.draws,
+        overallPoints: player.points,
+        overallRank: player.rank || 999
       });
     });
     
@@ -67,13 +78,21 @@ export async function GET(request: NextRequest) {
           id: player1Id,
           name: game.player1Name,
           grade: 'Unknown', // Will be updated if found in rankings
-          gamesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          points: 0,
+          gamesPlayed: 0, // Daily games
+          wins: 0, // Daily wins
+          losses: 0, // Daily losses
+          draws: 0, // Daily draws
+          points: 0, // Daily points
           lastActive: game.gameDate,
-          email: undefined
+          email: undefined,
+          isSystemPlayer: game.player1Name === 'Unknown Opponent' || game.player1Id === 'unknown_opponent',
+          // Overall stats (unknown players have 0 overall stats)
+          overallGamesPlayed: 0,
+          overallWins: 0,
+          overallLosses: 0,
+          overallDraws: 0,
+          overallPoints: 0,
+          overallRank: 999
         });
       }
       
@@ -82,13 +101,21 @@ export async function GET(request: NextRequest) {
           id: player2Id,
           name: game.player2Name,
           grade: 'Unknown', // Will be updated if found in rankings
-          gamesPlayed: 0,
-          wins: 0,
-          losses: 0,
-          draws: 0,
-          points: 0,
+          gamesPlayed: 0, // Daily games
+          wins: 0, // Daily wins
+          losses: 0, // Daily losses
+          draws: 0, // Daily draws
+          points: 0, // Daily points
           lastActive: game.gameDate,
-          email: undefined
+          email: undefined,
+          isSystemPlayer: game.player2Name === 'Unknown Opponent' || game.player2Id === 'unknown_opponent',
+          // Overall stats (unknown players have 0 overall stats)
+          overallGamesPlayed: 0,
+          overallWins: 0,
+          overallLosses: 0,
+          overallDraws: 0,
+          overallPoints: 0,
+          overallRank: 999
         });
       }
       
@@ -125,26 +152,41 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Convert to array and sort by points, then win rate, then name
+    // Convert to array and filter players with overall points > 0 and exclude system players
+    // Sort by overall points first, then by daily points for the selected date
     const ladderPlayers = Array.from(playerStats.values())
-      .filter(player => player.gamesPlayed > 0)
+      .filter(player => player.overallPoints > 0 && !player.isSystemPlayer) // Show all players with overall points > 0, exclude system players
       .sort((a, b) => {
+        // Primary sort: by overall points
+        if (b.overallPoints !== a.overallPoints) {
+          return b.overallPoints - a.overallPoints;
+        }
+        
+        // Secondary sort: by daily points for the selected date
         if (b.points !== a.points) {
           return b.points - a.points;
         }
         
-        const aWinRate = a.gamesPlayed > 0 ? a.wins / a.gamesPlayed : 0;
-        const bWinRate = b.gamesPlayed > 0 ? b.wins / b.gamesPlayed : 0;
+        // Tertiary sort: by overall win rate
+        const aOverallWinRate = a.overallGamesPlayed > 0 ? a.overallWins / a.overallGamesPlayed : 0;
+        const bOverallWinRate = b.overallGamesPlayed > 0 ? b.overallWins / b.overallGamesPlayed : 0;
         
-        if (bWinRate !== aWinRate) {
-          return bWinRate - aWinRate;
+        if (bOverallWinRate !== aOverallWinRate) {
+          return bOverallWinRate - aOverallWinRate;
         }
         
         return a.name.localeCompare(b.name);
       })
       .map((player, index) => ({
         ...player,
-        rank: index + 1
+        rank: index + 1, // Overall rank based on current sorted order
+        overallRank: index + 1, // Recalculate overall rank after filtering out system players
+        dailyRank: player.points > 0 ? 
+          Array.from(playerStats.values())
+            .filter(p => p.points > 0)
+            .sort((a, b) => b.points - a.points)
+            .findIndex(p => p.id === player.id) + 1 : 
+          null // No daily rank if no daily points
       }));
 
     return NextResponse.json({

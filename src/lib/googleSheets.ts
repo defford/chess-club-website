@@ -926,6 +926,7 @@ export class GoogleSheetsService {
         rank?: number;
         lastActive: string;
         email: string;
+        isSystemPlayer?: boolean;
       }>();
 
       // Initialize all registered players
@@ -940,52 +941,88 @@ export class GoogleSheetsService {
           losses: 0,
           points: 0,
           lastActive: member.timestamp || new Date().toISOString(),
-          email: member.parentEmail || ''
+          email: member.parentEmail || '',
+          isSystemPlayer: false // Registered players are not system players
         });
       });
 
       // Process each game to calculate stats
       games.forEach(game => {
-        const player1Stats = playerStats.get(game.player1Id);
-        const player2Stats = playerStats.get(game.player2Id);
+        // Get or create player1 stats
+        let player1Stats = playerStats.get(game.player1Id);
+        if (!player1Stats) {
+          // Create stats for unknown player
+          player1Stats = {
+            id: game.player1Id,
+            name: game.player1Name,
+            grade: 'Unknown',
+            gamesPlayed: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            points: 0,
+            lastActive: game.gameDate,
+            email: '',
+            isSystemPlayer: game.player1Name === 'Unknown Opponent' || game.player1Id === 'unknown_opponent'
+          };
+          playerStats.set(game.player1Id, player1Stats);
+        }
 
-        if (player1Stats && player2Stats) {
-          // Both players played a game
-          player1Stats.gamesPlayed += 1;
-          player2Stats.gamesPlayed += 1;
-          
-          // Update last active
-          const gameDate = new Date(game.gameDate);
-          const player1LastActive = new Date(player1Stats.lastActive);
-          const player2LastActive = new Date(player2Stats.lastActive);
-          
-          if (gameDate > player1LastActive) {
-            player1Stats.lastActive = game.gameDate;
-          }
-          if (gameDate > player2LastActive) {
-            player2Stats.lastActive = game.gameDate;
-          }
+        // Get or create player2 stats
+        let player2Stats = playerStats.get(game.player2Id);
+        if (!player2Stats) {
+          // Create stats for unknown player
+          player2Stats = {
+            id: game.player2Id,
+            name: game.player2Name,
+            grade: 'Unknown',
+            gamesPlayed: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            points: 0,
+            lastActive: game.gameDate,
+            email: '',
+            isSystemPlayer: game.player2Name === 'Unknown Opponent' || game.player2Id === 'unknown_opponent'
+          };
+          playerStats.set(game.player2Id, player2Stats);
+        }
 
-          // Calculate points and stats based on result
-          if (game.result === 'player1') {
-            // Player 1 wins
-            player1Stats.points += 2; // 1 for playing + 1 for winning
-            player2Stats.points += 1; // 1 for playing
-            player1Stats.wins += 1;
-            player2Stats.losses += 1;
-          } else if (game.result === 'player2') {
-            // Player 2 wins
-            player2Stats.points += 2; // 1 for playing + 1 for winning
-            player1Stats.points += 1; // 1 for playing
-            player2Stats.wins += 1;
-            player1Stats.losses += 1;
-          } else if (game.result === 'draw') {
-            // Draw
-            player1Stats.points += 1.5; // 1 for playing + 0.5 for drawing
-            player2Stats.points += 1.5; // 1 for playing + 0.5 for drawing
-            player1Stats.draws += 1;
-            player2Stats.draws += 1;
-          }
+        // Both players played a game
+        player1Stats.gamesPlayed += 1;
+        player2Stats.gamesPlayed += 1;
+        
+        // Update last active
+        const gameDate = new Date(game.gameDate);
+        const player1LastActive = new Date(player1Stats.lastActive);
+        const player2LastActive = new Date(player2Stats.lastActive);
+        
+        if (gameDate > player1LastActive) {
+          player1Stats.lastActive = game.gameDate;
+        }
+        if (gameDate > player2LastActive) {
+          player2Stats.lastActive = game.gameDate;
+        }
+
+        // Calculate points and stats based on result
+        if (game.result === 'player1') {
+          // Player 1 wins
+          player1Stats.points += 2; // 1 for playing + 1 for winning
+          player2Stats.points += 1; // 1 for playing
+          player1Stats.wins += 1;
+          player2Stats.losses += 1;
+        } else if (game.result === 'player2') {
+          // Player 2 wins
+          player2Stats.points += 2; // 1 for playing + 1 for winning
+          player1Stats.points += 1; // 1 for playing
+          player2Stats.wins += 1;
+          player1Stats.losses += 1;
+        } else if (game.result === 'draw') {
+          // Draw
+          player1Stats.points += 1.5; // 1 for playing + 0.5 for drawing
+          player2Stats.points += 1.5; // 1 for playing + 0.5 for drawing
+          player1Stats.draws += 1;
+          player2Stats.draws += 1;
         }
       });
 

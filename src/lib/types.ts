@@ -213,6 +213,19 @@ export interface PlayerData {
   isSystemPlayer?: boolean; // Flag to identify system players (like Unknown Opponent)
 }
 
+// Enhanced ladder player data with both daily and overall stats
+export interface LadderPlayerData extends PlayerData {
+  // Daily stats (for selected date)
+  dailyRank?: number | null;
+  // Overall stats (all-time)
+  overallGamesPlayed: number;
+  overallWins: number;
+  overallLosses: number;
+  overallDraws: number;
+  overallPoints: number;
+  overallRank: number;
+}
+
 // Parent Account Management Interfaces
 export interface ParentAccount {
   id: string;

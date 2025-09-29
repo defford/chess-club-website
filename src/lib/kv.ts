@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import { enhancedGoogleSheetsService } from './googleSheetsEnhanced';
+import { googleSheetsService } from './googleSheets';
 import type { EventData, PlayerData, RegistrationData, LadderSession, LadderSessionData, LadderSessionFilters } from './types';
 
 export interface CacheConfig {
@@ -249,7 +250,7 @@ export class KVCacheService {
   static async getRankings(): Promise<PlayerData[]> {
     return this.getCachedData(
       this.CACHE_KEYS.RANKINGS,
-      () => enhancedGoogleSheetsService.getPlayers(),
+      () => googleSheetsService.getPlayers(),
       this.CACHE_CONFIG.rankings
     );
   }

@@ -1,20 +1,16 @@
 "use client"
 
+import React, { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronUp, ChevronDown, Crown, Medal, Award, Gamepad2, ChevronRight } from "lucide-react"
-import { useState, useEffect } from "react"
 import { clientAuthService } from "@/lib/clientAuth"
 import { isAuthenticated as isAdminAuthenticated } from "@/lib/auth"
 import { useRouter } from "next/navigation"
-import type { PlayerData, GameData } from "@/lib/types"
+import type { LadderPlayerData, GameData } from "@/lib/types"
 
-type SortField = "rank" | "name" | "grade" | "gamesPlayed" | "wins" | "losses" | "draws" | "points"
+type SortField = "rank" | "name" | "grade" | "gamesPlayed" | "wins" | "losses" | "draws" | "points" | "overallPoints" | "overallRank"
 type SortDirection = "asc" | "desc"
-
-interface LadderPlayerData extends PlayerData {
-  draws: number;
-}
 
 export function LadderPageClient() {
   const [sortField, setSortField] = useState<SortField>("rank")
@@ -28,6 +24,7 @@ export function LadderPageClient() {
   const [expandedPlayer, setExpandedPlayer] = useState<string | null>(null)
   const [playerGames, setPlayerGames] = useState<Record<string, GameData[]>>({})
   const [loadingGames, setLoadingGames] = useState<Record<string, boolean>>({})
+  const [showPlayersWithoutDailyPoints, setShowPlayersWithoutDailyPoints] = useState(true)
   
   // Date-based ladder state
   const [selectedDate, setSelectedDate] = useState<string>("")
@@ -293,12 +290,26 @@ export function LadderPageClient() {
   }
 
   const sortedPlayers = [...ladderPlayers]
-    .filter(player => player.points > 0)
     .filter(player => !player.id?.startsWith('unknown_')) // Filter out system players
     .filter(player => selectedGrade === "all" || player.grade === selectedGrade)
+    .filter(player => showPlayersWithoutDailyPoints || player.points > 0) // Toggle filter for daily points
     .sort((a, b) => {
-      let aValue: string | number | undefined = a[sortField]
-      let bValue: string | number | undefined = b[sortField]
+      let aValue: string | number | undefined
+      let bValue: string | number | undefined
+
+      // Handle the new overall fields
+      if (sortField === "overallPoints") {
+        aValue = a.overallPoints
+        bValue = b.overallPoints
+      } else if (sortField === "overallRank") {
+        aValue = a.overallRank
+        bValue = b.overallRank
+      } else {
+        const aFieldValue = a[sortField as keyof LadderPlayerData]
+        const bFieldValue = b[sortField as keyof LadderPlayerData]
+        aValue = aFieldValue === null ? undefined : aFieldValue as string | number | undefined
+        bValue = bFieldValue === null ? undefined : bFieldValue as string | number | undefined
+      }
 
       if (sortField === "name") {
         aValue = (aValue as string)?.toLowerCase() || ""
@@ -451,7 +462,7 @@ export function LadderPageClient() {
             Chess Ladder
           </h1>
           <p className="text-lg text-[--color-text-secondary] max-w-2xl mx-auto mb-6">
-            Daily ladder standings based on games played on the selected date. Select any date to view rankings for that day.
+            Chess ladder showing all players with overall points &gt; 0. Daily stats are shown for the selected date. Use the toggle to show/hide players without daily points.
           </p>
           
           {/* Date Navigation */}
@@ -517,6 +528,19 @@ export function LadderPageClient() {
                   ))}
                 </select>
               </div>
+              
+              <div className="flex items-center gap-2">
+                <label htmlFor="show-no-daily-toggle" className="text-sm font-medium text-[--color-text-primary]">
+                  Show players without daily points:
+                </label>
+                <input
+                  id="show-no-daily-toggle"
+                  type="checkbox"
+                  checked={showPlayersWithoutDailyPoints}
+                  onChange={(e) => setShowPlayersWithoutDailyPoints(e.target.checked)}
+                  className="w-4 h-4 text-[--color-accent] bg-gray-100 border-gray-300 rounded focus:ring-[--color-accent] focus:ring-2"
+                />
+              </div>
             </div>
 
             {/* Ladder Table */}
@@ -527,7 +551,8 @@ export function LadderPageClient() {
                   Ladder Standings
                 </CardTitle>
                 <CardDescription>
-                  {sortedPlayers.length} active player{sortedPlayers.length !== 1 ? 's' : ''} with games played on {selectedDate ? formatDate(selectedDate) : 'selected date'}
+                  {sortedPlayers.length} active player{sortedPlayers.length !== 1 ? 's' : ''} with overall points &gt; 0
+                  {selectedDate && ` • Daily stats for ${formatDate(selectedDate)}`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -627,8 +652,30 @@ export function LadderPageClient() {
                             onClick={() => handleSort("points")}
                           >
                             <div className="flex items-center gap-1">
-                              Points
+                              Daily Points
                               {sortField === "points" && (
+                                sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                              )}
+                            </div>
+                          </th>
+                          <th 
+                            className="text-left py-3 px-4 cursor-pointer hover:bg-[--color-neutral-light] transition-colors"
+                            onClick={() => handleSort("overallPoints")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Overall Points
+                              {sortField === "overallPoints" && (
+                                sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
+                              )}
+                            </div>
+                          </th>
+                          <th 
+                            className="text-left py-3 px-4 cursor-pointer hover:bg-[--color-neutral-light] transition-colors"
+                            onClick={() => handleSort("overallRank")}
+                          >
+                            <div className="flex items-center gap-1">
+                              Overall Rank
+                              {sortField === "overallRank" && (
                                 sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                               )}
                             </div>
@@ -638,8 +685,8 @@ export function LadderPageClient() {
                       </thead>
                       <tbody>
                         {sortedPlayers.map((player) => (
-                          <>
-                            <tr key={player.id} className="border-b border-[--color-neutral-light] hover:bg-[--color-neutral-light] transition-colors">
+                          <React.Fragment key={player.id}>
+                            <tr className="border-b border-[--color-neutral-light] hover:bg-[--color-neutral-light] transition-colors">
                               <td className="py-3 px-4">
                                 <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${getRankColor(player.rank || 999)}`}>
                                   {getRankIcon(player.rank || 999)}
@@ -666,6 +713,12 @@ export function LadderPageClient() {
                               <td className="py-3 px-4 font-semibold text-[--color-text-primary]">
                                 {player.points}
                               </td>
+                              <td className="py-3 px-4 font-semibold text-[--color-accent]">
+                                {player.overallPoints}
+                              </td>
+                              <td className="py-3 px-4 text-[--color-text-secondary]">
+                                #{player.overallRank}
+                              </td>
                               <td className="py-3 px-4">
                                 <Button
                                   variant="outline"
@@ -681,7 +734,7 @@ export function LadderPageClient() {
                             {/* Expanded Game History Row */}
                             {expandedPlayer === player.id && (
                               <tr>
-                                <td colSpan={9} className="p-0">
+                                <td colSpan={11} className="p-0">
                                   <div className="bg-[--color-neutral-light] border-b border-[--color-neutral-light]">
                                     <div className="p-4">
                                       <div className="flex items-center justify-between mb-3">
@@ -737,7 +790,7 @@ export function LadderPageClient() {
                                 </td>
                               </tr>
                             )}
-                          </>
+                          </React.Fragment>
                         ))}
                       </tbody>
                     </table>
