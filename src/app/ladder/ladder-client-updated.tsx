@@ -268,6 +268,22 @@ export function LadderPageClient() {
     }
   }
 
+  const getGameResultColor = (game: GameData, playerName: string) => {
+    const isPlayer1 = game.player1Name === playerName
+    const isPlayer2 = game.player2Name === playerName
+
+    if (game.result === 'draw') {
+      return 'bg-blue-100' // Medium shade for draws
+    } else if (
+      (game.result === 'player1' && isPlayer1) ||
+      (game.result === 'player2' && isPlayer2)
+    ) {
+      return 'bg-green-200' // Darker color for wins
+    } else {
+      return '' // No background for losses
+    }
+  }
+
   if (!isClient) {
     return (
       <div className="py-16">
@@ -548,7 +564,7 @@ export function LadderPageClient() {
                   ) : playerGames[expandedPlayer] && playerGames[expandedPlayer].length > 0 ? (
                     <div className="space-y-4">
                       {playerGames[expandedPlayer].map((game) => (
-                        <div key={game.id} className="border border-[--color-neutral-light] rounded-lg p-4">
+                        <div key={game.id} className={`border border-[--color-neutral-light] rounded-lg p-4 ${getGameResultColor(game, ladderPlayers.find(p => p.id === expandedPlayer)?.name || '')}`}>
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-[--color-text-primary]">

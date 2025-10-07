@@ -160,10 +160,12 @@ export function LadderPageClient() {
       const allDates = [...new Set([...last30Days, ...gameDates])].sort().reverse()
       setAvailableDates(allDates)
       
-      // If no date is currently selected, load today's date
+      // If no date is currently selected, load the most recent date with games
       if (!selectedDate) {
-        console.log('Auto-loading today\'s date:', today)
-        await fetchLadderData(today)
+        // Find the most recent date with games (first in the sorted array)
+        const mostRecentDateWithGames = allDates.length > 0 ? allDates[0] : today
+        console.log('Auto-loading most recent date with games:', mostRecentDateWithGames)
+        await fetchLadderData(mostRecentDateWithGames)
       }
     } catch (err) {
       console.error('Error fetching available dates:', err)
@@ -174,8 +176,7 @@ export function LadderPageClient() {
 
   // Navigate to a different date
   const navigateToDate = async (date: string) => {
-    // Clear cached player games when date changes
-    setPlayerGames({})
+    // Don't clear cached player games since we show all games regardless of date
     await fetchLadderData(date)
   }
 
@@ -211,11 +212,11 @@ export function LadderPageClient() {
   }, [isAuthenticated])
 
 
-  // Fetch player games when expanding (filtered by selected date)
+  // Fetch player games when expanding (all games, not filtered by date)
   const fetchPlayerGames = async (searchTerm: string, storageKey: string, isBackgroundLoad = false) => {
-    // Create a cache key that includes the selected date to ensure we refetch when date changes
-    const cacheKey = `${storageKey}_${selectedDate}`
-    if (playerGames[cacheKey]) return // Already loaded for this date
+    // Use player ID as cache key since we want all games regardless of date
+    const cacheKey = storageKey
+    if (playerGames[cacheKey]) return // Already loaded
 
     if (!isBackgroundLoad) {
       setLoadingGames(prev => ({ ...prev, [storageKey]: true }))
@@ -231,18 +232,19 @@ export function LadderPageClient() {
       }
       // Note: Admin users don't need headers as the games API doesn't require authentication
       
-      // Fetch games for the player, filtered by the selected date
-      let url = `/api/games/player/${encodeURIComponent(searchTerm)}`
-      if (selectedDate) {
-        url += `?dateFrom=${selectedDate}&dateTo=${selectedDate}`
-      }
+      // Fetch all games for the player (no date filtering)
+      const url = `/api/games/player/${encodeURIComponent(searchTerm)}`
       
       const response = await fetch(url, { headers })
       if (!response.ok) {
         throw new Error('Failed to fetch player games')
       }
       const games = await response.json()
-      setPlayerGames(prev => ({ ...prev, [cacheKey]: games }))
+      // Filter out games against "Unknown Opponent"
+      const filteredGames = games.filter((game: GameData) => 
+        game.player1Name !== 'Unknown Opponent' && game.player2Name !== 'Unknown Opponent'
+      )
+      setPlayerGames(prev => ({ ...prev, [cacheKey]: filteredGames }))
     } catch (error) {
       console.error('Error fetching player games:', error)
     } finally {
@@ -271,8 +273,7 @@ export function LadderPageClient() {
     } else {
       setExpandedPlayer(playerId)
       // Games should already be loaded in background, but fetch if not
-      const cacheKey = `${playerId}_${selectedDate}`
-      if (!playerGames[cacheKey]) {
+      if (!playerGames[playerId]) {
         fetchPlayerGames(playerName, playerId)
       }
     }
@@ -401,6 +402,22 @@ export function LadderPageClient() {
         return 'bg-gray-100 text-gray-800'
       default:
         return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getGameResultColor = (game: GameData, playerName: string) => {
+    const isPlayer1 = game.player1Name === playerName
+    const isPlayer2 = game.player2Name === playerName
+
+    if (game.result === 'draw') {
+      return 'bg-blue-100' // Medium shade for draws
+    } else if (
+      (game.result === 'player1' && isPlayer1) ||
+      (game.result === 'player2' && isPlayer2)
+    ) {
+      return 'bg-green-200' // Darker color for wins
+    } else {
+      return '' // No background for losses
     }
   }
 
@@ -739,7 +756,7 @@ export function LadderPageClient() {
                                     <div className="p-4">
                                       <div className="flex items-center justify-between mb-3">
                                         <h3 className="font-medium text-[--color-text-primary] text-sm">
-                                          Games for {player.name}
+                                          All Games for {player.name}
                                         </h3>
                                         <Button
                                           variant="outline"
@@ -754,10 +771,10 @@ export function LadderPageClient() {
                                         <div className="text-center py-4">
                                           <p className="text-[--color-text-secondary] text-sm">Loading games...</p>
                                         </div>
-                                      ) : playerGames[`${player.id || ''}_${selectedDate}`] && playerGames[`${player.id || ''}_${selectedDate}`].length > 0 ? (
+                                      ) : playerGames[player.id || ''] && playerGames[player.id || ''].length > 0 ? (
                                         <div className="space-y-1">
-                                          {playerGames[`${player.id || ''}_${selectedDate}`].map((game, index) => (
-                                            <div key={game.id} className={`flex items-center justify-between py-2 px-3 hover:bg-white/50 rounded text-sm ${index % 2 === 1 ? 'bg-blue-50' : ''}`}>
+                                          {playerGames[player.id || ''].map((game, index) => (
+                                            <div key={game.id} className={`flex items-center justify-between py-2 px-3 hover:bg-white/50 rounded text-sm ${getGameResultColor(game, player.name)}`}>
                                               <div className="flex items-center gap-3">
                                                 <span className="font-medium text-[--color-text-primary] min-w-[80px]">
                                                   vs {getOpponentName(game, player.name)}

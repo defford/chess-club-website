@@ -379,3 +379,28 @@ export interface AchievementNotification {
   achievement: Achievement;
   timestamp: string;
 }
+
+// Chess Analysis Types
+export interface GameHistoryMove {
+  moveNumber: number;
+  move: string;
+  fen: string;
+  evaluation?: {
+    score: number;
+    mate?: number;
+    depth: number;
+    bestMove?: string;
+    pv?: string[];
+  };
+  timestamp: string;
+  isWhiteMove: boolean;
+}
+
+export interface GameHistory {
+  id: string;
+  startFen: string;
+  moves: GameHistoryMove[];
+  createdAt: string;
+  lastUpdated: string;
+  currentMoveIndex: number;
+}
