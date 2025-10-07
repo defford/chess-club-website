@@ -164,6 +164,13 @@ export function AnalysisBoardClient() {
 
   // Handle piece drop
   const onPieceDrop = (sourceSquare: string, targetSquare: string, piece?: string) => {
+    console.log('🚀 onPieceDrop called:', {
+      sourceSquare,
+      targetSquare,
+      piece,
+      isCustomBoardMode
+    });
+    
     // Handle custom board mode
     if (isCustomBoardMode) {
       return handleCustomPieceDrop(sourceSquare, targetSquare, piece);
@@ -406,10 +413,19 @@ export function AnalysisBoardClient() {
   };
 
   const handleCustomPieceDrop = (sourceSquare: string, targetSquare: string, piece?: string) => {
+    console.log('🎯 handleCustomPieceDrop called:', {
+      sourceSquare,
+      targetSquare,
+      piece,
+      isCustomBoardMode,
+      customPositionKeys: Object.keys(customPosition)
+    });
+    
     if (isCustomBoardMode) {
       // Check if we're moving an existing piece on the board
       if (customPosition[sourceSquare]) {
         // Moving an existing piece to a valid square
+        console.log('🔄 Moving existing piece from', sourceSquare, 'to', targetSquare);
         setCustomPosition(prev => {
           const newPosition = { ...prev };
           const pieceToMove = newPosition[sourceSquare];
@@ -420,14 +436,20 @@ export function AnalysisBoardClient() {
         return true;
       } else if (piece) {
         // Placing a piece from the sidebar (piece is already in our format: 'bk', 'wp', etc.)
+        console.log('📦 Placing piece from sidebar:', piece, 'at', targetSquare);
         setCustomPosition(prev => {
           const newPosition = { ...prev };
           newPosition[targetSquare] = piece;
           return newPosition;
         });
         return true;
+      } else {
+        console.log('❌ No piece found at source square and no piece parameter provided');
       }
+    } else {
+      console.log('❌ Not in custom board mode');
     }
+    console.log('❌ Returning false from handleCustomPieceDrop');
     return false;
   };
 
@@ -448,6 +470,8 @@ export function AnalysisBoardClient() {
 
   // Convert custom position to FEN for display
   const getCustomPositionFen = () => {
+    console.log('🔧 getCustomPositionFen called with customPosition:', customPosition);
+    
     let fenString = '';
     for (let i = 0; i < 8; i++) {
       let emptyCount = 0;
@@ -477,14 +501,12 @@ export function AnalysisBoardClient() {
     }
     const fullFen = fenString + ` ${customTurn} - - 0 1`;
     
-    // Validate the FEN string
-    try {
-      new Chess(fullFen);
-      return fullFen;
-    } catch (error) {
-      // Return a default valid FEN if our custom position is invalid
-      return '8/8/8/8/8/8/8/8 w - - 0 1';
-    }
+    console.log('🔧 Generated FEN:', fullFen);
+    
+    // For custom board mode, we'll allow positions without kings
+    // The chessboard library can handle these positions even if chess.js can't validate them
+    console.log('✅ Using custom FEN (may not be chess.js valid but board can display it)');
+    return fullFen;
   };
 
   return (
@@ -651,8 +673,37 @@ export function AnalysisBoardClient() {
                   </div>
                 )}
                 
-                {/* Chess Board */}
-                <div className="w-full max-w-lg">
+                {/* Chess Board with Drop Zone */}
+                <div 
+                  className="w-full max-w-lg"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (isCustomBoardMode) {
+                      const piece = e.dataTransfer.getData('text/plain');
+                      console.log('🎯 Drop event on board container:', { piece });
+                      if (piece) {
+                        // Get the square from the drop event
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        const x = e.clientX - rect.left;
+                        const y = e.clientY - rect.top;
+                        
+                        // Convert pixel coordinates to square (approximate)
+                        const squareSize = rect.width / 8;
+                        const file = Math.floor(x / squareSize);
+                        const rank = 7 - Math.floor(y / squareSize);
+                        
+                        console.log('🎯 Drop coordinates:', { x, y, file, rank, squareSize });
+                        
+                        if (file >= 0 && file < 8 && rank >= 0 && rank < 8) {
+                          const square = String.fromCharCode(97 + file) + (rank + 1);
+                          console.log('🎯 Dropping piece on square:', square);
+                          handleCustomPieceDrop('', square, piece);
+                        }
+                      }
+                    }
+                  }}
+                >
                   <Chessboard
                     position={isCustomBoardMode ? getCustomPositionFen() : fen}
                     onPieceDrop={onPieceDrop}
