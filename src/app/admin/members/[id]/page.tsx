@@ -355,7 +355,7 @@ export default function PlayerStatsPage() {
               Error loading player data
             </h3>
             <p className="text-[--color-text-secondary] mb-4">{error}</p>
-            <Button onClick={loadPlayerData}>Try Again</Button>
+            <Button onClick={loadPlayerData} variant="outline">Try Again</Button>
           </Card>
         </div>
       </div>

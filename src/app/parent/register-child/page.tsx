@@ -6,12 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, User, AlertCircle, CheckCircle } from "lucide-react"
 import Link from "next/link"
-
-interface ParentSession {
-  parentId: string;
-  email: string;
-  loginTime: number;
-}
+import { clientAuthService } from "@/lib/clientAuth"
 
 interface ChildRegistrationForm {
   playerName: string;
@@ -20,20 +15,6 @@ interface ChildRegistrationForm {
   emergencyContact: string;
   emergencyPhone: string;
   medicalInfo: string;
-}
-
-// Client-safe session management
-const getParentSession = (): ParentSession | null => {
-  if (typeof window === 'undefined') return null
-  
-  try {
-    const stored = localStorage.getItem('chess-club-parent-auth')
-    if (!stored) return null
-    
-    return JSON.parse(stored) as ParentSession
-  } catch {
-    return null
-  }
 }
 
 export default function RegisterChildPage() {
@@ -52,8 +33,13 @@ export default function RegisterChildPage() {
   })
 
   useEffect(() => {
-    // Check authentication
-    const session = getParentSession()
+    // Check authentication using the same service as dashboard
+    if (!clientAuthService.isParentAuthenticated()) {
+      router.push('/parent/login')
+      return
+    }
+
+    const session = clientAuthService.getCurrentParentSession()
     if (!session) {
       router.push('/parent/login')
       return
@@ -113,7 +99,7 @@ export default function RegisterChildPage() {
             </p>
             <div className="space-y-3">
               <Link href="/parent/dashboard">
-                <Button className="w-full">
+                <Button className="w-full" variant="outline">
                   Return to Dashboard
                 </Button>
               </Link>
@@ -144,7 +130,7 @@ export default function RegisterChildPage() {
         <div className="max-w-4xl mx-auto px-4 py-4">
           <div className="flex items-center">
             <Link href="/parent/dashboard">
-              <Button variant="ghost" size="sm">
+              <Button variant="outline" size="sm">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Dashboard
               </Button>
@@ -312,6 +298,7 @@ export default function RegisterChildPage() {
                     type="submit"
                     disabled={loading}
                     className="flex-1"
+                    variant="outline"
                   >
                     {loading ? 'Registering...' : 'Register Child'}
                   </Button>

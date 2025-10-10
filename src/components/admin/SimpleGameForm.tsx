@@ -143,7 +143,7 @@ export default function SimpleGameForm({
             <CardTitle className="text-lg sm:text-xl">Add Game</CardTitle>
           </div>
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={onCancel}
             disabled={isLoading}

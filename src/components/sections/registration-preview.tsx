@@ -147,7 +147,7 @@ export function RegistrationPreview() {
                   </label>
                 </div>
 
-                <Button type="submit" variant="secondary" size="xl" className="w-full">
+                <Button type="submit" variant="outline" size="xl" className="w-full">
                   Register Now
                 </Button>
               </form>

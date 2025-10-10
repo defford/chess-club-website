@@ -183,6 +183,7 @@ export default function MemberManagement() {
             <Button
               onClick={() => setShowQuickAddForm(true)}
               className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
+              variant="outline"
             >
               <Plus className="h-4 w-4" />
               Quick Add Student
@@ -308,7 +309,7 @@ export default function MemberManagement() {
               Error loading members
             </h3>
             <p className="text-[--color-text-secondary] mb-4">{error}</p>
-            <Button onClick={loadMembers}>Try Again</Button>
+            <Button onClick={loadMembers} variant="outline">Try Again</Button>
           </Card>
         )}
 

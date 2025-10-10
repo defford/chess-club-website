@@ -290,6 +290,31 @@ export function LadderPageClient() {
     }
   }
 
+  // Helper function to get display stats based on toggle state
+  const getDisplayStats = (player: LadderPlayerData) => {
+    if (showPlayersWithoutDailyPoints) {
+      // When showing players without daily points, show overall stats
+      return {
+        gamesPlayed: player.overallGamesPlayed || 0,
+        wins: player.overallWins || 0,
+        draws: player.overallDraws || 0,
+        losses: player.overallLosses || 0,
+        points: player.overallPoints || 0,
+        rank: player.overallRank || 999
+      }
+    } else {
+      // When not showing players without daily points, show daily stats
+      return {
+        gamesPlayed: player.gamesPlayed || 0,
+        wins: player.wins || 0,
+        draws: player.draws || 0,
+        losses: player.losses || 0,
+        points: player.points || 0,
+        rank: player.rank || 999
+      }
+    }
+  }
+
   const sortedPlayers = [...ladderPlayers]
     .filter(player => !player.id?.startsWith('unknown_')) // Filter out system players
     .filter(player => selectedGrade === "all" || player.grade === selectedGrade)
@@ -569,7 +594,7 @@ export function LadderPageClient() {
                 </CardTitle>
                 <CardDescription>
                   {sortedPlayers.length} active player{sortedPlayers.length !== 1 ? 's' : ''} with overall points &gt; 0
-                  {selectedDate && ` • Daily stats for ${formatDate(selectedDate)}`}
+                  {selectedDate && ` • ${showPlayersWithoutDailyPoints ? 'All games stats' : `Daily stats for ${formatDate(selectedDate)}`}`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -669,7 +694,7 @@ export function LadderPageClient() {
                             onClick={() => handleSort("points")}
                           >
                             <div className="flex items-center gap-1">
-                              Daily Points
+                              {showPlayersWithoutDailyPoints ? "All Games Points" : "Daily Points"}
                               {sortField === "points" && (
                                 sortDirection === "asc" ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />
                               )}
@@ -701,12 +726,14 @@ export function LadderPageClient() {
                         </tr>
                       </thead>
                       <tbody>
-                        {sortedPlayers.map((player) => (
+                        {sortedPlayers.map((player) => {
+                          const displayStats = getDisplayStats(player)
+                          return (
                           <React.Fragment key={player.id}>
                             <tr className="border-b border-[--color-neutral-light] hover:bg-[--color-neutral-light] transition-colors">
                               <td className="py-3 px-4">
-                                <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${getRankColor(player.rank || 999)}`}>
-                                  {getRankIcon(player.rank || 999)}
+                                <div className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-sm font-semibold ${getRankColor(displayStats.rank)}`}>
+                                  {getRankIcon(displayStats.rank)}
                                 </div>
                               </td>
                               <td className="py-3 px-4 font-medium text-[--color-text-primary]">
@@ -716,19 +743,19 @@ export function LadderPageClient() {
                                 {player.grade}
                               </td>
                               <td className="py-3 px-4 text-[--color-text-secondary]">
-                                {player.gamesPlayed}
+                                {displayStats.gamesPlayed}
                               </td>
                               <td className="py-3 px-4 text-green-600 font-medium">
-                                {player.wins}
+                                {displayStats.wins}
                               </td>
                               <td className="py-3 px-4 text-blue-600 font-medium">
-                                {player.draws}
+                                {displayStats.draws}
                               </td>
                               <td className="py-3 px-4 text-red-600 font-medium">
-                                {player.losses}
+                                {displayStats.losses}
                               </td>
                               <td className="py-3 px-4 font-semibold text-[--color-text-primary]">
-                                {player.points}
+                                {displayStats.points}
                               </td>
                               <td className="py-3 px-4 font-semibold text-[--color-accent]">
                                 {player.overallPoints}
@@ -808,7 +835,8 @@ export function LadderPageClient() {
                               </tr>
                             )}
                           </React.Fragment>
-                        ))}
+                          )
+                        })}
                       </tbody>
                     </table>
                   </div>

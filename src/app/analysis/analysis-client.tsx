@@ -5,12 +5,13 @@ import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Play, Square, BarChart3, PanelRight, Edit3, Check } from 'lucide-react';
+import { RotateCcw, Play, Square, BarChart3, PanelRight, Edit3, Check, Puzzle, ArrowRight } from 'lucide-react';
 import { StockfishWorker, StockfishMessage, EvaluationData } from '@/lib/stockfish-worker';
 import { VerticalEvaluationBar } from '@/components/analysis/VerticalEvaluationBar';
 import { PositionSetup } from '@/components/analysis/PositionSetup';
 import { GameHistory } from '@/components/analysis/GameHistory';
-import { GameHistoryMove, GameHistory as GameHistoryType } from '@/lib/types';
+import { PuzzleSelector } from '@/components/analysis/PuzzleSelector';
+import { GameHistoryMove, GameHistory as GameHistoryType, PuzzleData, PuzzleParams, PuzzleState } from '@/lib/types';
 
 // Types
 interface MoveNode {
@@ -38,33 +39,34 @@ export function AnalysisBoardClient() {
   });
   const [currentNode, setCurrentNode] = useState<MoveNode>(moveTree);
   
-  // Game history
-  const [gameHistory, setGameHistory] = useState<GameHistoryType>(() => {
-    // Try to load from localStorage on initialization
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('chess-analysis-history');
-      if (saved) {
-        try {
-          return JSON.parse(saved);
-        } catch (error) {
-          console.error('Failed to parse saved game history:', error);
-        }
-      }
-    }
-    
-    return {
-      id: `game-${Date.now()}`,
-      startFen: game.fen(),
-      moves: [],
-      createdAt: new Date().toISOString(),
-      lastUpdated: new Date().toISOString(),
-      currentMoveIndex: -1
-    };
+  // Game history - initialize with empty state to avoid hydration mismatch
+  const [gameHistory, setGameHistory] = useState<GameHistoryType>({
+    id: `game-${Date.now()}`,
+    startFen: game.fen(),
+    moves: [],
+    createdAt: new Date().toISOString(),
+    lastUpdated: new Date().toISOString(),
+    currentMoveIndex: -1
   });
   
   // Worker reference
   const workerRef = useRef<StockfishWorker | null>(null);
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load game history from localStorage after hydration
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('chess-analysis-history');
+      if (saved) {
+        try {
+          const parsedHistory = JSON.parse(saved);
+          setGameHistory(parsedHistory);
+        } catch (error) {
+          console.error('Failed to parse saved game history:', error);
+        }
+      }
+    }
+  }, []); // Only run once after hydration
 
   // Save game history to localStorage whenever it changes
   useEffect(() => {
@@ -168,12 +170,18 @@ export function AnalysisBoardClient() {
       sourceSquare,
       targetSquare,
       piece,
-      isCustomBoardMode
+      isCustomBoardMode,
+      isPuzzleMode: puzzleState.isPuzzleMode
     });
     
     // Handle custom board mode
     if (isCustomBoardMode) {
       return handleCustomPieceDrop(sourceSquare, targetSquare, piece);
+    }
+
+    // Handle puzzle mode
+    if (puzzleState.isPuzzleMode) {
+      return handlePuzzleMove(sourceSquare, targetSquare);
     }
 
     // Handle normal analysis mode
@@ -316,6 +324,19 @@ export function AnalysisBoardClient() {
   const [isCustomBoardMode, setIsCustomBoardMode] = useState(false);
   const [customPosition, setCustomPosition] = useState<Record<string, string>>({});
   const [customTurn, setCustomTurn] = useState<'w' | 'b'>('w');
+
+  // Puzzle state
+  const [puzzleState, setPuzzleState] = useState<PuzzleState>({
+    currentPuzzle: null,
+    isPuzzleMode: false,
+    puzzleSolution: [],
+    currentSolutionIndex: 0,
+    isPuzzleSolved: false
+  });
+  const [isPuzzleSelectorOpen, setIsPuzzleSelectorOpen] = useState(false);
+  const [isLoadingPuzzle, setIsLoadingPuzzle] = useState(false);
+  const [isOpponentMoving, setIsOpponentMoving] = useState(false);
+  const [lastPuzzleParams, setLastPuzzleParams] = useState<PuzzleParams | null>(null);
 
 
   // Handle position change from setup
@@ -468,6 +489,388 @@ export function AnalysisBoardClient() {
     setCustomPosition({});
   };
 
+  // Puzzle functions
+  const handleLoadPuzzle = async (params: PuzzleParams) => {
+    setIsLoadingPuzzle(true);
+    // Store the parameters for potential reuse
+    setLastPuzzleParams(params);
+    try {
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (params.themes && params.themes.length > 0) {
+        queryParams.append('themes', params.themes.join(','));
+      }
+      if (params.rating?.min) {
+        queryParams.append('ratingMin', params.rating.min.toString());
+      }
+      if (params.rating?.max) {
+        queryParams.append('ratingMax', params.rating.max.toString());
+      }
+      if (params.color) {
+        queryParams.append('color', params.color);
+      }
+
+      const response = await fetch(`/api/puzzle?${queryParams.toString()}`);
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to load puzzle');
+      }
+
+      const puzzle: PuzzleData = data.puzzle;
+      
+      // Extract FEN from the puzzle's PGN
+      let puzzleFen = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'; // Default starting position
+      
+      try {
+        // First, try to find FEN in PGN headers
+        const pgnLines = puzzle.game.pgn.split('\n');
+        const fenLine = pgnLines.find(line => line.startsWith('[FEN'));
+        
+        if (fenLine) {
+          // Extract FEN from [FEN "fen_string"]
+          const fenMatch = fenLine.match(/\[FEN "([^"]+)"/);
+          if (fenMatch) {
+            puzzleFen = fenMatch[1];
+            console.log('Found FEN in PGN headers:', puzzleFen);
+          }
+        } else {
+          // If no FEN, play through the PGN moves to reach the puzzle position
+          console.log('No FEN found, playing through PGN moves to reach puzzle position');
+          console.log('Initial ply:', puzzle.initialPly);
+          console.log('PGN:', puzzle.game.pgn);
+          
+          // Parse the PGN to get moves
+          const pgnContent = puzzle.game.pgn.replace(/\[.*?\]/g, '').trim();
+          const moves = pgnContent.split(/\s+/).filter(move => move && !move.match(/^\d+\.$/));
+          
+          console.log('Parsed moves from PGN:', moves);
+          
+          // Create a new chess game and play moves up to initialPly
+          const tempGame = new Chess();
+          const movesToPlay = Math.min(puzzle.initialPly, moves.length);
+          
+          console.log(`Playing ${movesToPlay} moves to reach puzzle position`);
+          console.log('Note: initialPly might need adjustment - trying different counts...');
+          
+          // Try playing moves up to initialPly, but also try initialPly + 1 in case we're off by one
+          let finalFen = tempGame.fen();
+          
+          for (let i = 0; i < movesToPlay; i++) {
+            try {
+              const move = tempGame.move(moves[i]);
+              if (!move) {
+                console.warn(`Invalid move at index ${i}: ${moves[i]}`);
+                break;
+              }
+              console.log(`Played move ${i + 1}: ${moves[i]}`);
+            } catch (error) {
+              console.warn(`Error playing move ${moves[i]} at index ${i}:`, error);
+              break;
+            }
+          }
+          
+          finalFen = tempGame.fen();
+          console.log('Generated FEN from PGN moves:', finalFen);
+          
+          // If the first move of the solution is not legal, try playing one more move
+          const testGame = new Chess(finalFen);
+          const firstSolutionMove = puzzle.solution[0];
+          const sourceSquare = firstSolutionMove.substring(0, 2);
+          const targetSquare = firstSolutionMove.substring(2, 4);
+          
+          console.log('Testing if first solution move is legal:', firstSolutionMove);
+          console.log('Legal moves from', sourceSquare, ':', testGame.moves({ square: sourceSquare as any }));
+          
+          if (testGame.moves({ square: sourceSquare as any }).length === 0) {
+            console.log('First solution move is not legal, trying with one more move...');
+            
+            // Try playing one more move
+            if (movesToPlay < moves.length) {
+              try {
+                const extraMove = tempGame.move(moves[movesToPlay]);
+                if (extraMove) {
+                  finalFen = tempGame.fen();
+                  console.log('Generated FEN with extra move:', finalFen);
+                  
+                  // Test again
+                  const testGame2 = new Chess(finalFen);
+                  console.log('Legal moves from', sourceSquare, 'after extra move:', testGame2.moves({ square: sourceSquare as any }));
+                }
+              } catch (error) {
+                console.log('Extra move failed:', error);
+              }
+            }
+          }
+          
+          puzzleFen = finalFen;
+          
+          // Validate that we have a different position than the starting position
+          if (puzzleFen === 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1') {
+            console.warn('Generated FEN is still the starting position - puzzle may not have loaded correctly');
+          }
+        }
+      } catch (error) {
+        console.error('Error processing puzzle PGN:', error);
+        console.log('Using default starting position');
+      }
+
+      // Update puzzle state
+      setPuzzleState({
+        currentPuzzle: puzzle,
+        isPuzzleMode: true,
+        puzzleSolution: puzzle.solution,
+        currentSolutionIndex: 0,
+        isPuzzleSolved: false
+      });
+
+      // Determine if puzzle is for black and flip board accordingly
+      const puzzleGame = new Chess(puzzleFen);
+      const isBlackToMove = puzzleGame.turn() === 'b';
+      
+      // If puzzle is for black, flip the board to show black's perspective
+      if (isBlackToMove) {
+        setBoardOrientation('black');
+      } else {
+        setBoardOrientation('white');
+      }
+      
+      // Set the board position
+      handlePositionChange(puzzleFen);
+      
+      // Close the selector
+      setIsPuzzleSelectorOpen(false);
+      
+      console.log('Puzzle loaded:', {
+        id: puzzle.id,
+        rating: puzzle.rating,
+        themes: puzzle.themes,
+        solution: puzzle.solution
+      });
+
+    } catch (error) {
+      console.error('Failed to load puzzle:', error);
+      alert('Failed to load puzzle. Please try again.');
+    } finally {
+      setIsLoadingPuzzle(false);
+    }
+  };
+
+  const exitPuzzleMode = () => {
+    setPuzzleState({
+      currentPuzzle: null,
+      isPuzzleMode: false,
+      puzzleSolution: [],
+      currentSolutionIndex: 0,
+      isPuzzleSolved: false
+    });
+    setIsOpponentMoving(false);
+    resetPosition();
+  };
+
+  const generateNewPuzzle = async () => {
+    if (lastPuzzleParams) {
+      await handleLoadPuzzle(lastPuzzleParams);
+    } else {
+      alert('No previous puzzle parameters found. Please load a puzzle first.');
+    }
+  };
+
+  const handlePuzzleMove = (sourceSquare: string, targetSquare: string) => {
+    console.log('🎯 handlePuzzleMove called:', {
+      sourceSquare,
+      targetSquare,
+      currentSolutionIndex: puzzleState.currentSolutionIndex,
+      expectedMove: puzzleState.puzzleSolution[puzzleState.currentSolutionIndex]
+    });
+
+    try {
+      // Check if the move matches the expected solution move
+      const expectedMove = puzzleState.puzzleSolution[puzzleState.currentSolutionIndex];
+      const moveNotation = `${sourceSquare}${targetSquare}`;
+      
+      if (moveNotation === expectedMove) {
+        // Correct move!
+        console.log('✅ Correct move!');
+        
+        // Debug: Check what's on the source square
+        const piece = game.get(sourceSquare as any);
+        console.log('Piece on source square:', piece);
+        console.log('Current FEN:', game.fen());
+        console.log('Legal moves from', sourceSquare, ':', game.moves({ square: sourceSquare as any }));
+        
+        // Debug: Check what's on the h-file to see what's blocking
+        console.log('H-file pieces:');
+        for (let rank = 1; rank <= 8; rank++) {
+          const square = `h${rank}`;
+          const pieceOnSquare = game.get(square as any);
+          console.log(`${square}:`, pieceOnSquare ? `${pieceOnSquare.color}${pieceOnSquare.type}` : 'empty');
+        }
+        
+        // Make the move - try different approaches
+        let move = null;
+        if (piece) {
+          console.log('Making move for piece:', piece.type, piece.color);
+          
+          // Try with explicit piece type
+          try {
+            move = game.move({
+              from: sourceSquare,
+              to: targetSquare
+            });
+          } catch (error) {
+            console.log('Move with piece type failed, trying without promotion...');
+            
+            // Try without any promotion parameter
+            try {
+              move = game.move({
+                from: sourceSquare,
+                to: targetSquare
+              });
+            } catch (error2) {
+              console.log('Standard move failed, trying UCI format...');
+              
+              // Try using the move as a string (UCI format)
+              try {
+                move = game.move(moveNotation);
+              } catch (error3) {
+                console.log('UCI format failed, trying SAN format...');
+                
+                // Try SAN format - convert UCI to SAN
+                try {
+                  const sanMove = `${piece.type.toUpperCase()}${targetSquare}`;
+                  console.log('Trying SAN move:', sanMove);
+                  move = game.move(sanMove);
+                } catch (error4) {
+                  console.log('SAN format failed, trying with file disambiguation...');
+                  
+                  // Try with file disambiguation
+                  try {
+                    const sanMoveWithFile = `${piece.type.toUpperCase()}${sourceSquare}${targetSquare}`;
+                    console.log('Trying SAN move with file:', sanMoveWithFile);
+                    move = game.move(sanMoveWithFile);
+                  } catch (error5) {
+                console.error('All move attempts failed:', { error, error2, error3, error4, error5 });
+                throw new Error(`Cannot make move ${sourceSquare}${targetSquare}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          throw new Error(`No piece found on square ${sourceSquare}`);
+        }
+
+        if (move) {
+          const newGame = new Chess(game.fen());
+          setGame(newGame);
+          setFen(newGame.fen());
+          
+          // Update puzzle state
+          const newSolutionIndex = puzzleState.currentSolutionIndex + 1;
+          const isPuzzleSolved = newSolutionIndex >= puzzleState.puzzleSolution.length;
+          
+          setPuzzleState(prev => ({
+            ...prev,
+            currentSolutionIndex: newSolutionIndex,
+            isPuzzleSolved
+          }));
+          
+          // Record move in history
+          recordMove(move, newGame.fen());
+          
+          // Start analysis
+          startAnalysis(newGame.fen());
+          
+          if (isPuzzleSolved) {
+            console.log('🎉 Puzzle solved!');
+            alert('Congratulations! Puzzle solved!');
+          } else {
+            console.log(`Next expected move: ${puzzleState.puzzleSolution[newSolutionIndex]}`);
+            
+            // Automatically make the opponent's move after a short delay
+            setTimeout(() => {
+              makeOpponentMove(newSolutionIndex);
+            }, 500); // 0.5 second delay
+          }
+          
+          return true;
+        }
+      } else {
+        // Wrong move
+        console.log('❌ Wrong move!');
+        console.log(`Expected: ${expectedMove}, Got: ${moveNotation}`);
+        alert(`Wrong move! Expected: ${expectedMove}`);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error making puzzle move:', error);
+      return false;
+    }
+    
+    return false;
+  };
+
+  const makeOpponentMove = (solutionIndex: number) => {
+    console.log('🤖 Making opponent move at solution index:', solutionIndex);
+    
+    if (solutionIndex >= puzzleState.puzzleSolution.length) {
+      console.log('No more moves in solution');
+      return;
+    }
+    
+    setIsOpponentMoving(true);
+    
+    const opponentMove = puzzleState.puzzleSolution[solutionIndex];
+    const sourceSquare = opponentMove.substring(0, 2);
+    const targetSquare = opponentMove.substring(2, 4);
+    
+    console.log('🤖 Opponent move:', opponentMove, 'from', sourceSquare, 'to', targetSquare);
+    
+    try {
+      // Make the opponent's move
+      const move = game.move({
+        from: sourceSquare,
+        to: targetSquare
+      });
+      
+      if (move) {
+        const newGame = new Chess(game.fen());
+        setGame(newGame);
+        setFen(newGame.fen());
+        
+        // Update puzzle state
+        const newSolutionIndex = solutionIndex + 1;
+        const isPuzzleSolved = newSolutionIndex >= puzzleState.puzzleSolution.length;
+        
+        setPuzzleState(prev => ({
+          ...prev,
+          currentSolutionIndex: newSolutionIndex,
+          isPuzzleSolved
+        }));
+        
+        // Record move in history
+        recordMove(move, newGame.fen());
+        
+        // Start analysis
+        startAnalysis(newGame.fen());
+        
+        console.log('🤖 Opponent move completed. Next expected move:', puzzleState.puzzleSolution[newSolutionIndex]);
+        
+        if (isPuzzleSolved) {
+          console.log('🎉 Puzzle solved!');
+          alert('Congratulations! Puzzle solved!');
+        }
+      } else {
+        console.error('🤖 Failed to make opponent move:', opponentMove);
+      }
+    } catch (error) {
+      console.error('🤖 Error making opponent move:', error);
+    } finally {
+      setIsOpponentMoving(false);
+    }
+  };
+
   // Convert custom position to FEN for display
   const getCustomPositionFen = () => {
     console.log('🔧 getCustomPositionFen called with customPosition:', customPosition);
@@ -521,9 +924,56 @@ export function AnalysisBoardClient() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
-                <span>{isCustomBoardMode ? "Custom Board Setup" : "Analysis Board"}</span>
+                <span>
+                  {isCustomBoardMode ? "Custom Board Setup" : 
+                   puzzleState.isPuzzleMode ? `Puzzle Mode - Rating: ${puzzleState.currentPuzzle?.rating || 'N/A'}` :
+                   "Analysis Board"}
+                </span>
                 <div className="flex gap-2">
-                  {isCustomBoardMode ? (
+                  {puzzleState.isPuzzleMode ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={exitPuzzleMode}
+                        title="Exit puzzle mode"
+                      >
+                        Exit Puzzle
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={generateNewPuzzle}
+                        title="Generate new puzzle with same parameters"
+                        disabled={isLoadingPuzzle || !lastPuzzleParams}
+                      >
+                        <ArrowRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleEvaluationBar}
+                        title={showEvaluationBar ? "Hide evaluation bar" : "Show evaluation bar"}
+                      >
+                        <BarChart3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleSidebar}
+                        title={showSidebar ? "Hide sidebar" : "Show sidebar"}
+                      >
+                        <PanelRight className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={flipBoard}
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : isCustomBoardMode ? (
                     <>
                       <Button
                         variant="outline"
@@ -556,6 +1006,15 @@ export function AnalysisBoardClient() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => setIsPuzzleSelectorOpen(true)}
+                        title="Load a chess puzzle"
+                      >
+                        <Puzzle className="h-4 w-4 mr-1" />
+                        Puzzle
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={enterCustomBoardMode}
                         title="Enter custom board mode"
                       >
@@ -563,7 +1022,7 @@ export function AnalysisBoardClient() {
                         Custom
                       </Button>
                       <Button
-                        variant={showEvaluationBar ? "primary" : "outline"}
+                        variant="outline"
                         size="sm"
                         onClick={toggleEvaluationBar}
                         title={showEvaluationBar ? "Hide evaluation bar" : "Show evaluation bar"}
@@ -571,7 +1030,7 @@ export function AnalysisBoardClient() {
                         <BarChart3 className="h-4 w-4" />
                       </Button>
                       <Button
-                        variant={showSidebar ? "primary" : "outline"}
+                        variant="outline"
                         size="sm"
                         onClick={toggleSidebar}
                         title={showSidebar ? "Hide sidebar" : "Show sidebar"}
@@ -738,6 +1197,71 @@ export function AnalysisBoardClient() {
         {/* Analysis Panel */}
         {showSidebar && (
           <div className="space-y-6">
+            {/* Puzzle Information */}
+            {puzzleState.isPuzzleMode && puzzleState.currentPuzzle && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Puzzle Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium text-[--color-text-primary]">
+                        Rating:
+                      </label>
+                      <p className="text-sm text-[--color-text-secondary]">
+                        {puzzleState.currentPuzzle.rating}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-[--color-text-primary]">
+                        Themes:
+                      </label>
+                      <p className="text-sm text-[--color-text-secondary]">
+                        {puzzleState.currentPuzzle.themes.join(', ')}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-[--color-text-primary]">
+                        Plays:
+                      </label>
+                      <p className="text-sm text-[--color-text-secondary]">
+                        {puzzleState.currentPuzzle.plays.toLocaleString()}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-[--color-text-primary]">
+                        Solution Moves:
+                      </label>
+                      <p className="text-sm text-[--color-text-secondary] font-mono">
+                        {puzzleState.puzzleSolution.map((move, index) => (
+                          <span key={index} className={index < puzzleState.currentSolutionIndex ? 'text-green-600' : index === puzzleState.currentSolutionIndex ? 'text-blue-600 font-bold' : 'text-gray-500'}>
+                            {move}
+                            {index < puzzleState.puzzleSolution.length - 1 ? ' → ' : ''}
+                          </span>
+                        ))}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-[--color-text-primary]">
+                        Progress:
+                      </label>
+                      <p className="text-sm text-[--color-text-secondary]">
+                        {puzzleState.currentSolutionIndex} / {puzzleState.puzzleSolution.length} moves
+                      </p>
+                    </div>
+                    {isOpponentMoving && (
+                      <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                        <p className="text-sm text-blue-700 font-medium">
+                          🤖 Opponent is thinking...
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Evaluation Details */}
             <Card>
               <CardHeader>
@@ -879,6 +1403,14 @@ export function AnalysisBoardClient() {
           </div>
         )}
       </div>
+
+      {/* Puzzle Selector Modal */}
+      <PuzzleSelector
+        isOpen={isPuzzleSelectorOpen}
+        onClose={() => setIsPuzzleSelectorOpen(false)}
+        onLoadPuzzle={handleLoadPuzzle}
+        isLoading={isLoadingPuzzle}
+      />
     </div>
   );
 }

@@ -149,6 +149,7 @@ export default function ParentLogin() {
                 type="submit" 
                 className="w-full bg-black" 
                 size="lg"
+                variant="outline"
                 disabled={loading || !email}
               >
                 {loading ? (

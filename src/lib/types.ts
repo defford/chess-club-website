@@ -404,3 +404,34 @@ export interface GameHistory {
   lastUpdated: string;
   currentMoveIndex: number;
 }
+
+// Lichess Puzzle Types
+export interface PuzzleData {
+  id: string;
+  rating: number;
+  plays: number;
+  solution: string[];
+  themes: string[];
+  initialPly: number;
+  game: {
+    id: string;
+    pgn: string;
+  };
+}
+
+export interface PuzzleParams {
+  themes?: string[];
+  rating?: {
+    min?: number;
+    max?: number;
+  };
+  color?: 'white' | 'black' | 'random';
+}
+
+export interface PuzzleState {
+  currentPuzzle: PuzzleData | null;
+  isPuzzleMode: boolean;
+  puzzleSolution: string[];
+  currentSolutionIndex: number;
+  isPuzzleSolved: boolean;
+}

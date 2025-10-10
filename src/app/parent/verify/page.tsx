@@ -173,6 +173,7 @@ function ParentVerifyContent() {
                   <Button 
                     onClick={() => router.push('/parent/dashboard')}
                     className="mt-4"
+                    variant="outline"
                   >
                     Go to Dashboard
                   </Button>
@@ -205,6 +206,7 @@ function ParentVerifyContent() {
                   <Button 
                     onClick={() => handleApprovalClick('approve')}
                     className="flex-1 bg-green-600 hover:bg-green-700"
+                    variant="outline"
                   >
                     Approve
                   </Button>

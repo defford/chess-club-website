@@ -284,6 +284,7 @@ export default function QuickAddStudentForm({ onSuccess, onCancel }: QuickAddStu
                 type="submit"
                 disabled={isSubmitting}
                 className="bg-[--color-primary] text-black"
+                variant="outline"
               >
                 {isSubmitting ? (
                   <>

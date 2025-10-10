@@ -98,7 +98,7 @@ export default function GameForm({
               <CardTitle className="text-lg sm:text-xl">Record New Game</CardTitle>
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={onCancel}
               disabled={isLoading}
@@ -325,6 +325,7 @@ export default function GameForm({
                 type="submit"
                 disabled={isLoading}
                 className="flex items-center justify-center gap-2 w-full sm:w-auto order-1 sm:order-2"
+                variant="outline"
               >
                 <Save className="h-4 w-4" />
                 {isLoading ? 'Saving...' : 'Save Game'}

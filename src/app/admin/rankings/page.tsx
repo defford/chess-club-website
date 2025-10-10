@@ -218,6 +218,7 @@ export default function AdminRankingsPage() {
                   onClick={() => setShowGameForm(true)}
                   className="w-full"
                   size="lg"
+                  variant="outline"
                 >
                   <Plus className="h-4 w-4 mr-2" />
                   Record New Game
@@ -285,6 +286,7 @@ export default function AdminRankingsPage() {
                       onClick={submitGameResult}
                       disabled={!player1Id || !player2Id || !gameResult || submitting}
                       className="flex-1"
+                      variant="outline"
                     >
                       {submitting ? "Recording..." : "Record Game"}
                     </Button>

@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Calendar, MapPin, Users, Clock, User } from "lucide-react"
 import { useState, useEffect } from "react"
 import type { EventData } from "@/lib/googleSheets"
+import { clientAuthService } from "@/lib/clientAuth"
+import type { ParentSession } from "@/lib/types"
 
 interface EventsPageClientProps {
   initialEvents?: EventData[];
@@ -30,6 +32,40 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
     medicalInfo: '',
     createAccount: false
   })
+
+  // Authentication and student management
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [parentSession, setParentSession] = useState<ParentSession | null>(null)
+  const [students, setStudents] = useState<any[]>([])
+  const [studentsLoading, setStudentsLoading] = useState(false)
+  const [selectedStudent, setSelectedStudent] = useState<any>(null)
+
+  useEffect(() => {
+    // Check authentication status
+    const checkAuth = () => {
+      const authenticated = clientAuthService.isParentAuthenticated()
+      const session = clientAuthService.getCurrentParentSession()
+      setIsAuthenticated(authenticated)
+      setParentSession(session)
+    }
+
+    checkAuth()
+
+    // Listen for auth state changes
+    const handleAuthChange = () => {
+      checkAuth()
+    }
+
+    window.addEventListener('authStateChanged', handleAuthChange)
+    return () => window.removeEventListener('authStateChanged', handleAuthChange)
+  }, [])
+
+  useEffect(() => {
+    // Load students if authenticated
+    if (isAuthenticated && parentSession) {
+      loadStudents()
+    }
+  }, [isAuthenticated, parentSession])
 
   useEffect(() => {
     // Only fetch if we don't have initial data
@@ -58,6 +94,32 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
     fetchEvents()
   }, [initialEvents.length])
 
+  const loadStudents = async () => {
+    if (!parentSession) return
+
+    try {
+      setStudentsLoading(true)
+      const response = await fetch(`/api/parent/students?email=${encodeURIComponent(parentSession.email)}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch students')
+      }
+      const responseData = await response.json()
+      
+      // Handle the API response structure
+      if (responseData.success && Array.isArray(responseData.students)) {
+        setStudents(responseData.students)
+      } else {
+        console.error('Invalid students response:', responseData)
+        setStudents([])
+      }
+    } catch (error) {
+      console.error('Error loading students:', error)
+      setStudents([])
+    } finally {
+      setStudentsLoading(false)
+    }
+  }
+
   const filteredEvents = selectedCategory === "all" 
     ? allEvents 
     : allEvents.filter(event => event.category === selectedCategory)
@@ -72,6 +134,7 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
 
   const handleRegisterClick = (event: EventData) => {
     setSelectedEvent(event)
+    setSelectedStudent(null)
     setShowRegistrationModal(true)
   }
 
@@ -79,26 +142,43 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
     e.preventDefault()
     if (!selectedEvent) return
 
+    // For authenticated users, require a student selection
+    if (isAuthenticated && (!selectedStudent || !selectedStudent.id)) {
+      alert('Please select a student to register.')
+      return
+    }
+
     setRegistrationLoading(true)
     try {
+      const requestBody = isAuthenticated && selectedStudent
+        ? {
+            eventId: selectedEvent.id,
+            eventName: selectedEvent.name,
+            playerName: selectedStudent.name,
+            playerGrade: selectedStudent.grade,
+            parentEmail: parentSession?.email,
+            additionalNotes: registrationData.medicalInfo || ''
+          }
+        : {
+            eventId: selectedEvent.id,
+            eventName: selectedEvent.name,
+            ...registrationData
+          }
+
       const response = await fetch('/api/events/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          eventId: selectedEvent.id,
-          eventName: selectedEvent.name,
-          ...registrationData
-        })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
         throw new Error('Failed to register for event')
       }
 
-      // If user opted to create an account, send magic link
-      if (registrationData.createAccount) {
+      // If user opted to create an account (non-authenticated users only)
+      if (!isAuthenticated && registrationData.createAccount) {
         try {
           await fetch('/api/parent/auth', {
             method: 'POST',
@@ -117,6 +197,7 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
 
       // Success - close modal and reset form
       setShowRegistrationModal(false)
+      setSelectedStudent(null)
       setRegistrationData({
         parentName: '',
         parentEmail: '',
@@ -199,7 +280,7 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
               Error loading events
             </h3>
             <p className="text-[--color-text-secondary] mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
+            <Button onClick={() => window.location.reload()} variant="outline">Try Again</Button>
           </div>
         )}
 
@@ -255,15 +336,17 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
                       </p>
                     )}
                     
-                    {/* <Button 
-                      variant="secondary" 
-                      size="sm" 
-                      className="w-full"
-                      disabled={event.maxParticipants > 0 && event.participants >= event.maxParticipants}
-                      onClick={() => handleRegisterClick(event)}
-                    >
-                      {(event.maxParticipants > 0 && event.participants >= event.maxParticipants) ? "Event Full" : "Register for Event"}
-                    </Button> */}
+                    {isAuthenticated && (
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="w-full"
+                        disabled={event.maxParticipants > 0 && event.participants >= event.maxParticipants}
+                        onClick={() => handleRegisterClick(event)}
+                      >
+                        {(event.maxParticipants > 0 && event.participants >= event.maxParticipants) ? "Event Full" : "Register Student"}
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -314,144 +397,206 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
                 </div>
 
                 <form onSubmit={handleRegistrationSubmit} className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Parent/Guardian Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.parentName}
-                        onChange={(e) => handleInputChange('parentName', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Parent Email *
-                      </label>
-                      <input
-                        type="email"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.parentEmail}
-                        onChange={(e) => handleInputChange('parentEmail', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Parent Phone *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.parentPhone}
-                        onChange={(e) => handleInputChange('parentPhone', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Player Name *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.playerName}
-                        onChange={(e) => handleInputChange('playerName', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Player Age *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.playerAge}
-                        onChange={(e) => handleInputChange('playerAge', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Player Grade *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.playerGrade}
-                        onChange={(e) => handleInputChange('playerGrade', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Emergency Contact *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.emergencyContact}
-                        onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
-                      />
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                        Emergency Phone *
-                      </label>
-                      <input
-                        type="tel"
-                        required
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                        value={registrationData.emergencyPhone}
-                        onChange={(e) => handleInputChange('emergencyPhone', e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
-                      Medical Information (Optional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
-                      placeholder="Any allergies, medical conditions, or special requirements..."
-                      value={registrationData.medicalInfo}
-                      onChange={(e) => handleInputChange('medicalInfo', e.target.value)}
-                    />
-                  </div>
-
-                  <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
-                    <div className="flex items-start space-x-3">
-                      <input
-                        type="checkbox"
-                        id="createAccountEvent"
-                        checked={registrationData.createAccount}
-                        onChange={(e) => handleInputChange('createAccount', e.target.checked)}
-                        className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
-                      />
+                  {isAuthenticated ? (
+                    // Authenticated user form - show student selection
+                    <div className="space-y-4">
                       <div>
-                        <label htmlFor="createAccountEvent" className="text-sm font-medium text-blue-800">
-                          Create a parent account to track your player's progress
+                        <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                          Select Student to Register *
                         </label>
-                        <p className="text-xs text-blue-600 mt-1">
-                          With a parent account, you can view rankings, register for events, and track tournament performance. A link will be sent to your email.
-                        </p>
+                        {studentsLoading ? (
+                          <div className="text-center py-4">
+                            <div className="text-sm text-[--color-text-secondary]">Loading students...</div>
+                          </div>
+                        ) : !Array.isArray(students) || students.length === 0 ? (
+                          <div className="text-center py-4">
+                            <div className="text-sm text-[--color-text-secondary]">No students found under your account.</div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {students.map((student) => (
+                              <div
+                                key={student.id}
+                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                  selectedStudent?.id === student.id
+                                    ? 'border-[--color-primary] bg-[--color-primary]/10'
+                                    : 'border-gray-300 hover:border-gray-400'
+                                }`}
+                                onClick={() => setSelectedStudent(student)}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <div className="font-medium text-[--color-text-primary]">{student.name}</div>
+                                    <div className="text-sm text-[--color-text-secondary]">
+                                      Grade {student.grade} • Age {student.age}
+                                    </div>
+                                  </div>
+                                  {selectedStudent?.id === student.id && (
+                                    <div className="text-[--color-primary]">✓</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                          Additional Notes (Optional)
+                        </label>
+                        <textarea
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                          placeholder="Any allergies, medical conditions, or special requirements..."
+                          value={registrationData.medicalInfo}
+                          onChange={(e) => handleInputChange('medicalInfo', e.target.value)}
+                        />
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    // Non-authenticated user form - show full registration form
+                    <>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Parent/Guardian Name *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.parentName}
+                            onChange={(e) => handleInputChange('parentName', e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Parent Email *
+                          </label>
+                          <input
+                            type="email"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.parentEmail}
+                            onChange={(e) => handleInputChange('parentEmail', e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Parent Phone *
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.parentPhone}
+                            onChange={(e) => handleInputChange('parentPhone', e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Player Name *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.playerName}
+                            onChange={(e) => handleInputChange('playerName', e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Player Age *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.playerAge}
+                            onChange={(e) => handleInputChange('playerAge', e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Player Grade *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.playerGrade}
+                            onChange={(e) => handleInputChange('playerGrade', e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Emergency Contact *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.emergencyContact}
+                            onChange={(e) => handleInputChange('emergencyContact', e.target.value)}
+                          />
+                        </div>
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            Emergency Phone *
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.emergencyPhone}
+                            onChange={(e) => handleInputChange('emergencyPhone', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                          Medical Information (Optional)
+                        </label>
+                        <textarea
+                          rows={3}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                          placeholder="Any allergies, medical conditions, or special requirements..."
+                          value={registrationData.medicalInfo}
+                          onChange={(e) => handleInputChange('medicalInfo', e.target.value)}
+                        />
+                      </div>
+
+                      <div className="border border-blue-200 rounded-lg p-4 bg-blue-50">
+                        <div className="flex items-start space-x-3">
+                          <input
+                            type="checkbox"
+                            id="createAccountEvent"
+                            checked={registrationData.createAccount}
+                            onChange={(e) => handleInputChange('createAccount', e.target.checked)}
+                            className="mt-1 h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
+                          />
+                          <div>
+                            <label htmlFor="createAccountEvent" className="text-sm font-medium text-blue-800">
+                              Create a parent account to track your player's progress
+                            </label>
+                            <p className="text-xs text-blue-600 mt-1">
+                              With a parent account, you can view rankings, register for events, and track tournament performance. A link will be sent to your email.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="flex gap-3 pt-4">
                     <Button
@@ -464,7 +609,7 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
                     </Button>
                     <Button
                       type="submit"
-                      variant="primary"
+                      variant="outline"
                       className="flex-1"
                       disabled={registrationLoading}
                     >

@@ -234,7 +234,7 @@ export default function PlayerDetailPage() {
               <h3 className="text-lg font-medium text-gray-900 mb-2">Player Not Found</h3>
               <p className="text-gray-600 mb-6">{error || 'The requested player could not be found.'}</p>
               <Link href="/parent/dashboard">
-                <Button>Return to Dashboard</Button>
+                <Button variant="outline">Return to Dashboard</Button>
               </Link>
             </CardContent>
           </Card>
@@ -458,7 +458,7 @@ export default function PlayerDetailPage() {
                       }
                     </p>
                     <Link href="/events">
-                      <Button>Browse Upcoming Events</Button>
+                      <Button variant="outline">Browse Upcoming Events</Button>
                     </Link>
                   </div>
                 )}
@@ -530,7 +530,7 @@ export default function PlayerDetailPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <Link href="/events">
-                  <Button className="w-full justify-start">
+                  <Button className="w-full justify-start" variant="outline">
                     <Calendar className="w-4 h-4 mr-2" />
                     {isSelfRegistered ? 'Register for Events' : 'Register for Events'}
                   </Button>

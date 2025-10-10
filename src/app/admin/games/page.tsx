@@ -395,7 +395,7 @@ export default function AdminGamesPage() {
             ) : error ? (
               <div className="text-center py-8">
                 <p className="text-red-600">{error}</p>
-                <Button onClick={loadData} className="mt-4">
+                <Button onClick={loadData} className="mt-4" variant="outline">
                   Retry
                 </Button>
               </div>
@@ -406,6 +406,7 @@ export default function AdminGamesPage() {
                 <Button 
                   onClick={() => setShowQuickForm(true)}
                   className="mt-4"
+                  variant="outline"
                 >
                   Add First Game
                 </Button>

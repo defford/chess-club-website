@@ -349,7 +349,7 @@ function RegisterPageContent() {
               </div>
               <div className="mt-6">
                 <Button 
-                  variant="primary" 
+                  variant="outline" 
                   onClick={() => {
                     setSubmitted(false)
                     setCurrentStep(1)

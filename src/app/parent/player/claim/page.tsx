@@ -133,7 +133,7 @@ export default function ClaimPlayer() {
                     <h4 className="font-medium text-green-800">Player Claimed Successfully!</h4>
                     <p className="text-sm text-green-700 mt-1">{message}</p>
                     <Link href="/parent/dashboard">
-                      <Button size="sm" className="mt-3">
+                      <Button size="sm" className="mt-3" variant="outline">
                         Go to Dashboard
                       </Button>
                     </Link>
@@ -166,7 +166,7 @@ export default function ClaimPlayer() {
                     <h4 className="font-medium text-blue-800">Already Claimed</h4>
                     <p className="text-sm text-blue-700 mt-1">{message}</p>
                     <Link href="/parent/dashboard">
-                      <Button size="sm" className="mt-3">
+                      <Button size="sm" className="mt-3" variant="outline">
                         View in Dashboard
                       </Button>
                     </Link>
@@ -239,6 +239,7 @@ export default function ClaimPlayer() {
                     type="submit" 
                     className="flex-1" 
                     disabled={loading || !playerEmail || !playerName}
+                    variant="outline"
                   >
                     {loading ? (
                       <>
@@ -272,7 +273,7 @@ export default function ClaimPlayer() {
                   Claim Another Player
                 </Button>
                 <Link href="/parent/dashboard" className="flex-1">
-                  <Button className="w-full">
+                  <Button className="w-full" variant="outline">
                     Go to Dashboard
                   </Button>
                 </Link>
@@ -285,7 +286,7 @@ export default function ClaimPlayer() {
                   Claim Another Player
                 </Button>
                 <Link href="/parent/dashboard" className="flex-1">
-                  <Button className="w-full">
+                  <Button className="w-full" variant="outline">
                     Go to Dashboard
                   </Button>
                 </Link>

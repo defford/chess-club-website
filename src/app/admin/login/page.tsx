@@ -81,6 +81,7 @@ export default function AdminLogin() {
               type="submit"
               className="w-full"
               disabled={isLoading}
+              variant="outline"
             >
               {isLoading ? "Authenticating..." : "Access Admin Panel"}
             </Button>

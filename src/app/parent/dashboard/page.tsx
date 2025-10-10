@@ -218,12 +218,12 @@ export default function ParentDashboard() {
             </div>
             <div className="flex items-center space-x-3">
               <Link href="/">
-                <Button variant="ghost" size="sm">
+                <Button variant="outline" size="sm">
                   <Settings className="w-4 h-4 mr-2" />
                   Club Home
                 </Button>
               </Link>
-              <Button variant="ghost" size="sm" onClick={handleLogout}>
+              <Button variant="outline" size="sm" onClick={handleLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Sign Out
               </Button>
@@ -293,7 +293,7 @@ export default function ParentDashboard() {
               </Button>
             </Link>
             <Link href="/parent/player/claim">
-              <Button>
+              <Button variant="outline">
                 <Plus className="w-4 h-4 mr-2" />
                 Claim Player
               </Button>
@@ -314,8 +314,8 @@ export default function ParentDashboard() {
                 }
               </p>
               {!isSelfRegistered && (
-                <Link href="/parent/player/register-child">
-                  <Button>
+                <Link href="/parent/register-child">
+                  <Button variant="outline">
                     <Plus className="w-4 h-4 mr-2" />
                     Register Your First Player
                   </Button>
@@ -324,60 +324,72 @@ export default function ParentDashboard() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {players.map((player) => (
-              <Card key={player.playerId} className="hover:shadow-lg transition-shadow cursor-pointer">
-                <Link href={`/parent/player/${player.playerId}`}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{player.playerName}</CardTitle>
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <CardDescription>
-                      Age {player.playerAge} • Grade {player.playerGrade}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  <CardContent>
-                    <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">
-                        {isSelfRegistered ? 'My Rank:' : 'Current Rank:'}
-                      </span>
-                      <span className="font-medium">{getRankDisplay(player.ranking)}</span>
-                    </div>
+          <div className="relative">
+            {/* Floating Action Button */}
+            <div className="absolute top-0 right-0 z-10">
+              <Link href="/parent/register-child">
+                <Button variant="outline" size="sm" className="shadow-lg">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Register Student
+                </Button>
+              </Link>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {players.map((player) => (
+                <Card key={player.playerId} className="hover:shadow-lg transition-shadow cursor-pointer">
+                  <Link href={`/parent/player/${player.playerId}`}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">{player.playerName}</CardTitle>
+                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <CardDescription>
+                        Age {player.playerAge} • Grade {player.playerGrade}
+                      </CardDescription>
+                    </CardHeader>
                     
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-gray-600">
-                        {isSelfRegistered ? 'My Record:' : 'Record:'}
-                      </span>
-                      <span className="font-medium">{getRecordDisplay(player.ranking)}</span>
-                    </div>
-                    
-                    {player.ranking && (
+                    <CardContent>
+                      <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-gray-600">
-                          {isSelfRegistered ? 'My Points:' : 'Points:'}
+                          {isSelfRegistered ? 'My Rank:' : 'Current Rank:'}
                         </span>
-                        <span className="font-medium">{player.ranking.points}</span>
+                        <span className="font-medium">{getRankDisplay(player.ranking)}</span>
                       </div>
-                    )}
-                    </div>
-
-                    {player.ranking?.rank && player.ranking.rank <= 10 && (
-                      <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                        <div className="flex items-center">
-                          <Trophy className="w-4 h-4 text-yellow-600 mr-2" />
-                          <span className="text-sm font-medium text-yellow-800">
-                            {isSelfRegistered ? 'You\'re in the Top 10!' : 'Top 10 Player!'}
+                      
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-gray-600">
+                          {isSelfRegistered ? 'My Record:' : 'Record:'}
+                        </span>
+                        <span className="font-medium">{getRecordDisplay(player.ranking)}</span>
+                      </div>
+                      
+                      {player.ranking && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-600">
+                            {isSelfRegistered ? 'My Points:' : 'Points:'}
                           </span>
+                          <span className="font-medium">{player.ranking.points}</span>
                         </div>
+                      )}
                       </div>
-                    )}
-                  </CardContent>
-                </Link>
-              </Card>
-            ))}
+
+                      {player.ranking?.rank && player.ranking.rank <= 10 && (
+                        <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                          <div className="flex items-center">
+                            <Trophy className="w-4 h-4 text-yellow-600 mr-2" />
+                            <span className="text-sm font-medium text-yellow-800">
+                              {isSelfRegistered ? 'You\'re in the Top 10!' : 'Top 10 Player!'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Link>
+                </Card>
+              ))}
+            </div>
           </div>
         )}
 
@@ -450,7 +462,7 @@ export default function ParentDashboard() {
 
                       <div className="pt-2 border-t">
                         <Button 
-                          variant="secondary" 
+                          variant="outline" 
                           size="sm" 
                           className="w-full"
                           disabled={players.length === 0}

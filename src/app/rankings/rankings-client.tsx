@@ -144,7 +144,7 @@ export function RankingsPageClient({ initialPlayers = [] }: RankingsPageClientPr
               Error loading rankings
             </h3>
             <p className="text-[--color-text-secondary] mb-4">{error}</p>
-            <Button onClick={() => window.location.reload()}>Try Again</Button>
+            <Button onClick={() => window.location.reload()} variant="outline">Try Again</Button>
           </div>
         )}
 
@@ -303,7 +303,7 @@ export function RankingsPageClient({ initialPlayers = [] }: RankingsPageClientPr
               <p className="text-[--color-text-secondary] mb-6">
                 Register for the club and start playing to earn your place on the ladder. All skill levels welcome!
               </p>
-              <Button variant="secondary" size="lg">
+              <Button variant="outline" size="lg">
                 Register Now
               </Button>
             </CardContent>
