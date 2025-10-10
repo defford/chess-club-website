@@ -60,6 +60,9 @@ export async function GET(request: NextRequest) {
       lichessParams.append('color', color);
     }
     
+    // Add timestamp to ensure unique requests (prevents Lichess API caching)
+    lichessParams.append('_t', Date.now().toString());
+    
     // Build the complete URL with parameters
     if (lichessParams.toString()) {
       lichessUrl += '?' + lichessParams.toString();
@@ -133,7 +136,9 @@ export async function GET(request: NextRequest) {
       }, {
         status: 200,
         headers: {
-          'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600'
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
         }
       });
       
