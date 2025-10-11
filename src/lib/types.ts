@@ -126,7 +126,8 @@ export interface RegistrationData {
   newsletter: boolean;
   // Additional metadata
   timestamp?: string;
-  rowIndex?: number;
+  rowIndex?: number;  // Keep for backward compatibility, but deprecate
+  studentId?: string;  // NEW: Stable student ID from students sheet
 }
 
 export interface ParentRegistrationData {

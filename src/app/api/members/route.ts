@@ -19,9 +19,8 @@ export async function GET() {
     // Convert registrations to member format
     const members: MemberData[] = registrations.map((registration, index) => {
       // Generate consistent ID based on registration data
-      const memberId = registration.rowIndex 
-        ? `reg_row_${registration.rowIndex}` 
-        : `member_${index + 1}`;
+      const memberId = registration.studentId || 
+        (registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`);
       
       // Parse registration date from timestamp
       let joinDate = new Date().toISOString().split('T')[0]; // Default to today

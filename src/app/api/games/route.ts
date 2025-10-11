@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       // Add IDs to members data (same logic as /api/members endpoint)
       const members = registrations.map((registration, index) => ({
         ...registration,
-        id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`,
+        id: registration.studentId || (registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`),
         joinDate: new Date().toISOString().split('T')[0], // Default to today
         isActive: true, // Default to active
         notes: '',

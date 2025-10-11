@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     results.tests.members = {
       totalMembers: members.length,
       sampleMembers: members.slice(0, 5).map(member => ({
-        id: member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`,
+        id: member.studentId || (member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`),
         name: member.playerName,
         grade: member.playerGrade,
         parentEmail: member.parentEmail
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const memberIds = new Set();
     members.forEach(member => {
-      const id = member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`;
+      const id = member.studentId || (member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`);
       memberIds.add(id);
     });
 
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 
     // Initialize all registered players
     members.forEach(member => {
-      const id = member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`;
+      const id = member.studentId || (member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`);
       playerStats.set(id, {
         id: id,
         name: member.playerName,

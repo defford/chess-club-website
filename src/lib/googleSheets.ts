@@ -915,7 +915,7 @@ export class GoogleSheetsService {
       
       const members = registrations.map((registration, index) => ({
         ...registration,
-        id: registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`
+        id: registration.studentId || (registration.rowIndex ? `reg_row_${registration.rowIndex}` : `member_${index + 1}`)
       }));
       
       console.log(`[calculateRankingsFromGames] Mapped ${members.length} members with IDs`);
@@ -2723,7 +2723,8 @@ export class GoogleSheetsService {
               valuesAcknowledgment: parent.valuesAcknowledgment,
               newsletter: parent.newsletter,
               timestamp: row[8] || parent.timestamp,
-              rowIndex: index + 2 // Row number in Google Sheets (index + 2 because we skip header row)
+              rowIndex: index + 2,     // Keep for backward compatibility
+              studentId: row[0] || ''  // NEW: Use actual student ID from column A
             });
           }
         }

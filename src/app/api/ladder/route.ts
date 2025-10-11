@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       // Create a simple player stats map from members
       const memberStats = new Map();
       members.forEach(member => {
-        const id = member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`;
+        const id = member.studentId || (member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`);
         memberStats.set(id, {
           id: id,
           name: member.playerName,
