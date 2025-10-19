@@ -11,13 +11,20 @@ import type {
   StudentRegistrationData,
   SelfRegistrationData,
   ParentData,
-  StudentData
+  StudentData,
+  TournamentData,
+  TournamentResultData,
+  TournamentPairing,
+  TournamentRound,
+  TournamentFormData,
+  TournamentStandings
 } from './types';
 
 export class GoogleSheetsService {
   private sheets;
   private auth;
   private lastApiCall: number = 0;
+  private tournamentSheetsInitialized: boolean = false;
   private readonly API_CALL_DELAY = process.env.NODE_ENV === 'development' ? 100 : 500; // Faster in dev
   private readonly MAX_RETRIES = process.env.NODE_ENV === 'development' ? 2 : 3; // Fewer retries in dev
   private readonly RETRY_DELAY_BASE = process.env.NODE_ENV === 'development' ? 200 : 1000; // Much faster in dev
@@ -2734,6 +2741,669 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Error reading members from parents and students sheets:', error);
       throw new Error('Failed to retrieve members from parents and students sheets');
+    }
+  }
+
+  // Tournament Management Methods
+  async initializeTournamentSheets(): Promise<void> {
+    // Skip initialization if already done
+    if (this.tournamentSheetsInitialized) {
+      return;
+    }
+
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Check if tournament sheets exist
+      const spreadsheet = await this.sheets.spreadsheets.get({
+        spreadsheetId
+      });
+
+      const sheets = spreadsheet.data.sheets || [];
+      const tournamentsSheetExists = sheets.some(sheet => sheet.properties?.title === 'tournaments');
+      const tournamentResultsSheetExists = sheets.some(sheet => sheet.properties?.title === 'tournament_results');
+
+      // Create tournaments sheet if it doesn't exist
+      if (!tournamentsSheetExists) {
+        await this.sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: 'tournaments',
+                  gridProperties: {
+                    rowCount: 1000,
+                    columnCount: 11
+                  }
+                }
+              }
+            }]
+          }
+        });
+
+        // Add headers for tournaments sheet
+        const tournamentHeaders = [
+          'Tournament ID',
+          'Name',
+          'Description',
+          'Start Date',
+          'Status',
+          'Current Round',
+          'Total Rounds',
+          'Player IDs',
+          'Created By',
+          'Created At',
+          'Updated At'
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: 'tournaments!A1:K1',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [tournamentHeaders]
+          }
+        });
+      }
+
+      // Create tournament_results sheet if it doesn't exist
+      if (!tournamentResultsSheetExists) {
+        await this.sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              addSheet: {
+                properties: {
+                  title: 'tournament_results',
+                  gridProperties: {
+                    rowCount: 1000,
+                    columnCount: 12
+                  }
+                }
+              }
+            }]
+          }
+        });
+
+        // Add headers for tournament_results sheet
+        const resultsHeaders = [
+          'Tournament ID',
+          'Player ID',
+          'Player Name',
+          'Games Played',
+          'Wins',
+          'Losses',
+          'Draws',
+          'Points',
+          'Buchholz Score',
+          'Opponents Faced',
+          'Bye Rounds',
+          'Rank',
+          'Last Updated'
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: 'tournament_results!A1:M1',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [resultsHeaders]
+          }
+        });
+      }
+
+      this.tournamentSheetsInitialized = true;
+      console.log('✅ Tournament sheets initialized successfully');
+    } catch (error) {
+      console.error('❌ Failed to initialize tournament sheets:', error);
+      throw error;
+    }
+  }
+
+  async addTournament(tournament: TournamentFormData, createdBy: string): Promise<string> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Initialize tournament sheets if they don't exist
+      await this.initializeTournamentSheets();
+
+      const tournamentId = `tournament_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const timestamp = new Date().toISOString();
+      
+      const values = [
+        [
+          tournamentId,
+          tournament.name,
+          tournament.description,
+          tournament.startDate,
+          'upcoming',
+          1,
+          tournament.totalRounds,
+          JSON.stringify(tournament.playerIds),
+          createdBy,
+          timestamp,
+          timestamp
+        ]
+      ];
+
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'tournaments!A:K',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values,
+        },
+      });
+
+      // Initialize tournament results for all players
+      await this.initializeTournamentResults(tournamentId, tournament.playerIds);
+      
+      return tournamentId;
+    } catch (error) {
+      console.error('Error adding tournament to Google Sheets:', error);
+      throw new Error('Failed to add tournament to Google Sheets');
+    }
+  }
+
+  async initializeTournamentResults(tournamentId: string, playerIds: string[]): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Get player names from members data
+      const members = await this.getMembersFromParentsAndStudents();
+      const memberMap = new Map();
+      members.forEach(member => {
+        if (member.studentId) {
+          memberMap.set(member.studentId, member.playerName);
+        }
+      });
+
+      const timestamp = new Date().toISOString();
+      const results = playerIds.map(playerId => [
+        tournamentId,
+        playerId,
+        memberMap.get(playerId) || 'Unknown Player',
+        0, // Games Played
+        0, // Wins
+        0, // Losses
+        0, // Draws
+        0, // Points
+        0, // Buchholz Score
+        JSON.stringify([]), // Opponents Faced
+        JSON.stringify([]), // Bye Rounds
+        0, // Rank
+        timestamp
+      ]);
+
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'tournament_results!A:M',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: results,
+        },
+      });
+
+    } catch (error) {
+      console.error('Error initializing tournament results:', error);
+      throw new Error('Failed to initialize tournament results');
+    }
+  }
+
+  async getTournaments(status?: string): Promise<TournamentData[]> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Initialize tournament sheets if they don't exist
+      await this.initializeTournamentSheets();
+
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'tournaments!A:K',
+        }),
+        'getTournaments'
+      );
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return [];
+      }
+
+      // Skip header row and convert to TournamentData objects
+      let tournaments = rows.slice(1).map((row, index) => ({
+        id: row[0] || `tournament_${index}`,
+        name: row[1] || '',
+        description: row[2] || '',
+        startDate: row[3] || '',
+        status: (row[4] as 'upcoming' | 'active' | 'completed' | 'cancelled') || 'upcoming',
+        currentRound: parseInt(row[5]) || 1,
+        totalRounds: parseInt(row[6]) || 0,
+        playerIds: row[7] ? JSON.parse(row[7]) : [],
+        createdBy: row[8] || '',
+        createdAt: row[9] || '',
+        updatedAt: row[10] || ''
+      })).filter(tournament => tournament.id);
+
+      // Filter by status if provided
+      if (status) {
+        tournaments = tournaments.filter(tournament => tournament.status === status);
+      }
+
+      return tournaments;
+    } catch (error) {
+      console.error('Error reading tournaments from Google Sheets:', error);
+      throw new Error('Failed to retrieve tournaments from Google Sheets');
+    }
+  }
+
+  async getTournamentById(tournamentId: string): Promise<TournamentData | null> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Initialize tournament sheets if they don't exist
+      await this.initializeTournamentSheets();
+
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'tournaments!A:N', // Extended to column N to include additional fields
+        }),
+        'getTournamentById'
+      );
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return null;
+      }
+
+      // Find tournament by ID
+      const tournamentRow = rows.slice(1).find(row => row[0] === tournamentId);
+      if (!tournamentRow) {
+        return null;
+      }
+
+      return {
+        id: tournamentRow[0],
+        name: tournamentRow[1] || '',
+        description: tournamentRow[2] || '',
+        startDate: tournamentRow[3] || '',
+        status: (tournamentRow[4] as 'upcoming' | 'active' | 'completed' | 'cancelled') || 'upcoming',
+        currentRound: parseInt(tournamentRow[5]) || 1,
+        totalRounds: parseInt(tournamentRow[6]) || 0,
+        playerIds: tournamentRow[7] ? JSON.parse(tournamentRow[7]) : [],
+        createdBy: tournamentRow[8] || '',
+        createdAt: tournamentRow[9] || '',
+        updatedAt: tournamentRow[10] || '',
+        currentPairings: tournamentRow[11] || undefined, // Column L
+        currentForcedByes: tournamentRow[12] || undefined, // Column M
+        currentHalfPointByes: tournamentRow[13] || undefined // Column N
+      };
+    } catch (error) {
+      console.error('Error reading tournament from Google Sheets:', error);
+      throw new Error('Failed to retrieve tournament from Google Sheets');
+    }
+  }
+
+  async updateTournament(tournamentId: string, updates: Partial<TournamentData>): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Find the row with this tournament ID
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'tournaments!A:A',
+      });
+
+      const rows = response.data.values;
+      if (!rows) {
+        throw new Error('No tournaments found');
+      }
+
+      const rowIndex = rows.findIndex(row => row[0] === tournamentId);
+      if (rowIndex === -1) {
+        throw new Error(`Tournament with ID ${tournamentId} not found`);
+      }
+
+      // Get current tournament data (including additional fields)
+      const currentTournamentResponse = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `tournaments!A${rowIndex + 1}:N${rowIndex + 1}`, // Extended to column N to include additional fields
+      });
+
+      const currentRow = currentTournamentResponse.data.values?.[0] || [];
+      
+      // Merge updates with current data
+      const updatedRow = [
+        tournamentId, // ID stays the same
+        updates.name ?? currentRow[1],
+        updates.description ?? currentRow[2],
+        updates.startDate ?? currentRow[3],
+        updates.status ?? currentRow[4],
+        updates.currentRound ?? currentRow[5],
+        updates.totalRounds ?? currentRow[6],
+        updates.playerIds ? JSON.stringify(updates.playerIds) : currentRow[7],
+        currentRow[8], // Created By (unchanged)
+        currentRow[9], // Created At (unchanged)
+        new Date().toISOString(), // Updated At (always update)
+        updates.currentPairings ?? currentRow[11], // Column L: currentPairings
+        updates.currentForcedByes ?? currentRow[12], // Column M: currentForcedByes
+        updates.currentHalfPointByes ?? currentRow[13] // Column N: currentHalfPointByes
+      ];
+
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `tournaments!A${rowIndex + 1}:N${rowIndex + 1}`, // Extended to column N
+        valueInputOption: 'RAW',
+        requestBody: {
+          values: [updatedRow],
+        },
+      });
+
+      console.log(`✅ Tournament updated successfully: ${tournamentId}`);
+    } catch (error) {
+      console.error('Error updating tournament in Google Sheets:', error);
+      throw new Error('Failed to update tournament in Google Sheets');
+    }
+  }
+
+  async deleteTournament(tournamentId: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Find the row with this tournament ID
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'tournaments!A:A',
+      });
+
+      const rows = response.data.values;
+      if (!rows) {
+        throw new Error('No tournaments found');
+      }
+
+      const rowIndex = rows.findIndex(row => row[0] === tournamentId);
+      if (rowIndex === -1) {
+        throw new Error(`Tournament with ID ${tournamentId} not found`);
+      }
+
+      // Delete the tournament row
+      await this.sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+          requests: [{
+            deleteDimension: {
+              range: {
+                sheetId: 0, // Assuming tournaments sheet is the first sheet
+                dimension: 'ROWS',
+                startIndex: rowIndex,
+                endIndex: rowIndex + 1
+              }
+            }
+          }]
+        }
+      });
+
+      // Also delete all tournament results for this tournament
+      await this.deleteTournamentResults(tournamentId);
+
+      console.log(`✅ Tournament deleted successfully: ${tournamentId}`);
+    } catch (error) {
+      console.error('Error deleting tournament from Google Sheets:', error);
+      throw new Error('Failed to delete tournament from Google Sheets');
+    }
+  }
+
+  async deleteTournamentResults(tournamentId: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Get all tournament results
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'tournament_results!A:A',
+      });
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return; // No results to delete
+      }
+
+      // Find all rows for this tournament
+      const rowsToDelete = [];
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === tournamentId) {
+          rowsToDelete.push(i);
+        }
+      }
+
+      // Delete rows in reverse order to maintain indices
+      for (let i = rowsToDelete.length - 1; i >= 0; i--) {
+        await this.sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          requestBody: {
+            requests: [{
+              deleteDimension: {
+                range: {
+                  sheetId: 0,
+                  dimension: 'ROWS',
+                  startIndex: rowsToDelete[i],
+                  endIndex: rowsToDelete[i] + 1
+                }
+              }
+            }]
+          }
+        });
+      }
+
+      console.log(`✅ Deleted ${rowsToDelete.length} tournament result records`);
+    } catch (error) {
+      console.error('Error deleting tournament results:', error);
+      throw new Error('Failed to delete tournament results');
+    }
+  }
+
+  async getTournamentResults(tournamentId: string): Promise<TournamentResultData[]> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Initialize tournament sheets if they don't exist
+      await this.initializeTournamentSheets();
+
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'tournament_results!A:M',
+        }),
+        'getTournamentResults'
+      );
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return [];
+      }
+
+      // Filter results for this tournament
+      const tournamentResults = rows.slice(1)
+        .filter(row => row[0] === tournamentId)
+        .map(row => ({
+          tournamentId: row[0] || '',
+          playerId: row[1] || '',
+          playerName: row[2] || '',
+          gamesPlayed: parseInt(row[3]) || 0,
+          wins: parseInt(row[4]) || 0,
+          losses: parseInt(row[5]) || 0,
+          draws: parseInt(row[6]) || 0,
+          points: parseFloat(row[7]) || 0,
+          buchholzScore: parseFloat(row[8]) || 0,
+          opponentsFaced: row[9] ? JSON.parse(row[9]) : [],
+          byeRounds: row[10] ? JSON.parse(row[10]) : [],
+          rank: parseInt(row[11]) || 0,
+          lastUpdated: row[12] || ''
+        }));
+
+      return tournamentResults;
+    } catch (error) {
+      console.error('Error reading tournament results from Google Sheets:', error);
+      throw new Error('Failed to retrieve tournament results from Google Sheets');
+    }
+  }
+
+  /**
+   * Clean up invalid byeRounds data for a tournament
+   * This removes any byeRounds that are > the current round (preserves current round byes)
+   */
+  async cleanupInvalidByeRounds(tournamentId: string, currentRound: number): Promise<void> {
+    try {
+      const results = await this.getTournamentResults(tournamentId);
+      let hasChanges = false;
+      
+      const updatedResults = results.map(result => {
+        const originalByeRounds = [...result.byeRounds];
+        // Keep current round byes (including half-point byes) but remove future rounds
+        const cleanedByeRounds = result.byeRounds.filter(round => round <= currentRound);
+        
+        if (originalByeRounds.length !== cleanedByeRounds.length) {
+          hasChanges = true;
+          console.log(`Cleaning up byeRounds for ${result.playerName}: ${originalByeRounds} -> ${cleanedByeRounds}`);
+          return {
+            ...result,
+            byeRounds: cleanedByeRounds,
+            lastUpdated: new Date().toISOString()
+          };
+        }
+        
+        return result;
+      });
+      
+      if (hasChanges) {
+        await this.updateTournamentResults(tournamentId, updatedResults);
+        console.log(`✅ Cleaned up invalid byeRounds data for tournament ${tournamentId}`);
+      }
+    } catch (error) {
+      console.error('Error cleaning up byeRounds data:', error);
+      throw new Error('Failed to clean up byeRounds data');
+    }
+  }
+
+  async updateTournamentResults(tournamentId: string, results: TournamentResultData[]): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // First, ensure tournament sheets exist
+      await this.initializeTournamentSheets();
+
+      // Get all tournament results to find row indices (need columns A and B to match tournament ID and player ID)
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'tournament_results!A:B',
+      });
+
+      let rows = response.data.values;
+      
+      // If no tournament results exist, initialize them for this tournament
+      if (!rows || rows.length <= 1) {
+        await this.initializeTournamentResults(tournamentId, results.map(r => r.playerId));
+        
+        // Re-fetch the results after initialization
+        const newResponse = await this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'tournament_results!A:B',
+        });
+        
+        rows = newResponse.data.values;
+        if (!rows || rows.length <= 1) {
+          throw new Error('Failed to initialize tournament results');
+        }
+      }
+
+      const timestamp = new Date().toISOString();
+      const updatePromises = [];
+
+      for (let i = 1; i < rows.length; i++) {
+        if (rows[i][0] === tournamentId) {
+          const result = results.find(r => r.playerId === rows[i][1]);
+          
+          if (result) {
+            const updatedRow = [
+              tournamentId,
+              result.playerId,
+              result.playerName,
+              result.gamesPlayed,
+              result.wins,
+              result.losses,
+              result.draws,
+              result.points,
+              result.buchholzScore,
+              JSON.stringify(result.opponentsFaced),
+              JSON.stringify(result.byeRounds),
+              result.rank,
+              timestamp
+            ];
+
+            updatePromises.push(
+              this.sheets.spreadsheets.values.update({
+                spreadsheetId,
+                range: `tournament_results!A${i + 1}:M${i + 1}`,
+                valueInputOption: 'RAW',
+                requestBody: {
+                  values: [updatedRow],
+                },
+              })
+            );
+          }
+        }
+      }
+
+      if (updatePromises.length > 0) {
+        await Promise.all(updatePromises);
+      }
+    } catch (error) {
+      console.error('Error updating tournament results:', error);
+      throw new Error('Failed to update tournament results');
     }
   }
 

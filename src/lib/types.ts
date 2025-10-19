@@ -436,3 +436,77 @@ export interface PuzzleState {
   currentSolutionIndex: number;
   isPuzzleSolved: boolean;
 }
+
+// Tournament Management Types
+export interface TournamentData {
+  id: string;
+  name: string;
+  description: string;
+  startDate: string;
+  status: 'upcoming' | 'active' | 'completed' | 'cancelled';
+  currentRound: number;
+  totalRounds: number;
+  playerIds: string[];
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+  currentPairings?: string; // JSON string of current round pairings
+  currentForcedByes?: string; // JSON string of current round forced byes
+  currentHalfPointByes?: string; // JSON string of current round half-point byes
+}
+
+export interface TournamentResultData {
+  tournamentId: string;
+  playerId: string;
+  playerName: string;
+  gamesPlayed: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  points: number;
+  buchholzScore: number;
+  opponentsFaced: string[];
+  byeRounds: number[];
+  rank: number;
+  lastUpdated: string;
+}
+
+export interface TournamentPairing {
+  id: string;
+  tournamentId: string;
+  round: number;
+  player1Id: string;
+  player1Name: string;
+  player2Id: string;
+  player2Name: string;
+  result?: 'player1' | 'player2' | 'draw' | 'half-bye-p1' | 'half-bye-p2';
+  gameId?: string;
+  createdAt: string;
+}
+
+export interface TournamentRound {
+  id: string;
+  tournamentId: string;
+  roundNumber: number;
+  pairings: TournamentPairing[];
+  forcedByes: string[];
+  status: 'pending' | 'active' | 'completed';
+  createdAt: string;
+  completedAt?: string;
+}
+
+export type ByeType = 'forced' | 'half-point' | 'none';
+
+export interface TournamentFormData {
+  name: string;
+  description: string;
+  startDate: string;
+  totalRounds: number;
+  playerIds: string[];
+}
+
+export interface TournamentStandings {
+  tournamentId: string;
+  results: TournamentResultData[];
+  lastUpdated: string;
+}

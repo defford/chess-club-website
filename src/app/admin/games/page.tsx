@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { isAdminAuthenticated } from "@/lib/adminAuth"
 import { clientAuthService } from "@/lib/clientAuth"
-import { Gamepad2, Plus, Search, Filter, Download, LogOut, ArrowLeft, BarChart3 } from "lucide-react"
+import { Gamepad2, Plus, Search, Filter, Download, LogOut, ArrowLeft, BarChart3, Trophy } from "lucide-react"
 import type { GameData, PlayerData, GameFormData } from "@/lib/types"
 import GameForm from "@/components/admin/GameForm"
 import SimpleGameForm from "@/components/admin/SimpleGameForm"
@@ -352,6 +352,15 @@ export default function AdminGamesPage() {
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Advanced Form</span>
                 <span className="sm:hidden">Advanced</span>
+              </Button>
+              <Button
+                onClick={() => router.push("/admin/games/tournaments")}
+                variant="outline"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Trophy className="h-4 w-4" />
+                <span className="hidden sm:inline">Tournaments</span>
+                <span className="sm:hidden">Tournaments</span>
               </Button>
               <Button
                 onClick={() => router.push("/admin/games/stats")}
