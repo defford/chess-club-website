@@ -19,7 +19,7 @@ export class SwissPairingService {
     try {
       // Get tournament data and current standings
       const tournament = await googleSheetsService.getTournamentById(tournamentId);
-      const standings = currentResults || await googleSheetsService.getTournamentResults(tournamentId);
+      const standings = currentResults || await googleSheetsService.getTournamentResults(tournamentId, true);
 
       if (!tournament) {
         throw new Error(`Tournament ${tournamentId} not found`);
@@ -45,10 +45,10 @@ export class SwissPairingService {
       // Note: Half-point byes should only be assigned manually by admin
       // The algorithm should not automatically assign them based on existing byeRounds data
 
-      // Filter out players who have half-point byes for the current round
+      // Filter out withdrawn players and players who have half-point byes for the current round
       // These players should not be included in pairings
       const playersWithHalfPointByes = standings.filter(player => 
-        player.byeRounds.includes(roundNumber)
+        !player.withdrawn && player.byeRounds.includes(roundNumber)
       );
       
       // Add players with half-point byes to the halfPointByes array
@@ -57,10 +57,11 @@ export class SwissPairingService {
         usedPlayers.add(player.playerId);
       });
 
-      // Group remaining players by score (excluding those with half-point byes)
+      // Group remaining players by score (excluding withdrawn players and those with half-point byes)
       const remainingPlayers = standings.filter(player => 
-        !usedPlayers.has(player.playerId) && !player.byeRounds.includes(roundNumber)
+        !player.withdrawn && !usedPlayers.has(player.playerId) && !player.byeRounds.includes(roundNumber)
       );
+      
       
       if (remainingPlayers.length === 0) {
         return {
@@ -384,6 +385,9 @@ export class SwissPairingService {
         const player2 = updatedStandings.find(p => p.playerId === pairing.player2Id);
 
         if (!player1 || !player2) continue;
+        
+        // Skip updating withdrawn players
+        if (player1.withdrawn || player2.withdrawn) continue;
 
         // Update player stats based on result
         switch (result.result) {

@@ -11,6 +11,7 @@ import type { TournamentData, TournamentResultData, TournamentPairing } from "@/
 import PairingEntry from "@/components/admin/PairingEntry"
 import StandingsTable from "@/components/admin/StandingsTable"
 import HalfPointByeSelector from "@/components/admin/HalfPointByeSelector"
+import PlayerManager from "@/components/admin/PlayerManager"
 import { 
   ArrowLeft, 
   LogOut, 
@@ -38,13 +39,15 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
   const [standings, setStandings] = useState<TournamentResultData[]>([])
   const [currentPairings, setCurrentPairings] = useState<TournamentPairing[]>([])
   const [forcedByes, setForcedByes] = useState<string[]>([])
-  const [activeTab, setActiveTab] = useState<'pairings' | 'standings' | 'settings'>('pairings')
+  const [activeTab, setActiveTab] = useState<'pairings' | 'standings' | 'settings' | 'players'>('pairings')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [pairingResults, setPairingResults] = useState<Record<string, string>>({})
   const [showHalfPointByeSelector, setShowHalfPointByeSelector] = useState(false)
   const [pairingsJustGenerated, setPairingsJustGenerated] = useState(false)
+  const [showPlayerManager, setShowPlayerManager] = useState(false)
+  const [pairingsCleared, setPairingsCleared] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -205,6 +208,7 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
       setCurrentPairings(result.pairings || [])
       setForcedByes(result.forcedByes || [])
       setPairingsJustGenerated(true)
+      setPairingsCleared(false)
       
       // Show success message
       alert(`Round ${tournament?.currentRound} pairings generated successfully!`)
@@ -464,6 +468,19 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
                 </div>
               </button>
               <button
+                onClick={() => setActiveTab('players')}
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  activeTab === 'players'
+                    ? 'border-[--color-primary] text-[--color-primary]'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Players
+                </div>
+              </button>
+              <button
                 onClick={() => setActiveTab('settings')}
                 className={`py-2 px-1 border-b-2 font-medium text-sm ${
                   activeTab === 'settings'
@@ -573,8 +590,21 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
                         />
                       ))
                     ) : (
-                      <div className="text-center py-4 text-gray-500">
-                        No pairings generated yet. Click "Generate Round {tournament?.currentRound} Pairings" to create pairings.
+                      <div className="text-center py-4">
+                        {pairingsCleared ? (
+                          <div className="space-y-2">
+                            <div className="text-amber-600 font-medium">
+                              Pairings cleared due to player changes
+                            </div>
+                            <div className="text-gray-500">
+                              Click "Generate Round {tournament?.currentRound} Pairings" to create new pairings.
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-gray-500">
+                            No pairings generated yet. Click "Generate Round {tournament?.currentRound} Pairings" to create pairings.
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -635,6 +665,65 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
             standings={standings}
             tournamentId={tournament.id}
           />
+        )}
+
+        {activeTab === 'players' && (
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="h-5 w-5" />
+                  Player Management
+                </CardTitle>
+                <CardDescription>
+                  Add or remove players from this tournament. You can manage players even after the tournament has started.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-blue-800">
+                        <Users className="h-4 w-4" />
+                        <span className="font-medium">Total Players</span>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-900 mt-1">
+                        {tournament.playerIds.length}
+                      </p>
+                    </div>
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-green-800">
+                        <Trophy className="h-4 w-4" />
+                        <span className="font-medium">Active Players</span>
+                      </div>
+                      <p className="text-2xl font-bold text-green-900 mt-1">
+                        {standings.filter(s => !s.withdrawn).length}
+                      </p>
+                    </div>
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 text-gray-800">
+                        <Clock className="h-4 w-4" />
+                        <span className="font-medium">Current Round</span>
+                      </div>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {tournament.currentRound} / {tournament.totalRounds}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-4">
+                    <Button
+                      onClick={() => setShowPlayerManager(true)}
+                      className="w-full md:w-auto"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Manage Players
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
 
         {activeTab === 'settings' && (
@@ -709,6 +798,30 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-red-500" />
               <p className="text-red-700">{error}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Player Manager Modal */}
+        {showPlayerManager && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <PlayerManager
+                tournamentId={tournament.id}
+                onPlayersUpdated={() => {
+                  // Clear current pairings when players are modified
+                  setCurrentPairings([])
+                  setForcedByes([])
+                  setPairingResults({})
+                  setPairingsJustGenerated(false)
+                  setPairingsCleared(true)
+                  
+                  // Reload tournament data without pairings
+                  loadTournamentDataWithoutPairings(tournament.id)
+                  setShowPlayerManager(false)
+                }}
+                onClose={() => setShowPlayerManager(false)}
+              />
             </div>
           </div>
         )}

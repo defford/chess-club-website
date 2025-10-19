@@ -232,7 +232,9 @@ export default function StandingsTable({
                 <tr 
                   key={player.playerId} 
                   className={`border-b hover:bg-gray-50 ${
-                    index < 3 ? 'bg-gradient-to-r from-yellow-50 to-transparent' : ''
+                    player.withdrawn ? 'bg-gray-50 opacity-75' : ''
+                  } ${
+                    index < 3 && !player.withdrawn ? 'bg-gradient-to-r from-yellow-50 to-transparent' : ''
                   }`}
                 >
                   <td className="py-3 px-4">
@@ -241,10 +243,15 @@ export default function StandingsTable({
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    <div className="font-medium text-[--color-text-primary]">
+                    <div className={`font-medium ${player.withdrawn ? 'text-gray-500 line-through' : 'text-[--color-text-primary]'}`}>
                       {player.playerName}
                     </div>
-                    {player.byeRounds.length > 0 && (
+                    {player.withdrawn && (
+                      <div className="text-xs text-gray-500">
+                        Withdrawn
+                      </div>
+                    )}
+                    {player.byeRounds.length > 0 && !player.withdrawn && (
                       <div className="text-xs text-orange-600">
                         Byes: Rounds {player.byeRounds.join(', ')}
                       </div>

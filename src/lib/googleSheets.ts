@@ -2822,7 +2822,7 @@ export class GoogleSheetsService {
                   title: 'tournament_results',
                   gridProperties: {
                     rowCount: 1000,
-                    columnCount: 12
+                    columnCount: 15
                   }
                 }
               }
@@ -2844,12 +2844,14 @@ export class GoogleSheetsService {
           'Opponents Faced',
           'Bye Rounds',
           'Rank',
-          'Last Updated'
+          'Last Updated',
+          'Withdrawn',
+          'Withdrawn At'
         ];
 
         await this.sheets.spreadsheets.values.update({
           spreadsheetId,
-          range: 'tournament_results!A1:M1',
+          range: 'tournament_results!A1:O1',
           valueInputOption: 'RAW',
           requestBody: {
             values: [resultsHeaders]
@@ -2946,12 +2948,14 @@ export class GoogleSheetsService {
         JSON.stringify([]), // Opponents Faced
         JSON.stringify([]), // Bye Rounds
         0, // Rank
-        timestamp
+        timestamp,
+        false, // Withdrawn
+        '' // Withdrawn At
       ]);
 
       await this.sheets.spreadsheets.values.append({
         spreadsheetId,
-        range: 'tournament_results!A:M',
+        range: 'tournament_results!A:O',
         valueInputOption: 'RAW',
         insertDataOption: 'INSERT_ROWS',
         requestBody: {
@@ -3238,7 +3242,7 @@ export class GoogleSheetsService {
     }
   }
 
-  async getTournamentResults(tournamentId: string): Promise<TournamentResultData[]> {
+  async getTournamentResults(tournamentId: string, includeWithdrawn: boolean = false): Promise<TournamentResultData[]> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
     if (!spreadsheetId) {
@@ -3252,7 +3256,7 @@ export class GoogleSheetsService {
       const response = await this.executeWithRetry(
         () => this.sheets.spreadsheets.values.get({
           spreadsheetId,
-          range: 'tournament_results!A:M',
+          range: 'tournament_results!A:O',
         }),
         'getTournamentResults'
       );
@@ -3263,23 +3267,35 @@ export class GoogleSheetsService {
       }
 
       // Filter results for this tournament
-      const tournamentResults = rows.slice(1)
+      let tournamentResults = rows.slice(1)
         .filter(row => row[0] === tournamentId)
-        .map(row => ({
-          tournamentId: row[0] || '',
-          playerId: row[1] || '',
-          playerName: row[2] || '',
-          gamesPlayed: parseInt(row[3]) || 0,
-          wins: parseInt(row[4]) || 0,
-          losses: parseInt(row[5]) || 0,
-          draws: parseInt(row[6]) || 0,
-          points: parseFloat(row[7]) || 0,
-          buchholzScore: parseFloat(row[8]) || 0,
-          opponentsFaced: row[9] ? JSON.parse(row[9]) : [],
-          byeRounds: row[10] ? JSON.parse(row[10]) : [],
-          rank: parseInt(row[11]) || 0,
-          lastUpdated: row[12] || ''
-        }));
+        .map(row => {
+          const withdrawn = row[13] === 'true' || row[13] === 'TRUE' || row[13] === true || false;
+          const withdrawnAt = row[14] || '';
+          
+          return {
+            tournamentId: row[0] || '',
+            playerId: row[1] || '',
+            playerName: row[2] || '',
+            gamesPlayed: parseInt(row[3]) || 0,
+            wins: parseInt(row[4]) || 0,
+            losses: parseInt(row[5]) || 0,
+            draws: parseInt(row[6]) || 0,
+            points: parseFloat(row[7]) || 0,
+            buchholzScore: parseFloat(row[8]) || 0,
+            opponentsFaced: row[9] ? JSON.parse(row[9]) : [],
+            byeRounds: row[10] ? JSON.parse(row[10]) : [],
+            rank: parseInt(row[11]) || 0,
+            lastUpdated: row[12] || '',
+            withdrawn,
+            withdrawnAt
+          };
+        });
+
+      // Filter out withdrawn players unless specifically requested
+      if (!includeWithdrawn) {
+        tournamentResults = tournamentResults.filter(result => !result.withdrawn);
+      }
 
       return tournamentResults;
     } catch (error) {
@@ -3381,13 +3397,15 @@ export class GoogleSheetsService {
               JSON.stringify(result.opponentsFaced),
               JSON.stringify(result.byeRounds),
               result.rank,
-              timestamp
+              timestamp,
+              result.withdrawn || false,
+              result.withdrawnAt || ''
             ];
 
             updatePromises.push(
               this.sheets.spreadsheets.values.update({
                 spreadsheetId,
-                range: `tournament_results!A${i + 1}:M${i + 1}`,
+                range: `tournament_results!A${i + 1}:O${i + 1}`,
                 valueInputOption: 'RAW',
                 requestBody: {
                   values: [updatedRow],
@@ -3404,6 +3422,195 @@ export class GoogleSheetsService {
     } catch (error) {
       console.error('Error updating tournament results:', error);
       throw new Error('Failed to update tournament results');
+    }
+  }
+
+  async addPlayersToTournament(tournamentId: string, playerIds: string[], byeRounds: number[] = []): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Ensure the tournament_results sheet has the withdrawn columns
+      await this.ensureTournamentResultsColumns();
+      // Get player names from members data
+      const members = await this.getMembersFromParentsAndStudents();
+      const memberMap = new Map();
+      members.forEach(member => {
+        if (member.studentId) {
+          memberMap.set(member.studentId, member.playerName);
+        }
+      });
+
+      const timestamp = new Date().toISOString();
+      const results = playerIds.map(playerId => {
+        // Calculate points from bye rounds (0.5 points per bye)
+        const byePoints = byeRounds.length * 0.5;
+        
+        return [
+          tournamentId,
+          playerId,
+          memberMap.get(playerId) || 'Unknown Player',
+          byeRounds.length, // Games played (bye rounds count as games)
+          0, // Wins
+          0, // Losses
+          0, // Draws
+          byePoints, // Points from byes
+          0, // Buchholz Score (will be calculated later)
+          JSON.stringify([]), // Opponents Faced
+          JSON.stringify(byeRounds), // Bye Rounds
+          0, // Rank
+          timestamp,
+          false, // Withdrawn
+          '' // Withdrawn At
+        ];
+      });
+
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: 'tournament_results!A:O',
+        valueInputOption: 'RAW',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: results,
+        },
+      });
+
+      console.log(`✅ Added ${playerIds.length} players to tournament ${tournamentId}`);
+    } catch (error) {
+      console.error('Error adding players to tournament:', error);
+      throw new Error('Failed to add players to tournament');
+    }
+  }
+
+  async ensureTournamentResultsColumns(): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Check if the tournament_results sheet has the withdrawn columns
+      const response = await this.sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: 'tournament_results!A1:O1',
+      });
+
+      const headers = response.data.values?.[0] || [];
+      
+      // If the sheet doesn't have the withdrawn columns, add them
+      if (headers.length < 15 || !headers.includes('Withdrawn')) {
+        
+        // Add the missing headers
+        const newHeaders = [
+          'Tournament ID',
+          'Player ID', 
+          'Player Name',
+          'Games Played',
+          'Wins',
+          'Losses',
+          'Draws',
+          'Points',
+          'Buchholz Score',
+          'Opponents Faced',
+          'Bye Rounds',
+          'Rank',
+          'Last Updated',
+          'Withdrawn',
+          'Withdrawn At'
+        ];
+
+        await this.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: 'tournament_results!A1:O1',
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [newHeaders]
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error ensuring tournament results columns:', error);
+      // Don't throw here, just log the error
+    }
+  }
+
+  async removePlayersFromTournament(tournamentId: string, playerIds: string[], removeCompletely: boolean = false): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Ensure the tournament_results sheet has the withdrawn columns
+      await this.ensureTournamentResultsColumns();
+      if (removeCompletely) {
+        // Delete tournament results completely
+        const response = await this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'tournament_results!A:B',
+        });
+
+        const rows = response.data.values;
+        if (!rows || rows.length <= 1) {
+          return; // No results to delete
+        }
+
+        // Find all rows for these players in this tournament
+        const rowsToDelete = [];
+        for (let i = 1; i < rows.length; i++) {
+          if (rows[i][0] === tournamentId && playerIds.includes(rows[i][1])) {
+            rowsToDelete.push(i);
+          }
+        }
+
+        // Delete rows in reverse order to maintain indices
+        for (let i = rowsToDelete.length - 1; i >= 0; i--) {
+          await this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [{
+                deleteDimension: {
+                  range: {
+                    sheetId: 0,
+                    dimension: 'ROWS',
+                    startIndex: rowsToDelete[i],
+                    endIndex: rowsToDelete[i] + 1
+                  }
+                }
+              }]
+            }
+          });
+        }
+
+        console.log(`✅ Completely removed ${playerIds.length} players from tournament ${tournamentId}`);
+      } else {
+        // Mark as withdrawn
+        const currentResults = await this.getTournamentResults(tournamentId);
+        const timestamp = new Date().toISOString();
+        
+        const updatedResults = currentResults.map(result => {
+          if (playerIds.includes(result.playerId)) {
+            return {
+              ...result,
+              withdrawn: true,
+              withdrawnAt: timestamp,
+              lastUpdated: timestamp
+            };
+          }
+          return result;
+        });
+
+        await this.updateTournamentResults(tournamentId, updatedResults);
+        console.log(`✅ Marked ${playerIds.length} players as withdrawn from tournament ${tournamentId}`);
+      }
+    } catch (error) {
+      console.error('Error removing players from tournament:', error);
+      throw new Error('Failed to remove players from tournament');
     }
   }
 

@@ -52,11 +52,11 @@ export async function PUT(
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
-    // Prevent certain updates if tournament is already active or completed
-    if (existingTournament.status === 'active' || existingTournament.status === 'completed') {
+    // Prevent certain updates if tournament is completed
+    if (existingTournament.status === 'completed') {
       if (updates.playerIds || updates.totalRounds) {
         return NextResponse.json(
-          { error: 'Cannot modify players or rounds for active/completed tournaments' },
+          { error: 'Cannot modify players or rounds for completed tournaments' },
           { status: 400 }
         );
       }

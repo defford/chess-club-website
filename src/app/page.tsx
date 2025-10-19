@@ -5,9 +5,6 @@ import { RegistrationPreview } from "@/components/sections/registration-preview"
 import { AboutPreview } from "@/components/sections/about-preview"
 import { ImageCarousel } from "@/components/sections/image-carousel"
 
-// ISR configuration - revalidate every 5 minutes
-export const revalidate = 300;
-
 export default function Home() {
   return (
     <div>

@@ -469,6 +469,8 @@ export interface TournamentResultData {
   byeRounds: number[];
   rank: number;
   lastUpdated: string;
+  withdrawn?: boolean;
+  withdrawnAt?: string;
 }
 
 export interface TournamentPairing {
