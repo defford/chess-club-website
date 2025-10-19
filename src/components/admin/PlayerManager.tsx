@@ -279,6 +279,7 @@ export default function PlayerManager({ tournamentId, onPlayersUpdated, onClose 
             onClick={executePlayerAction}
             disabled={loading}
             className="flex-1"
+            variant="outline"
           >
             {loading ? 'Processing...' : 'Confirm Changes'}
           </Button>
@@ -441,6 +442,7 @@ export default function PlayerManager({ tournamentId, onPlayersUpdated, onClose 
                 onClick={handleAddPlayers}
                 disabled={selectedPlayersToAdd.length === 0 || loading}
                 className="w-full"
+                variant="outline"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Add {selectedPlayersToAdd.length} Player{selectedPlayersToAdd.length !== 1 ? 's' : ''}
@@ -548,7 +550,7 @@ export default function PlayerManager({ tournamentId, onPlayersUpdated, onClose 
               <Button
                 onClick={handleRemovePlayers}
                 disabled={selectedPlayersToRemove.length === 0 || loading}
-                variant="destructive"
+                variant="outline"
                 className="w-full"
               >
                 <UserMinus className="h-4 w-4 mr-2" />

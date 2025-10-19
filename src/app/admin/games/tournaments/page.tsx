@@ -342,7 +342,8 @@ export default function TournamentsPage() {
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
                 onClick={() => setShowCreateForm(true)}
-                className="flex items-center justify-center gap-2 w-full sm:w-auto bg-[--color-primary] hover:bg-[--color-primary]/90"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+                variant="outline"
               >
                 <Plus className="h-4 w-4" />
                 <span className="hidden sm:inline">Create Tournament</span>

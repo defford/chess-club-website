@@ -344,7 +344,7 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
         <div className="text-center">
           <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <p className="text-red-600">Tournament not found</p>
-          <Button onClick={() => router.push('/admin/games/tournaments')} className="mt-4">
+          <Button onClick={() => router.push('/admin/games/tournaments')} className="mt-4" variant="outline">
             Back to Tournaments
           </Button>
         </div>
@@ -715,6 +715,7 @@ export default function TournamentDetailPage({ params }: TournamentDetailPagePro
                     <Button
                       onClick={() => setShowPlayerManager(true)}
                       className="w-full md:w-auto"
+                      variant="outline"
                     >
                       <Users className="h-4 w-4 mr-2" />
                       Manage Players

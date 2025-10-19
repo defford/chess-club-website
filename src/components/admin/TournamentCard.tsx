@@ -104,7 +104,7 @@ export default function TournamentCard({ tournament, onDelete, onUpdate }: Tourn
             
             <div className="relative">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={(e) => {
                   e.stopPropagation()
@@ -224,6 +224,7 @@ export default function TournamentCard({ tournament, onDelete, onUpdate }: Tourn
               </span>
               <Button
                 size="sm"
+                variant="outline"
                 onClick={(e) => {
                   e.stopPropagation()
                   handleViewTournament()
