@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
@@ -21,8 +21,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Add student registration to Google Sheets
-    const studentId = await googleSheetsService.addStudentRegistration(data);
+    // Add student registration to Supabase/Google Sheets
+    const studentId = await dataService.addStudentRegistration(data);
 
     // Send confirmation email (optional - could be batched)
     try {

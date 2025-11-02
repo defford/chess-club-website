@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { requireAdminAuth } from '@/lib/apiAuth';
 
 export async function POST(request: NextRequest) {
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
     };
 
     // Add parent registration first
-    const parentId = await googleSheetsService.addParentRegistration(parentData);
+    const parentId = await dataService.addParentRegistration(parentData);
 
     // Add student registration with default values for required fields
     // These will be updated when the parent properly registers
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
       medicalInfo: ''
     };
 
-    const studentId = await googleSheetsService.addStudentRegistration(studentData);
+    const studentId = await dataService.addStudentRegistration(studentData);
 
     return NextResponse.json(
       { 

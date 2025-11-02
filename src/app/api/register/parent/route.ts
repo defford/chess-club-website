@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       ...data,
       registrationType: 'parent' as const
     };
-    const parentId = await googleSheetsService.addParentRegistration(parentData);
+    const parentId = await dataService.addParentRegistration(parentData);
 
     // Send confirmation email
     try {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { isAdminAuthenticatedServer } from '@/lib/serverAuth';
 import type { TournamentFormData } from '@/lib/types';
 
@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
-    const tournaments = await googleSheetsService.getTournaments(status || undefined);
+    const tournaments = await dataService.getTournaments(status || undefined);
 
     return NextResponse.json(tournaments);
   } catch (error) {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
     // Get the admin user's email for createdBy field
     const adminEmail = request.headers.get('x-admin-email') || 'admin@chessclub.com';
 
-    const tournamentId = await googleSheetsService.addTournament(tournamentData, adminEmail);
+    const tournamentId = await dataService.addTournament(tournamentData, adminEmail);
 
     return NextResponse.json(
       { 

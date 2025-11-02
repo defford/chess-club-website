@@ -1183,7 +1183,8 @@ export class GoogleSheetsService {
         return null;
       }
 
-      // Get registration type from column N (index 13), fallback to inferring from other data
+      // Get registration type from column N (index 13), fallback to createAccount column
+      // Avoid expensive getStudentsByParentEmail call - use createAccount column directly
       let registrationType: 'parent' | 'self' = 'parent';
       let isSelfRegistered = false;
       
@@ -1192,20 +1193,9 @@ export class GoogleSheetsService {
         registrationType = accountRow[13] as 'parent' | 'self';
         isSelfRegistered = registrationType === 'self';
       } else {
-        // Fallback to old logic for existing data
-        try {
-          const students = await this.getStudentsByParentEmail(email);
-          const parentName = accountRow[1] || ''; // Parent name is in column B, index 1
-          isSelfRegistered = students.some(student => 
-            student.name.toLowerCase() === parentName.toLowerCase()
-          );
-          registrationType = isSelfRegistered ? 'self' : 'parent';
-        } catch (error) {
-          console.error('Error checking if self-registered:', error);
-          // Fallback to the createAccount column if we can't determine from student data
-          isSelfRegistered = accountRow[11]?.toString().toLowerCase() === 'true';
-          registrationType = isSelfRegistered ? 'self' : 'parent';
-        }
+        // Use createAccount column (index 11) - much faster than querying students
+        isSelfRegistered = accountRow[11]?.toString().toLowerCase() === 'true';
+        registrationType = isSelfRegistered ? 'self' : 'parent';
       }
 
       return {

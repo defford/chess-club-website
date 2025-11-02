@@ -7,10 +7,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { isAdminAuthenticated } from "@/lib/adminAuth"
 import { clientAuthService } from "@/lib/clientAuth"
-import { Gamepad2, Plus, Search, Filter, Download, LogOut, ArrowLeft, BarChart3, Trophy } from "lucide-react"
-import type { GameData, PlayerData, GameFormData } from "@/lib/types"
+import { Gamepad2, Plus, Search, LogOut, ArrowLeft, BarChart3, Trophy, Users, Calendar, Edit, Trash2 } from "lucide-react"
+import type { GameData, PlayerData, GameFormData, ClubMeetData } from "@/lib/types"
 import GameForm from "@/components/admin/GameForm"
 import SimpleGameForm from "@/components/admin/SimpleGameForm"
+import QuickStartMeet from "@/components/admin/QuickStartMeet"
 
 export default function AdminGamesPage() {
   const [isLoading, setIsLoading] = useState(true)
@@ -18,8 +19,12 @@ export default function AdminGamesPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [games, setGames] = useState<GameData[]>([])
   const [players, setPlayers] = useState<PlayerData[]>([])
+  const [meets, setMeets] = useState<ClubMeetData[]>([])
+  const [selectedAttendanceMeetId, setSelectedAttendanceMeetId] = useState<string>("")
   const [showGameForm, setShowGameForm] = useState(false)
   const [showQuickForm, setShowQuickForm] = useState(false)
+  const [showQuickStart, setShowQuickStart] = useState(false)
+  const [editingGame, setEditingGame] = useState<GameData | null>(null)
   const [searchQuery, setSearchQuery] = useState("")
   const [filterType, setFilterType] = useState("all")
   const [filterResult, setFilterResult] = useState("all")
@@ -59,18 +64,20 @@ export default function AdminGamesPage() {
       const session = clientAuthService.getCurrentParentSession()
       const userEmail = session?.email || 'dev@example.com'
       
-      const [gamesResponse, playersResponse] = await Promise.all([
+      const [gamesResponse, playersResponse, meetsResponse] = await Promise.all([
         fetch(`/api/games?email=${encodeURIComponent(userEmail)}`),
-        fetch('/api/members')
+        fetch('/api/members'),
+        fetch(`/api/attendance/meets?email=${encodeURIComponent(userEmail)}`).catch(() => null)
       ])
 
       if (!gamesResponse.ok || !playersResponse.ok) {
         throw new Error('Failed to fetch data')
       }
 
-      const [gamesData, membersData] = await Promise.all([
+      const [gamesData, membersData, meetsData] = await Promise.all([
         gamesResponse.json(),
-        playersResponse.json()
+        playersResponse.json(),
+        meetsResponse?.ok ? meetsResponse.json() : Promise.resolve([])
       ])
 
       // Transform members data to PlayerData format for the game form
@@ -90,6 +97,7 @@ export default function AdminGamesPage() {
 
       setGames(gamesData)
       setPlayers(playersData)
+      setMeets(meetsData || [])
     } catch (err) {
       console.error('Error loading data:', err)
       setError('Failed to load games and players')
@@ -97,6 +105,127 @@ export default function AdminGamesPage() {
       setLoading(false)
     }
   }
+
+  const loadPlayersForAttendance = async (meetId: string) => {
+    try {
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+      
+      const response = await fetch(`/api/attendance/meets/${meetId}/players?email=${encodeURIComponent(userEmail)}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch attendance players')
+      }
+      
+      const attendancePlayers = await response.json()
+      setPlayers(attendancePlayers)
+    } catch (err) {
+      console.error('Error loading attendance players:', err)
+      setError('Failed to load attendance players')
+    }
+  }
+
+  const handleAttendanceFilterChange = async (meetId: string) => {
+    setSelectedAttendanceMeetId(meetId)
+    if (meetId) {
+      await loadPlayersForAttendance(meetId)
+    } else {
+      // Reload all players
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+      const playersResponse = await fetch('/api/members')
+      if (playersResponse.ok) {
+        const membersData = await playersResponse.json()
+        const playersData = membersData.map((member: any) => ({
+          id: member.id,
+          name: member.playerName,
+          grade: member.playerGrade,
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          points: 0,
+          rank: 0,
+          lastActive: member.timestamp || new Date().toISOString(),
+          email: member.parentEmail || '',
+          isSystemPlayer: member.isSystemPlayer || false
+        }))
+        setPlayers(playersData)
+      }
+    }
+  }
+
+  const loadPlayers = async () => {
+    const session = clientAuthService.getCurrentParentSession()
+    const userEmail = session?.email || 'dev@example.com'
+    const playersResponse = await fetch('/api/members')
+    if (playersResponse.ok) {
+      const membersData = await playersResponse.json()
+      const playersData = membersData.map((member: any) => ({
+        id: member.id,
+        name: member.playerName,
+        grade: member.playerGrade,
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        points: 0,
+        rank: 0,
+        lastActive: member.timestamp || new Date().toISOString(),
+        email: member.parentEmail || '',
+        isSystemPlayer: member.isSystemPlayer || false
+      }))
+      setPlayers(playersData)
+      return playersData
+    }
+    return players
+  }
+
+  const handleQuickStartComplete = async (meetId: string) => {
+    await loadData()
+    setShowQuickStart(false)
+    // Optionally show message or redirect
+  }
+
+  const handleCreateMeet = async (meetData: { meetDate: string; meetName?: string; notes?: string }): Promise<string> => {
+    const session = clientAuthService.getCurrentParentSession()
+    const userEmail = session?.email || 'dev@example.com'
+
+    const response = await fetch(`/api/attendance/meets?email=${encodeURIComponent(userEmail)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(meetData)
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to create meet')
+    }
+
+    const result = await response.json()
+    return result.meetId
+  }
+
+  const handleAddAttendance = async (meetId: string, playerIds: string[]): Promise<void> => {
+    const session = clientAuthService.getCurrentParentSession()
+    const userEmail = session?.email || 'dev@example.com'
+
+    const response = await fetch(`/api/attendance/meets/${meetId}/attendance?email=${encodeURIComponent(userEmail)}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ playerIds })
+    })
+
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Failed to add attendance')
+    }
+  }
+
+  // Find today's meet
+  const todayMeet = meets.find(meet => meet.meetDate === new Date().toISOString().split('T')[0])
 
   const handleLogout = () => {
     logout()
@@ -112,8 +241,15 @@ export default function AdminGamesPage() {
       const session = clientAuthService.getCurrentParentSession()
       const userEmail = session?.email || 'dev@example.com'
 
-      const response = await fetch(`/api/games?email=${encodeURIComponent(userEmail)}`, {
-        method: 'POST',
+      const isEdit = !!editingGame
+      const url = isEdit 
+        ? `/api/games/${editingGame.id}?email=${encodeURIComponent(userEmail)}`
+        : `/api/games?email=${encodeURIComponent(userEmail)}`
+      
+      const method = isEdit ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -122,22 +258,65 @@ export default function AdminGamesPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || 'Failed to create game')
+        throw new Error(error.error || `Failed to ${isEdit ? 'update' : 'create'} game`)
       }
 
       // Refresh the games list
       await loadData()
       setShowGameForm(false)
       setShowQuickForm(false)
+      setEditingGame(null)
       
-      // Dispatch event to notify other components that a game was added
+      // Dispatch event to notify other components that a game was added/updated
       localStorage.setItem('gameAdded', Date.now().toString())
     } catch (err) {
-      console.error('Error creating game:', err)
-      setError(err instanceof Error ? err.message : 'Failed to create game')
+      console.error(`Error ${editingGame ? 'updating' : 'creating'} game:`, err)
+      setError(err instanceof Error ? err.message : `Failed to ${editingGame ? 'update' : 'create'} game`)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const handleDeleteGame = async (gameId: string) => {
+    if (!confirm('Are you sure you want to delete this game? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      // Get the current user's email for admin authentication
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+
+      const response = await fetch(`/api/games/${gameId}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete game')
+      }
+
+      // Refresh the games list
+      await loadData()
+    } catch (err) {
+      console.error('Error deleting game:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete game')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEditGame = (game: GameData) => {
+    setEditingGame(game)
+    setShowGameForm(true)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingGame(null)
+    setShowGameForm(false)
   }
 
   const filteredGames = games.filter(game => {
@@ -336,6 +515,14 @@ export default function AdminGamesPage() {
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-2">
               <Button
+                onClick={() => setShowQuickStart(true)}
+                className="flex items-center gap-2 bg-[--color-primary] text-white hover:bg-[--color-primary]/90"
+              >
+                <Calendar className="h-4 w-4" />
+                <span className="hidden sm:inline">Quick Start Meet</span>
+                <span className="sm:hidden">Quick Start</span>
+              </Button>
+              <Button
                 onClick={() => setShowQuickForm(!showQuickForm)}
                 variant="outline"
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
@@ -349,9 +536,9 @@ export default function AdminGamesPage() {
                 variant="outline"
                 className="flex items-center justify-center gap-2 w-full sm:w-auto"
               >
-                <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Advanced Form</span>
-                <span className="sm:hidden">Advanced</span>
+                <Gamepad2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Full Game Form</span>
+                <span className="sm:hidden">Full</span>
               </Button>
               <Button
                 onClick={() => router.push("/admin/games/tournaments")}
@@ -375,14 +562,92 @@ export default function AdminGamesPage() {
           </div>
         </div>
 
+        {/* Quick Start Meet Flow */}
+        {showQuickStart && (
+          <QuickStartMeet
+            allPlayers={players}
+            onComplete={handleQuickStartComplete}
+            onCancel={() => setShowQuickStart(false)}
+            onCreateMeet={handleCreateMeet}
+            onAddAttendance={handleAddAttendance}
+            onRefreshPlayers={loadPlayers}
+          />
+        )}
+
         {/* Quick Game Form - Dropdown Section */}
         {showQuickForm && (
           <div className="mb-6">
+            {/* Attendance Filter */}
+            <Card className="mb-4">
+              <CardContent className="pt-6">
+                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-gray-500" />
+                    <label className="text-sm font-medium text-[--color-text-primary]">
+                      Filter Players:
+                    </label>
+                  </div>
+                  <div className="flex-1 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={selectedAttendanceMeetId === "" ? "outline" : "ghost"}
+                      size="sm"
+                      onClick={() => handleAttendanceFilterChange("")}
+                      className={selectedAttendanceMeetId === "" ? "border-[--color-primary] bg-[--color-primary]/10" : ""}
+                    >
+                      All Players
+                    </Button>
+                    {todayMeet && (
+                      <Button
+                        type="button"
+                        variant={selectedAttendanceMeetId === todayMeet.id ? "outline" : "ghost"}
+                        size="sm"
+                        onClick={() => handleAttendanceFilterChange(todayMeet.id)}
+                        className={selectedAttendanceMeetId === todayMeet.id ? "border-[--color-primary] bg-[--color-primary]/10" : ""}
+                      >
+                        <Calendar className="h-3 w-3 mr-1" />
+                        Today's Attendance
+                      </Button>
+                    )}
+                    {meets.slice(0, 5).map((meet) => (
+                      meet.id !== todayMeet?.id && (
+                        <Button
+                          key={meet.id}
+                          type="button"
+                          variant={selectedAttendanceMeetId === meet.id ? "outline" : "ghost"}
+                          size="sm"
+                          onClick={() => handleAttendanceFilterChange(meet.id)}
+                          className={selectedAttendanceMeetId === meet.id ? "border-[--color-primary] bg-[--color-primary]/10" : ""}
+                        >
+                          {new Date(meet.meetDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </Button>
+                      )
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push("/admin/attendance")}
+                    className="text-[--color-primary] hover:text-[--color-primary] hover:bg-[--color-primary]/10"
+                  >
+                    <Users className="h-3 w-3 mr-1" />
+                    Manage Attendance
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
             <SimpleGameForm
               players={players}
               onSubmit={handleGameSubmit}
-              onCancel={() => setShowQuickForm(false)}
+              onCancel={() => {
+                setShowQuickForm(false)
+                setSelectedAttendanceMeetId("")
+                loadData()
+              }}
               isLoading={submitting}
+              recentGames={games.slice(0, 20)}
+              attendanceMeetId={selectedAttendanceMeetId || undefined}
             />
           </div>
         )}
@@ -433,42 +698,88 @@ export default function AdminGamesPage() {
                         <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Type</th>
                         <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Duration</th>
                         <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Notes</th>
+                        <th className="text-right py-3 px-4 font-medium text-[--color-text-primary]">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredGames.map((game) => (
                         <tr 
                           key={game.id} 
-                          className="border-b hover:bg-gray-50 cursor-pointer"
-                          onClick={() => router.push(`/admin/games/${game.id}`)}
+                          className="border-b hover:bg-gray-50"
                         >
-                          <td className="py-3 px-4 text-[--color-text-primary]">
+                          <td 
+                            className="py-3 px-4 text-[--color-text-primary] cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             {new Date(game.gameDate).toLocaleDateString()}
                           </td>
-                          <td className="py-3 px-4 text-[--color-text-primary]">
+                          <td 
+                            className="py-3 px-4 text-[--color-text-primary] cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             <div className="font-medium">
                               {game.player1Name} vs {game.player2Name}
                             </div>
                           </td>
-                          <td className="py-3 px-4">
+                          <td 
+                            className="py-3 px-4 cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getResultColor(game.result)}`}>
                               {getResultLabel(game.result, game)}
                             </span>
                           </td>
-                          <td className="py-3 px-4">
+                          <td 
+                            className="py-3 px-4 cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getGameTypeColor(game.gameType)}`}>
                               {game.gameType}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-[--color-text-primary]">
+                          <td 
+                            className="py-3 px-4 text-[--color-text-primary] cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             {game.gameTime > 0 ? `${game.gameTime} min` : '-'}
                           </td>
-                          <td className="py-3 px-4 text-[--color-text-primary]">
+                          <td 
+                            className="py-3 px-4 text-[--color-text-primary] cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             {game.notes ? (
                               <span className="truncate max-w-xs block" title={game.notes}>
                                 {game.notes}
                               </span>
                             ) : '-'}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleEditGame(game)
+                                }}
+                                className="h-8 w-8 p-0"
+                                disabled={submitting}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  handleDeleteGame(game.id)
+                                }}
+                                className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                disabled={submitting}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -481,13 +792,15 @@ export default function AdminGamesPage() {
                   {filteredGames.map((game) => (
                     <Card 
                       key={game.id} 
-                      className="p-4 hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => router.push(`/admin/games/${game.id}`)}
+                      className="p-4 hover:shadow-md transition-shadow"
                     >
                       <div className="space-y-3">
                         {/* Header with Date and Type */}
                         <div className="flex justify-between items-start">
-                          <div>
+                          <div 
+                            className="flex-1 cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             <p className="text-sm font-medium text-[--color-text-primary]">
                               {new Date(game.gameDate).toLocaleDateString()}
                             </p>
@@ -495,20 +808,52 @@ export default function AdminGamesPage() {
                               {game.gameType}
                             </span>
                           </div>
-                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getResultColor(game.result)}`}>
-                            {getResultLabel(game.result, game)}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getResultColor(game.result)}`}>
+                              {getResultLabel(game.result, game)}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleEditGame(game)
+                              }}
+                              className="h-8 w-8 p-0"
+                              disabled={submitting}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleDeleteGame(game.id)
+                              }}
+                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              disabled={submitting}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
 
                         {/* Players */}
-                        <div>
+                        <div 
+                          className="cursor-pointer"
+                          onClick={() => router.push(`/admin/games/${game.id}`)}
+                        >
                           <p className="font-medium text-[--color-text-primary]">
                             {game.player1Name} vs {game.player2Name}
                           </p>
                         </div>
 
                         {/* Game Details */}
-                        <div className="flex justify-between items-center text-sm text-[--color-text-secondary]">
+                        <div 
+                          className="flex justify-between items-center text-sm text-[--color-text-secondary] cursor-pointer"
+                          onClick={() => router.push(`/admin/games/${game.id}`)}
+                        >
                           <span>
                             {game.gameTime > 0 ? `${game.gameTime} min` : 'No duration'}
                           </span>
@@ -532,8 +877,20 @@ export default function AdminGamesPage() {
           <GameForm
             players={players}
             onSubmit={handleGameSubmit}
-            onCancel={() => setShowGameForm(false)}
+            onCancel={handleCancelEdit}
             isLoading={submitting}
+            initialData={editingGame ? {
+              player1Id: editingGame.player1Id,
+              player2Id: editingGame.player2Id,
+              result: editingGame.result,
+              gameDate: editingGame.gameDate,
+              gameTime: editingGame.gameTime,
+              gameType: editingGame.gameType,
+              eventId: editingGame.eventId,
+              notes: editingGame.notes,
+              opening: editingGame.opening,
+              endgame: editingGame.endgame,
+            } : undefined}
           />
         )}
       </div>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import type { EventRegistrationData } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -23,10 +23,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Add the registration to the "event registrations" sheet
-    await googleSheetsService.addEventRegistration(registrationData);
+    await dataService.addEventRegistration(registrationData);
     
     // Update the event participant count
-    await googleSheetsService.incrementEventParticipants(registrationData.eventId);
+    await dataService.incrementEventParticipants(registrationData.eventId);
     
     return NextResponse.json(
       { message: 'Event registration successful' },

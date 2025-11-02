@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Dropdown } from "@/components/ui/dropdown"
-import { Menu, X, LogOut, LayoutDashboard, Gamepad2, Settings } from "lucide-react"
+import { Menu, X, LogOut, LayoutDashboard, Settings } from "lucide-react"
 import { clientAuthService } from "@/lib/clientAuth"
 import { isAuthenticated as isAdminAuthenticated } from "@/lib/auth"
 import { useAdmin } from "@/hooks/useAdmin"
@@ -170,11 +170,6 @@ export function Header() {
                 },
                 ...(isAdmin ? [
                   {
-                    label: "Game Management",
-                    href: "/admin/games",
-                    icon: <Gamepad2 className="h-4 w-4" />
-                  },
-                  {
                     label: "Admin Panel",
                     href: "/admin",
                     icon: <Settings className="h-4 w-4" />
@@ -259,20 +254,12 @@ export function Header() {
                     </Button>
                   </Link>
                   {isAdmin && (
-                    <>
-                      <Link href="/admin/games" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" size="sm" className="w-full flex items-center justify-center space-x-1">
-                          <Gamepad2 className="h-4 w-4" />
-                          <span>Game Management</span>
-                        </Button>
-                      </Link>
-                      <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
-                        <Button variant="outline" size="sm" className="w-full flex items-center justify-center space-x-1">
-                          <Settings className="h-4 w-4" />
-                          <span>Admin Panel</span>
-                        </Button>
-                      </Link>
-                    </>
+                    <Link href="/admin" onClick={() => setMobileMenuOpen(false)}>
+                      <Button variant="outline" size="sm" className="w-full flex items-center justify-center space-x-1">
+                        <Settings className="h-4 w-4" />
+                        <span>Admin Panel</span>
+                      </Button>
+                    </Link>
                   )}
                   <Button
                     variant="outline"

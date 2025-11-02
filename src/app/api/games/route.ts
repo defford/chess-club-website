@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
+import { dataService } from '@/lib/dataService';
 import { GameData, GameFormData, AchievementNotification } from '@/lib/types';
 import { requireAdminAuth } from '@/lib/apiAuth';
 import { KVCacheService } from '@/lib/kv';
@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     
     try {
       // Get all members using the same method as the frontend
-      const registrations = await enhancedGoogleSheetsService.getMembersFromParentsAndStudents();
+      const registrations = await dataService.getMembersFromParentsAndStudents();
       
       // Add IDs to members data (same logic as /api/members endpoint)
       const members = registrations.map((registration, index) => ({
@@ -128,7 +128,9 @@ export async function POST(request: NextRequest) {
         isActive: true, // Default to active
         notes: '',
       }));
-
+      
+      console.log(`Found ${members.length} members, looking for players: ${gameFormData.player1Id}, ${gameFormData.player2Id}`);
+      
       // Add system players for incomplete games (same as /api/members endpoint)
       const systemPlayers = [
         {
@@ -195,8 +197,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (!player1 || !player2) {
+      console.error('Player lookup failed:', {
+        player1Id: gameFormData.player1Id,
+        player2Id: gameFormData.player2Id,
+        player1Found: !!player1,
+        player2Found: !!player2,
+        totalMembers: allMembers.length,
+        memberIds: allMembers.slice(0, 10).map(m => m.id), // Log first 10 IDs for debugging
+      });
       return NextResponse.json(
-        { error: 'One or both players not found' },
+        { error: `One or both players not found. Player1: ${gameFormData.player1Id}, Player2: ${gameFormData.player2Id}` },
         { status: 404 }
       );
     }
@@ -221,8 +231,8 @@ export async function POST(request: NextRequest) {
       isVerified: false,
     };
 
-    // Add game to Google Sheets (rankings will be calculated dynamically)
-    const gameId = await enhancedGoogleSheetsService.addGame(gameData);
+    // Add game to Supabase/Google Sheets (rankings will be calculated dynamically)
+    const gameId = await dataService.addGame(gameData);
     
     // Update game data with the generated ID
     const finalGameData = { ...gameData, id: gameId };
@@ -231,7 +241,7 @@ export async function POST(request: NextRequest) {
     try {
       // Get all games and players for achievement checking
       const allGames = await KVCacheService.getGames();
-      const allPlayers = await enhancedGoogleSheetsService.calculateRankingsFromGames();
+      const allPlayers = await dataService.calculateRankingsFromGames();
       
       // Check for new achievements
       const newAchievements = await AchievementService.checkAchievements(

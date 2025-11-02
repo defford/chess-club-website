@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
-import { Users, Calendar, Trophy, Settings, LogOut, Gamepad2 } from "lucide-react"
+import { Users, LogOut, Gamepad2, ClipboardList } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminDashboard() {
@@ -71,38 +71,24 @@ export default function AdminDashboard() {
   const adminCards = [
     {
       title: "Member Management",
-      description: "View, add, edit, and manage club members",
+      description: "View all players and their details",
       icon: Users,
       href: "/admin/members",
       count: `${memberStats?.total || 0} members`
     },
     {
-      title: "Events",
-      description: "Manage upcoming events and tournaments",
-      icon: Calendar,
-      href: "/admin/events",
-      count: "Coming soon",
-    },
-    {
-      title: "Rankings",
-      description: "Update player rankings and ladder positions",
-      icon: Trophy,
-      href: "/admin/rankings",
-      count: "Manage games",
-    },
-    {
       title: "Game Management",
-      description: "Record and manage chess games",
+      description: "Add games and tournaments",
       icon: Gamepad2,
       href: "/admin/games",
       count: "Record games",
     },
     {
-      title: "Settings",
-      description: "Configure club settings and preferences",
-      icon: Settings,
-      href: "/admin/settings",
-      count: "Coming soon",
+      title: "Meet Management",
+      description: "Handle attendance and track who attended meets",
+      icon: ClipboardList,
+      href: "/admin/attendance",
+      count: "Active",
     },
   ]
 
@@ -130,7 +116,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Admin Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {adminCards.map((card) => {
             const IconComponent = card.icon
             return (

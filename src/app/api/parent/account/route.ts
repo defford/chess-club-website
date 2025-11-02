@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
 import { KVCacheService } from '@/lib/kv';
 
 export async function GET(request: NextRequest) {
@@ -15,7 +14,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get parent data (includes name) - using cache
+    // Get parent data (includes all needed fields) - single optimized call
     const parentData = await KVCacheService.getParentByEmail(email);
     
     if (!parentData) {
@@ -25,18 +24,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get parent account details for additional info - using cache
-    const parentAccount = await KVCacheService.getParentAccount(email);
-
+    // Use parentData fields directly - no need for separate getParentAccount call
+    // timestamp can be used as createdDate, and isSelfRegistered is in registrationType
     return NextResponse.json({
       id: parentData.id,
       email: parentData.email,
       name: parentData.name,
       phone: parentData.phone,
-      createdDate: parentAccount?.createdDate || new Date().toISOString(),
-      lastLogin: parentAccount?.lastLogin || new Date().toISOString(),
-      isActive: parentAccount?.isActive || true,
-      isSelfRegistered: parentAccount?.isSelfRegistered || false
+      createdDate: parentData.timestamp || new Date().toISOString(),
+      lastLogin: parentData.timestamp || new Date().toISOString(), // Use timestamp as lastLogin fallback
+      isActive: true, // Assume active if exists
+      isSelfRegistered: parentData.registrationType === 'self'
     });
 
   } catch (error) {

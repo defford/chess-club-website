@@ -21,6 +21,8 @@ export default function GameForm({
   isLoading = false,
   initialData 
 }: GameFormProps) {
+  const isEdit = !!initialData
+  
   const [formData, setFormData] = useState<GameFormData>({
     player1Id: initialData?.player1Id || '',
     player2Id: initialData?.player2Id || '',
@@ -36,6 +38,25 @@ export default function GameForm({
   })
 
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  // Update form data when initialData changes
+  useEffect(() => {
+    if (initialData) {
+      setFormData({
+        player1Id: initialData.player1Id || '',
+        player2Id: initialData.player2Id || '',
+        result: initialData.result || '',
+        gameDate: initialData.gameDate || new Date().toISOString().split('T')[0],
+        gameTime: initialData.gameTime || 0,
+        gameType: initialData.gameType || 'ladder',
+        eventId: initialData.eventId || '',
+        notes: initialData.notes || '',
+        opening: initialData.opening || '',
+        endgame: initialData.endgame || '',
+        recordedBy: 'admin'
+      })
+    }
+  }, [initialData])
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -95,7 +116,9 @@ export default function GameForm({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Gamepad2 className="h-5 w-5 sm:h-6 sm:w-6 text-[--color-primary]" />
-              <CardTitle className="text-lg sm:text-xl">Record New Game</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">
+                {isEdit ? 'Edit Game' : 'Record New Game'}
+              </CardTitle>
             </div>
             <Button
               variant="outline"
@@ -328,7 +351,7 @@ export default function GameForm({
                 variant="outline"
               >
                 <Save className="h-4 w-4" />
-                {isLoading ? 'Saving...' : 'Save Game'}
+                {isLoading ? (isEdit ? 'Updating...' : 'Saving...') : (isEdit ? 'Update Game' : 'Save Game')}
               </Button>
             </div>
           </form>

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { isAdminAuthenticatedServer } from '@/lib/serverAuth';
 import type { TournamentData } from '@/lib/types';
 
@@ -15,7 +15,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const tournament = await googleSheetsService.getTournamentById(id);
+    const tournament = await dataService.getTournamentById(id);
 
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
@@ -62,7 +62,7 @@ export async function PUT(
       }
     }
 
-    await googleSheetsService.updateTournament(id, updates);
+    await dataService.updateTournament(id, updates);
 
     return NextResponse.json({ message: 'Tournament updated successfully' });
   } catch (error) {
@@ -100,7 +100,7 @@ export async function DELETE(
       );
     }
 
-    await googleSheetsService.deleteTournament(id);
+    await dataService.deleteTournament(id);
 
     return NextResponse.json({ message: 'Tournament deleted successfully' });
   } catch (error) {

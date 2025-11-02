@@ -198,6 +198,31 @@ export interface EventRegistrationData {
   timestamp?: string;
 }
 
+// Club Meet Attendance Types
+export interface ClubMeetData {
+  id: string;
+  meetDate: string; // YYYY-MM-DD format
+  meetName?: string;
+  notes?: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AttendanceData {
+  id: string;
+  meetId: string;
+  playerId: string;
+  playerName: string;
+  checkedInAt: string;
+  notes?: string;
+}
+
+export interface MeetWithAttendance extends ClubMeetData {
+  attendanceCount: number;
+  players: AttendanceData[];
+}
+
 // Player and Ranking Interfaces
 export interface PlayerData {
   id?: string;

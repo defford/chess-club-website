@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       registrationType: 'self' as const
     };
 
-    const parentId = await googleSheetsService.addParentRegistration(parentData);
+    const parentId = await dataService.addParentRegistration(parentData);
 
     // 2. Then, save as student linked to the parent
     const studentData = {
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
       medicalInfo: data.medicalInfo || ''
     };
 
-    const studentId = await googleSheetsService.addStudentRegistration(studentData);
+    const studentId = await dataService.addStudentRegistration(studentData);
 
     // Send confirmation email
     try {

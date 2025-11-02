@@ -1,6 +1,5 @@
 import { Redis } from '@upstash/redis';
-import { enhancedGoogleSheetsService } from './googleSheetsEnhanced';
-import { googleSheetsService } from './googleSheets';
+import { dataService } from './dataService';
 import type { EventData, PlayerData, RegistrationData, LadderSession, LadderSessionData, LadderSessionFilters } from './types';
 
 export interface CacheConfig {
@@ -19,6 +18,11 @@ export class KVCacheService {
   // Circuit breaker for quota exceeded errors
   private static quotaExceededUntil: number = 0;
   private static readonly QUOTA_COOLDOWN = process.env.NODE_ENV === 'development' ? 30 * 1000 : 5 * 60 * 1000; // 30 seconds in dev, 5 minutes in prod
+
+  // Cache Redis availability check to avoid repeated checks
+  private static redisAvailableCache: boolean | null = null;
+  private static redisAvailabilityCheckTime: number = 0;
+  private static readonly REDIS_AVAILABILITY_CACHE_TTL = 60000; // Cache for 1 minute
 
   private static readonly CACHE_KEYS = {
     EVENTS: 'events:all',
@@ -48,13 +52,30 @@ export class KVCacheService {
   };
 
   // Check if Redis is available (for local development fallback)
+  // Cached result to avoid repeated checks
   private static isRedisAvailable(): boolean {
-    // In development, always bypass Redis for faster iteration
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Development mode: bypassing Redis cache for faster iteration');
-      return false;
+    const now = Date.now();
+    
+    // Return cached result if still valid
+    if (this.redisAvailableCache !== null && 
+        (now - this.redisAvailabilityCheckTime) < this.REDIS_AVAILABILITY_CACHE_TTL) {
+      return this.redisAvailableCache;
     }
-    return !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN && this.redis);
+
+    // Check Redis availability
+    const isDev = process.env.NODE_ENV === 'development';
+    const available = !isDev && !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN && this.redis);
+    
+    // Cache the result
+    this.redisAvailableCache = available;
+    this.redisAvailabilityCheckTime = now;
+    
+    // Only log once when Redis availability changes
+    if (!available && !isDev) {
+      // Silent in production - Redis might not be configured
+    }
+    
+    return available;
   }
 
   // Check if we're in a quota exceeded cooldown period
@@ -77,7 +98,6 @@ export class KVCacheService {
     try {
       // If Redis is not available (local dev), go straight to Google Sheets
       if (!this.isRedisAvailable()) {
-        console.log(`Redis not configured - using Google Sheets directly for ${cacheKey}`);
         return await sheetsFallback();
       }
 
@@ -85,44 +105,38 @@ export class KVCacheService {
       try {
         const cached = await this.redis!.get<T>(cacheKey);
         if (cached !== null && cached !== undefined) {
-          console.log(`Cache HIT: ${cacheKey}`);
           return cached;
         }
       } catch (cacheError) {
-        console.warn(`Cache read error for ${cacheKey}:`, cacheError);
-        // Continue to fallback to Google Sheets
+        // Silently continue to fallback - cache errors shouldn't fail the request
       }
       
       // Check if we're in a quota exceeded cooldown period
       if (this.isQuotaExceeded()) {
-        console.warn(`Quota exceeded cooldown active for ${cacheKey}, attempting to return stale cache data`);
-        
         // Try to get stale data from cache if available
         try {
           const staleData = await this.redis!.get<T>(cacheKey);
           if (staleData !== null && staleData !== undefined) {
-            console.log(`Returning stale cache data for ${cacheKey}`);
             return staleData;
           }
         } catch (staleError) {
-          console.error(`Failed to get stale data for ${cacheKey}:`, staleError);
+          // Silently continue
         }
         
         // If no stale data available, throw error
         throw new Error('Quota exceeded and no stale cache data available');
       }
       
-      console.log(`Cache MISS: ${cacheKey} - fetching from Sheets`);
       // Fallback to Google Sheets
       const freshData = await sheetsFallback();
       
-      // Cache the fresh data
-      await this.setCachedData(cacheKey, freshData, config);
+      // Cache the fresh data (fire and forget - don't wait)
+      this.setCachedData(cacheKey, freshData, config).catch(() => {
+        // Silently fail - caching errors shouldn't fail the request
+      });
       
       return freshData;
     } catch (error: any) {
-      console.error(`Cache error for ${cacheKey}:`, error);
-      
       // Check if it's a quota exceeded error
       const isQuotaError = error?.code === 429 || 
                          error?.message?.includes('Quota exceeded') ||
@@ -133,18 +147,15 @@ export class KVCacheService {
         // Set circuit breaker
         this.setQuotaExceeded();
         
-        console.warn(`Quota exceeded for ${cacheKey}, attempting to return stale cache data`);
-        
         // Try to get stale data from cache if available
         if (this.isRedisAvailable()) {
           try {
             const staleData = await this.redis!.get<T>(cacheKey);
             if (staleData !== null && staleData !== undefined) {
-              console.log(`Returning stale cache data for ${cacheKey}`);
               return staleData;
             }
           } catch (staleError) {
-            console.error(`Failed to get stale data for ${cacheKey}:`, staleError);
+            // Silently continue
           }
         }
       }
@@ -167,10 +178,8 @@ export class KVCacheService {
       
       // Track key by tags for invalidation
       await this.trackKeyByTags(cacheKey, config.tags);
-      
-      console.log(`Cache SET: ${cacheKey} with TTL ${config.ttl}s`);
     } catch (error) {
-      console.error(`Cache set error for ${cacheKey}:`, error);
+      // Silently fail - caching errors shouldn't fail the request
     }
   }
 
@@ -189,9 +198,8 @@ export class KVCacheService {
       if (!this.isRedisAvailable()) return;
       
       await this.redis!.del(cacheKey);
-      console.log(`Cache INVALIDATED: ${cacheKey}`);
     } catch (error) {
-      console.error(`Cache invalidation error for ${cacheKey}:`, error);
+      // Silently fail - invalidation errors shouldn't fail the request
     }
   }
 
@@ -220,11 +228,9 @@ export class KVCacheService {
         for (const tag of tags) {
           await this.redis!.del(`tag:${tag}`);
         }
-        
-        console.log(`Invalidated ${keysToInvalidate.size} keys for tags: ${tags.join(', ')}`);
       }
     } catch (error) {
-      console.error(`Tag invalidation error:`, error);
+      // Silently fail - invalidation errors shouldn't fail the request
     }
   }
 
@@ -239,7 +245,7 @@ export class KVCacheService {
         await this.redis!.expire(`tag:${tag}`, 86400); // 24 hours
       }
     } catch (error) {
-      console.error(`Tag tracking error:`, error);
+      // Silently fail - tracking errors shouldn't fail the request
     }
   }
 
@@ -247,7 +253,7 @@ export class KVCacheService {
   static async getEvents(): Promise<EventData[]> {
     return this.getCachedData(
       this.CACHE_KEYS.EVENTS,
-      () => enhancedGoogleSheetsService.getEvents(),
+      () => dataService.getEvents(),
       this.CACHE_CONFIG.events
     );
   }
@@ -255,7 +261,7 @@ export class KVCacheService {
   static async getRankings(): Promise<PlayerData[]> {
     return this.getCachedData(
       this.CACHE_KEYS.RANKINGS,
-      () => googleSheetsService.getPlayers(),
+      () => dataService.calculateRankingsFromGames(),
       this.CACHE_CONFIG.rankings
     );
   }
@@ -263,7 +269,7 @@ export class KVCacheService {
   static async getMembers(): Promise<RegistrationData[]> {
     return this.getCachedData(
       this.CACHE_KEYS.MEMBERS,
-      () => enhancedGoogleSheetsService.getMembersFromParentsAndStudents(),
+      () => dataService.getMembersFromParentsAndStudents(),
       this.CACHE_CONFIG.members
     );
   }
@@ -272,7 +278,7 @@ export class KVCacheService {
     const cacheKey = filters ? `games:filtered:${JSON.stringify(filters)}` : 'games:all';
     return this.getCachedData(
       cacheKey,
-      () => enhancedGoogleSheetsService.getGames(filters),
+      () => dataService.getGames(filters),
       { ttl: 1800, tags: ['games'] } // 30 minutes
     );
   }
@@ -282,7 +288,7 @@ export class KVCacheService {
     const cacheKey = `event_registrations:player:${playerName}`;
     return this.getCachedData(
       cacheKey,
-      () => enhancedGoogleSheetsService.getEventRegistrationsByPlayer(playerName),
+      () => dataService.getEventRegistrationsByPlayer(playerName),
       { ttl: 300, tags: ['event-registrations'] } // 5 minutes
     );
   }
@@ -290,7 +296,7 @@ export class KVCacheService {
   static async getParentAccount(email: string) {
     return this.getCachedData(
       this.CACHE_KEYS.PARENT_ACCOUNT(email),
-      () => enhancedGoogleSheetsService.getParentAccount(email),
+      () => dataService.getParentAccount(email),
       this.CACHE_CONFIG.parentAccount
     );
   }
@@ -298,7 +304,7 @@ export class KVCacheService {
   static async getParentPlayers(parentAccountId: string) {
     return this.getCachedData(
       this.CACHE_KEYS.PARENT_PLAYERS(parentAccountId),
-      () => enhancedGoogleSheetsService.getParentPlayers(parentAccountId),
+      () => dataService.getParentPlayers(parentAccountId),
       this.CACHE_CONFIG.parentPlayers
     );
   }
@@ -306,7 +312,7 @@ export class KVCacheService {
   static async getStudentsByParentId(parentId: string) {
     return this.getCachedData(
       this.CACHE_KEYS.STUDENTS_BY_PARENT(parentId),
-      () => enhancedGoogleSheetsService.getStudentsByParentId(parentId),
+      () => dataService.getStudentsByParentId(parentId),
       this.CACHE_CONFIG.studentsByParent
     );
   }
@@ -438,7 +444,7 @@ export class KVCacheService {
     const cacheKey = `parent:email:${email}`;
     return this.getCachedData(
       cacheKey,
-      () => enhancedGoogleSheetsService.getParentByEmail(email),
+      () => dataService.getParentByEmail(email),
       { ttl: 3600, tags: ['parent-data'] }
     );
   }

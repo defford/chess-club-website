@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
+import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
 import type { PlayerData } from '@/lib/googleSheets';
 
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const playerId = await enhancedGoogleSheetsService.addPlayer(playerData);
+    const playerId = await dataService.addPlayer(playerData);
     
     // Rankings are now calculated dynamically from games
     // Cache will be invalidated automatically by the enhanced service

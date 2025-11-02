@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
+import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
 import type { EventData } from '@/lib/googleSheets';
 
@@ -45,7 +44,7 @@ export async function POST(request: NextRequest) {
       status: eventData.status || 'active' as const,
     };
 
-    const eventId = await enhancedGoogleSheetsService.addEvent(eventWithDefaults);
+    const eventId = await dataService.addEvent(eventWithDefaults);
     
     return NextResponse.json(
       { message: 'Event created successfully', eventId },

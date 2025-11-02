@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { KVCacheService } from '@/lib/kv';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/ladder - Get ladder data for a specific date or current date
 export async function GET(request: NextRequest) {
@@ -13,7 +12,7 @@ export async function GET(request: NextRequest) {
     const targetDate = date || new Date().toISOString().split('T')[0];
     
     // Get all games from the specified date
-    const games = await enhancedGoogleSheetsService.getGames({
+    const games = await dataService.getGames({
       dateFrom: targetDate,
       dateTo: targetDate,
       gameType: 'ladder'
@@ -22,7 +21,7 @@ export async function GET(request: NextRequest) {
     
     // Get all players to build the ladder
     // Force fresh calculation by bypassing cache temporarily
-    const allPlayers = await googleSheetsService.calculateRankingsFromGames();
+    const allPlayers = await dataService.calculateRankingsFromGames();
     console.log(`[Ladder API] Retrieved ${allPlayers.length} players from fresh rankings calculation`);
     
     // Debug: Check if any players have points
@@ -40,7 +39,7 @@ export async function GET(request: NextRequest) {
     // If no players have points, try to get members directly and calculate from games
     if (playersWithPoints.length === 0) {
       console.log(`[Ladder API] No players with points found, trying alternative calculation...`);
-      const members = await googleSheetsService.getMembersFromParentsAndStudents();
+      const members = await dataService.getMembersFromParentsAndStudents();
       console.log(`[Ladder API] Retrieved ${members.length} members directly`);
       
       // Create a simple player stats map from members
@@ -63,7 +62,7 @@ export async function GET(request: NextRequest) {
       });
       
       // Process all games to calculate stats
-      const allGames = await googleSheetsService.getGames();
+      const allGames = await dataService.getGames();
       const allLadderGames = allGames.filter(game => game.gameType === 'ladder');
       console.log(`[Ladder API] Processing ${allLadderGames.length} total ladder games for stats calculation`);
       

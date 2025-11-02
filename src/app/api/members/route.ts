@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { googleSheetsService, type RegistrationData } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
+import type { RegistrationData } from '@/lib/googleSheets';
 
 // Interface for Member data that combines registration info with member-specific fields
 export interface MemberData extends RegistrationData {

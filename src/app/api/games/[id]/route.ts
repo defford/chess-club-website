@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
+import { requireAdminAuth } from '@/lib/apiAuth';
 
 // GET /api/games/[id] - Get a specific game
 export async function GET(
@@ -8,7 +9,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const games = await googleSheetsService.getGames();
+    const games = await dataService.getGames();
     const game = games.find(g => g.id === id);
     
     if (!game) {
@@ -34,11 +35,20 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check admin authentication
+    const authResult = await requireAdminAuth(request);
+    if (!authResult.isAdmin) {
+      return NextResponse.json(
+        { error: authResult.error || 'Admin privileges required' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const updates = await request.json();
     
     // Validate that the game exists
-    const games = await googleSheetsService.getGames();
+    const games = await dataService.getGames();
     const game = games.find(g => g.id === id);
     
     if (!game) {
@@ -49,7 +59,7 @@ export async function PUT(
     }
 
     // Update the game
-    await googleSheetsService.updateGame(id, updates);
+    await dataService.updateGame(id, updates);
     
     return NextResponse.json(
       { message: 'Game updated successfully' },
@@ -70,9 +80,18 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    // Check admin authentication
+    const authResult = await requireAdminAuth(request);
+    if (!authResult.isAdmin) {
+      return NextResponse.json(
+        { error: authResult.error || 'Admin privileges required' },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     // Validate that the game exists
-    const games = await googleSheetsService.getGames();
+    const games = await dataService.getGames();
     const game = games.find(g => g.id === id);
     
     if (!game) {
@@ -83,7 +102,7 @@ export async function DELETE(
     }
 
     // Delete the game
-    await googleSheetsService.deleteGame(id);
+    await dataService.deleteGame(id);
     
     return NextResponse.json(
       { message: 'Game deleted successfully' },

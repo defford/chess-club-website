@@ -330,6 +330,12 @@ export function LadderPageClient() {
       } else if (sortField === "overallRank") {
         aValue = a.overallRank
         bValue = b.overallRank
+      } else if (sortField === "wins" || sortField === "losses" || sortField === "draws" || sortField === "gamesPlayed" || sortField === "points" || sortField === "rank") {
+        // Use getDisplayStats for fields that depend on the toggle state
+        const aStats = getDisplayStats(a)
+        const bStats = getDisplayStats(b)
+        aValue = aStats[sortField as keyof typeof aStats]
+        bValue = bStats[sortField as keyof typeof bStats]
       } else {
         const aFieldValue = a[sortField as keyof LadderPlayerData]
         const bFieldValue = b[sortField as keyof LadderPlayerData]
