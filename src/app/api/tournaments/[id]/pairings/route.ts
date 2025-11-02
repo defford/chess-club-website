@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
+import { dataService } from '@/lib/dataService';
 import { isAdminAuthenticatedServer } from '@/lib/serverAuth';
 
 // Simple in-memory cache for tournament data
@@ -30,7 +29,7 @@ export async function POST(
     }
 
     // Validate tournament exists and is active
-    const tournament = await googleSheetsService.getTournamentById(id);
+    const tournament = await dataService.getTournamentById(id);
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
@@ -74,7 +73,7 @@ export async function POST(
       await new Promise(resolve => setTimeout(resolve, 500));
       
       try {
-        currentResults = await googleSheetsService.getTournamentResults(id);
+        currentResults = await dataService.getTournamentResults(id);
         // Cache the results
         tournamentCache.set(cacheKey, { data: currentResults, timestamp: now });
       } catch (error: any) {
@@ -164,9 +163,9 @@ export async function POST(
     // in the /api/tournaments/[id]/rounds endpoint, so we don't need to process them here
     
     try {
-      await googleSheetsService.updateTournamentResults(id, updatedResults);
+      await dataService.updateTournamentResults(id, updatedResults);
     } catch (error) {
-      console.error('❌ GOOGLE SHEETS UPDATE FAILED:', error);
+      console.error('❌ Tournament results update failed:', error);
     }
 
     // Create game records for actual games (not byes)
@@ -205,8 +204,8 @@ export async function POST(
                 isVerified: false,
               };
 
-              // Add game to Google Sheets using enhanced service for cache invalidation
-              const gameId = await enhancedGoogleSheetsService.addGame(gameData);
+              // Add game using dataService (handles cache invalidation)
+              const gameId = await dataService.addGame(gameData);
               return gameId;
             }
           }
@@ -225,7 +224,7 @@ export async function POST(
 
     if (currentRound >= totalRounds) {
       // Tournament is complete - clear all round data
-      await googleSheetsService.updateTournament(id, {
+      await dataService.updateTournament(id, {
         status: 'completed',
         currentPairings: undefined,
         currentForcedByes: undefined,
@@ -233,7 +232,7 @@ export async function POST(
       });
     } else {
       // Move to next round and clear current round data
-      await googleSheetsService.updateTournament(id, {
+      await dataService.updateTournament(id, {
         currentRound: currentRound + 1,
         currentPairings: undefined,
         currentForcedByes: undefined,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { isAdminAuthenticatedServer } from '@/lib/serverAuth';
 
 export async function POST(
@@ -32,7 +32,7 @@ export async function POST(
     }
 
     // Validate tournament exists and is active
-    const tournament = await googleSheetsService.getTournamentById(id);
+    const tournament = await dataService.getTournamentById(id);
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
@@ -53,7 +53,7 @@ export async function POST(
     }
 
     // Get current tournament results
-    const currentResults = await googleSheetsService.getTournamentResults(id);
+    const currentResults = await dataService.getTournamentResults(id);
     
     // Validate that all player IDs exist in the tournament
     const tournamentPlayerIds = tournament.playerIds;
@@ -79,15 +79,15 @@ export async function POST(
       return result;
     });
 
-    // Update the tournament results in Google Sheets
+    // Update the tournament results
     try {
-      await googleSheetsService.updateTournamentResults(id, updatedResults);
+      await dataService.updateTournamentResults(id, updatedResults);
     } catch (error) {
       console.error('Failed to update tournament results for half-point byes:', error);
     }
 
     // Update the tournament's currentHalfPointByes field
-    await googleSheetsService.updateTournament(id, {
+    await dataService.updateTournament(id, {
       currentHalfPointByes: JSON.stringify(playerIds)
     });
 
@@ -129,7 +129,7 @@ export async function GET(
     }
 
     // Get tournament results for the specified round
-    const results = await googleSheetsService.getTournamentResults(id);
+    const results = await dataService.getTournamentResults(id);
     
     // Filter players who have half-point byes in the specified round
     const playersWithHalfPointByes = results

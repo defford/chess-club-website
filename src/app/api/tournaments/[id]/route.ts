@@ -47,7 +47,7 @@ export async function PUT(
     const updates: Partial<TournamentData> = body;
 
     // Validate that tournament exists
-    const existingTournament = await googleSheetsService.getTournamentById(id);
+    const existingTournament = await dataService.getTournamentById(id);
     if (!existingTournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
@@ -87,7 +87,7 @@ export async function DELETE(
 
     const { id } = await params;
     // Validate that tournament exists
-    const existingTournament = await googleSheetsService.getTournamentById(id);
+    const existingTournament = await dataService.getTournamentById(id);
     if (!existingTournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }

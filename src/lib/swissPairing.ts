@@ -1,5 +1,5 @@
 import type { TournamentData, TournamentResultData, TournamentPairing, TournamentRound } from './types';
-import { googleSheetsService } from './googleSheets';
+import { dataService } from './dataService';
 
 export interface SwissPairingResult {
   pairings: TournamentPairing[];
@@ -18,8 +18,8 @@ export class SwissPairingService {
   async generateSwissPairings(tournamentId: string, roundNumber: number, currentResults?: TournamentResultData[]): Promise<SwissPairingResult> {
     try {
       // Get tournament data and current standings
-      const tournament = await googleSheetsService.getTournamentById(tournamentId);
-      const standings = currentResults || await googleSheetsService.getTournamentResults(tournamentId, true);
+      const tournament = await dataService.getTournamentById(tournamentId);
+      const standings = currentResults || await dataService.getTournamentResults(tournamentId, true);
 
       if (!tournament) {
         throw new Error(`Tournament ${tournamentId} not found`);
@@ -448,7 +448,7 @@ export class SwissPairingService {
       });
 
       // Update standings in Google Sheets
-      await googleSheetsService.updateTournamentResults(tournamentId, updatedStandings);
+      await dataService.updateTournamentResults(tournamentId, updatedStandings);
     } catch (error) {
       console.error('Error updating standings after round:', error);
       throw new Error('Failed to update standings after round');

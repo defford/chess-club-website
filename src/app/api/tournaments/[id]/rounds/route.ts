@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { generateSwissPairings } from '@/lib/swissPairing';
 import { isAdminAuthenticatedServer } from '@/lib/serverAuth';
 
@@ -21,7 +21,7 @@ export async function GET(
     const { id } = await params;
     
     // Get the tournament data to retrieve stored pairings
-    const tournament = await googleSheetsService.getTournamentById(id);
+    const tournament = await dataService.getTournamentById(id);
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
@@ -40,7 +40,7 @@ export async function GET(
       await new Promise(resolve => setTimeout(resolve, 500));
       
       try {
-        currentResults = await googleSheetsService.getTournamentResults(id);
+        currentResults = await dataService.getTournamentResults(id);
         // Cache the results
         tournamentCache.set(cacheKey, { data: currentResults, timestamp: now });
       } catch (error: any) {
@@ -137,7 +137,7 @@ export async function POST(
     }
 
     // Validate tournament exists and is active
-    const tournament = await googleSheetsService.getTournamentById(id);
+    const tournament = await dataService.getTournamentById(id);
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
@@ -150,12 +150,12 @@ export async function POST(
     }
 
     // Get current standings and all players
-    const currentResults = await googleSheetsService.getTournamentResults(id);
-    const allPlayers = await googleSheetsService.getMembersFromParentsAndStudents();
+    const currentResults = await dataService.getTournamentResults(id);
+    const allPlayers = await dataService.getMembersFromParentsAndStudents();
     
     // Map players for pairing
     const playersForPairing = tournament.playerIds
-      .map(playerId => allPlayers.find(p => p.studentId === playerId))
+      .map((playerId: string) => allPlayers.find(p => p.studentId === playerId))
       .filter(Boolean);
 
     // Generate Swiss pairings for the round
@@ -187,9 +187,9 @@ export async function POST(
         return result;
       });
       
-      // Update the tournament results in Google Sheets immediately
+      // Update the tournament results immediately
       try {
-        await googleSheetsService.updateTournamentResults(id, updatedResults);
+        await dataService.updateTournamentResults(id, updatedResults);
       } catch (error) {
         console.error('Failed to update tournament results for forced byes:', error);
       }
@@ -206,7 +206,7 @@ export async function POST(
     updateData.currentForcedByes = JSON.stringify(pairingResult.forcedByes); // Store player IDs, not names
     updateData.currentHalfPointByes = JSON.stringify(pairingResult.halfPointByes); // Store player IDs, not names
     
-    await googleSheetsService.updateTournament(id, updateData);
+    await dataService.updateTournament(id, updateData);
 
     return NextResponse.json({
       message: 'Round pairings generated successfully',

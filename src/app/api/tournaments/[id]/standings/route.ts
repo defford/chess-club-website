@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { isAdminAuthenticatedServer } from '@/lib/serverAuth';
 
 export async function GET(
@@ -14,7 +14,7 @@ export async function GET(
     }
 
     const { id } = await params;
-    const standings = await googleSheetsService.getTournamentResults(id);
+    const standings = await dataService.getTournamentResults(id);
 
     // Sort by points (desc), then Buchholz (desc)
     const sortedStandings = standings.sort((a, b) => {

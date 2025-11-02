@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { isAdminAuthenticatedServer } from '@/lib/serverAuth';
 import type { TournamentResultData } from '@/lib/types';
 
@@ -26,7 +26,7 @@ export async function POST(
     }
 
     // Validate tournament exists
-    const tournament = await googleSheetsService.getTournamentById(id);
+    const tournament = await dataService.getTournamentById(id);
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
@@ -52,15 +52,15 @@ export async function POST(
       }
 
       // Add players to tournament
-      await googleSheetsService.addPlayersToTournament(id, playerIds, byeRounds);
+      await dataService.addPlayersToTournament(id, playerIds, byeRounds);
       
       // Update tournament playerIds
       const updatedPlayerIds = [...tournament.playerIds, ...playerIds];
-      await googleSheetsService.updateTournament(id, { playerIds: updatedPlayerIds });
+      await dataService.updateTournament(id, { playerIds: updatedPlayerIds });
 
       // Clear current round pairings if tournament is active
       if (tournament.status === 'active') {
-        await googleSheetsService.updateTournament(id, {
+        await dataService.updateTournament(id, {
           currentPairings: undefined,
           currentForcedByes: undefined,
           currentHalfPointByes: undefined
@@ -85,15 +85,15 @@ export async function POST(
       }
 
       // Remove players from tournament
-      await googleSheetsService.removePlayersFromTournament(id, playerIds, removeCompletely);
+      await dataService.removePlayersFromTournament(id, playerIds, removeCompletely);
       
       // Update tournament playerIds
-      const updatedPlayerIds = tournament.playerIds.filter(playerId => !playerIds.includes(playerId));
-      await googleSheetsService.updateTournament(id, { playerIds: updatedPlayerIds });
+      const updatedPlayerIds = tournament.playerIds.filter((playerId: string) => !playerIds.includes(playerId));
+      await dataService.updateTournament(id, { playerIds: updatedPlayerIds });
 
       // Clear current round pairings if tournament is active
       if (tournament.status === 'active') {
-        await googleSheetsService.updateTournament(id, {
+        await dataService.updateTournament(id, {
           currentPairings: undefined,
           currentForcedByes: undefined,
           currentHalfPointByes: undefined
@@ -135,16 +135,16 @@ export async function GET(
     const { id } = await params;
     
     // Get tournament data
-    const tournament = await googleSheetsService.getTournamentById(id);
+    const tournament = await dataService.getTournamentById(id);
     if (!tournament) {
       return NextResponse.json({ error: 'Tournament not found' }, { status: 404 });
     }
 
     // Get all available members for adding
-    const allMembers = await googleSheetsService.getMembersFromParentsAndStudents();
+    const allMembers = await dataService.getMembersFromParentsAndStudents();
     
     // Get current tournament results (including withdrawn players)
-    const tournamentResults = await googleSheetsService.getTournamentResults(id);
+    const tournamentResults = await dataService.getTournamentResults(id);
     
     // Filter available players (not in tournament)
     const availablePlayers = allMembers.filter(member => 
