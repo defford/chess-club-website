@@ -115,6 +115,7 @@ export async function POST(request: NextRequest) {
     console.log('Getting players from members data...');
     let player1 = null;
     let player2 = null;
+    let allMembers: any[] = [];
     
     try {
       // Get all members using the same method as the frontend
@@ -160,7 +161,7 @@ export async function POST(request: NextRequest) {
       ];
 
       // Combine regular members with system players
-      const allMembers = [...members, ...systemPlayers];
+      allMembers = [...members, ...systemPlayers];
       
       const member1 = allMembers.find(m => m.id === gameFormData.player1Id);
       const member2 = allMembers.find(m => m.id === gameFormData.player2Id);

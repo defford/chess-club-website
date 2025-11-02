@@ -50,13 +50,9 @@ class DataService {
     } catch (error) {
       console.error(`[DataService] Primary read failed for ${operationName}, attempting fallback:`, error);
       
-      // Fallback to secondary service if primary fails
-      if (this.dualWrite) {
-        const secondaryService = this.useSupabase ? googleSheetsService : supabaseService;
-        return await operation(secondaryService);
-      }
-      
-      throw error;
+      // Fallback to secondary service if primary fails (independent of dual-write mode)
+      const secondaryService = this.useSupabase ? googleSheetsService : supabaseService;
+      return await operation(secondaryService);
     }
   }
 

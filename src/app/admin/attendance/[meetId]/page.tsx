@@ -98,7 +98,7 @@ export default function AttendanceDetailPage() {
       // Load attendance players for game form
       if (meetData.players && meetData.players.length > 0) {
         const attendancePlayerIds = new Set(meetData.players.map((p: AttendanceData) => p.playerId))
-        const attPlayers = playersData.filter(p => attendancePlayerIds.has(p.id || ''))
+        const attPlayers = playersData.filter((p: PlayerData) => attendancePlayerIds.has(p.id || ''))
         setAttendancePlayers(attPlayers)
       } else {
         setAttendancePlayers([])
