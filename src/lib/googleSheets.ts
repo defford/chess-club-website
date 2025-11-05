@@ -1214,6 +1214,55 @@ export class GoogleSheetsService {
     }
   }
 
+  async getAllParents(): Promise<ParentAccount[]> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'parents!A:O',
+        }),
+        'getAllParents'
+      );
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return [];
+      }
+
+      return rows.slice(1)
+        .filter((row) => row[0] && row[2]) // Filter out rows without ID or email first
+        .map((row) => {
+          let registrationType: 'parent' | 'self' = 'parent';
+          let isSelfRegistered = false;
+          
+          if (row[13]) {
+            registrationType = row[13] as 'parent' | 'self';
+            isSelfRegistered = registrationType === 'self';
+          } else {
+            isSelfRegistered = row[11]?.toString().toLowerCase() === 'true';
+            registrationType = isSelfRegistered ? 'self' : 'parent';
+          }
+
+          return {
+            id: row[0] || '',
+            email: row[2] || '',
+            createdDate: row[12] || new Date().toISOString(),
+            lastLogin: new Date().toISOString(),
+            isActive: true,
+            isSelfRegistered,
+            registrationType,
+            isAdmin: row[14]?.toString().toLowerCase() === 'true' || false
+          };
+        })
+        .sort((a, b) => a.email.localeCompare(b.email));
+    } catch (error) {
+      console.error('Error reading all parents from Google Sheets:', error);
+      throw new Error('Failed to retrieve all parents from Google Sheets');
+    }
+  }
+
   async addParentAccount(account: ParentAccount): Promise<void> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
     
@@ -1312,6 +1361,62 @@ export class GoogleSheetsService {
     }
   }
 
+  async updateStudentRegistration(studentId: string, updates: Partial<StudentRegistrationData>): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('registrations');
+    
+    try {
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'students!A:I',
+        }),
+        'getStudentsForUpdate'
+      );
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        throw new Error('Student not found');
+      }
+
+      // Find the row to update
+      const rowIndex = rows.slice(1).findIndex(row => row[0] === studentId);
+      if (rowIndex === -1) {
+        throw new Error('Student not found');
+      }
+
+      const actualRowIndex = rowIndex + 2; // Account for header row and 0-based index
+      const currentRow = rows[rowIndex + 1];
+
+      // Apply updates to the students sheet structure
+      // Structure: ID, Parent ID, Name, Age, Grade, Emergency Contact, Emergency Phone, Medical Info, Timestamp
+      const updatedRow = [
+        currentRow[0], // ID (never changes)
+        updates.parentId !== undefined ? updates.parentId : currentRow[1], // Parent ID
+        updates.playerName !== undefined ? updates.playerName : currentRow[2], // Name
+        updates.playerAge !== undefined ? updates.playerAge : currentRow[3], // Age
+        updates.playerGrade !== undefined ? updates.playerGrade : currentRow[4], // Grade
+        updates.emergencyContact !== undefined ? updates.emergencyContact : currentRow[5], // Emergency Contact
+        updates.emergencyPhone !== undefined ? updates.emergencyPhone : currentRow[6], // Emergency Phone
+        updates.medicalInfo !== undefined ? updates.medicalInfo : currentRow[7], // Medical Info
+        currentRow[8] // Timestamp (keep original)
+      ];
+
+      await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.update({
+          spreadsheetId,
+          range: `students!A${actualRowIndex}:I${actualRowIndex}`,
+          valueInputOption: 'RAW',
+          requestBody: {
+            values: [updatedRow],
+          },
+        }),
+        'updateStudentRegistration'
+      );
+    } catch (error) {
+      console.error('Error updating student registration in Google Sheets:', error);
+      throw new Error('Failed to update student registration in Google Sheets');
+    }
+  }
 
   async getStudentsByParentId(parentId: string): Promise<StudentData[]> {
     const spreadsheetId = this.getSpreadsheetId('registrations');
@@ -2151,6 +2256,75 @@ export class GoogleSheetsService {
     }
   }
 
+  async deleteGamesByDate(gameDate: string): Promise<void> {
+    const spreadsheetId = this.getSpreadsheetId('rankings');
+    
+    if (!spreadsheetId) {
+      throw new Error('Google Sheets ID not configured');
+    }
+
+    try {
+      // Get all games to find rows matching the date
+      const response = await this.executeWithRetry(
+        () => this.sheets.spreadsheets.values.get({
+          spreadsheetId,
+          range: 'games!A:S',
+        }),
+        'getGamesForDeleteByDate'
+      );
+
+      const rows = response.data.values;
+      if (!rows || rows.length <= 1) {
+        return; // No games to delete
+      }
+
+      // Find rows to delete (game_date is column G, index 6)
+      // Store row indices (1-based for Google Sheets API)
+      const rowsToDelete: number[] = [];
+      rows.forEach((row, index) => {
+        if (index === 0) return; // Skip header
+        const rowGameDate = row[6]; // game_date column
+        if (rowGameDate === gameDate) {
+          rowsToDelete.push(index + 1); // Google Sheets uses 1-based indexing
+        }
+      });
+
+      if (rowsToDelete.length === 0) {
+        return; // No games found for this date
+      }
+
+      // Delete rows in reverse order to maintain indices
+      // Google Sheets API requires deleting from bottom to top
+      const sortedRows = rowsToDelete.sort((a, b) => b - a);
+      
+      for (const rowNumber of sortedRows) {
+        await this.executeWithRetry(
+          () => this.sheets.spreadsheets.batchUpdate({
+            spreadsheetId,
+            requestBody: {
+              requests: [{
+                deleteDimension: {
+                  range: {
+                    sheetId: 0, // Assuming games sheet is the first sheet
+                    dimension: 'ROWS',
+                    startIndex: rowNumber - 1,
+                    endIndex: rowNumber
+                  }
+                }
+              }]
+            }
+          }),
+          'deleteGameByDate'
+        );
+      }
+
+      console.log(`✅ Deleted ${rowsToDelete.length} game(s) for date ${gameDate}`);
+    } catch (error) {
+      console.error('❌ Failed to delete games by date:', error);
+      throw error;
+    }
+  }
+
   async getGameStats(): Promise<any> {
     try {
       const games = await this.getGames();
@@ -2164,7 +2338,6 @@ export class GoogleSheetsService {
           tournamentGames: 0,
           friendlyGames: 0,
           practiceGames: 0,
-          averageGameTime: 0,
           mostActivePlayer: 'N/A',
           recentGames: []
         };
@@ -2183,9 +2356,6 @@ export class GoogleSheetsService {
       const tournamentGames = games.filter(game => game.gameType === 'tournament').length;
       const friendlyGames = games.filter(game => game.gameType === 'friendly').length;
       const practiceGames = games.filter(game => game.gameType === 'practice').length;
-      
-      const totalGameTime = games.reduce((sum, game) => sum + (game.gameTime || 0), 0);
-      const averageGameTime = totalGames > 0 ? Math.round(totalGameTime / totalGames) : 0;
 
       // Find most active player
       const playerGameCounts: { [key: string]: number } = {};
@@ -2213,7 +2383,6 @@ export class GoogleSheetsService {
         tournamentGames,
         friendlyGames,
         practiceGames,
-        averageGameTime,
         mostActivePlayer,
         recentGames
       };
@@ -2258,9 +2427,6 @@ export class GoogleSheetsService {
       const tournamentGames = playerGames.filter(game => game.gameType === 'tournament').length;
       const friendlyGames = playerGames.filter(game => game.gameType === 'friendly').length;
       const practiceGames = playerGames.filter(game => game.gameType === 'practice').length;
-      
-      const totalGameTime = playerGames.reduce((sum, game) => sum + (game.gameTime || 0), 0);
-      const averageGameTime = totalGames > 0 ? Math.round(totalGameTime / totalGames) : 0;
 
       // Calculate wins, losses, draws
       let wins = 0, losses = 0, draws = 0;
@@ -2294,7 +2460,6 @@ export class GoogleSheetsService {
         tournamentGames,
         friendlyGames,
         practiceGames,
-        averageGameTime,
         recentGames
       };
     } catch (error) {
@@ -3602,6 +3767,27 @@ export class GoogleSheetsService {
       console.error('Error removing players from tournament:', error);
       throw new Error('Failed to remove players from tournament');
     }
+  }
+
+  // ==================== ELO Rating Methods ====================
+  // Note: ELO ratings are stored in Supabase. These are stubs for compatibility.
+
+  async getPlayerEloRating(playerId: string): Promise<number> {
+    // ELO ratings are only supported in Supabase
+    // Return default rating for Google Sheets compatibility
+    return 1000;
+  }
+
+  async updatePlayerEloRating(playerId: string, newRating: number): Promise<void> {
+    // ELO ratings are only supported in Supabase
+    // No-op for Google Sheets compatibility
+    console.warn('updatePlayerEloRating called on GoogleSheetsService - ELO ratings only supported in Supabase');
+  }
+
+  async initializeAllPlayerEloRatings(): Promise<void> {
+    // ELO ratings are only supported in Supabase
+    // No-op for Google Sheets compatibility
+    console.warn('initializeAllPlayerEloRatings called on GoogleSheetsService - ELO ratings only supported in Supabase');
   }
 
 }
