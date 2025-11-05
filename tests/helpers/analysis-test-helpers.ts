@@ -10,18 +10,49 @@ export async function setupGameHistory(
   gameHistory: GameHistory,
   baseURL: string = 'http://localhost:3000'
 ): Promise<void> {
-  const response = await page.request.post(`${baseURL}/api/analysis/state`, {
-    data: {
-      gameHistory,
-      currentMoveIndex: gameHistory.currentMoveIndex,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Failed to setup game history: ${response.status()} ${response.statusText()}`);
+  // Navigate to the base URL first to establish the page context
+  // This ensures relative URLs resolve correctly
+  try {
+    await page.goto(baseURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  } catch (e) {
+    // If navigation fails, the server might not be ready
+    throw new Error(
+      `Failed to navigate to ${baseURL}. Is the server running?\n` +
+      `Original error: ${e}`
+    );
   }
 
-  const result = await response.json();
+  // Use fetch from within the page context to ensure correct origin
+  const result = await page.evaluate(async (data) => {
+    const response = await fetch('/api/analysis/state', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(
+        `HTTP ${response.status} ${response.statusText}: ${text.substring(0, 500)}`
+      );
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await response.text();
+      throw new Error(
+        `Expected JSON but got ${contentType}: ${text.substring(0, 500)}`
+      );
+    }
+
+    return await response.json();
+  }, {
+    gameHistory,
+    currentMoveIndex: gameHistory.currentMoveIndex,
+  });
+
   if (!result.success) {
     throw new Error(`Failed to setup game history: ${JSON.stringify(result)}`);
   }
