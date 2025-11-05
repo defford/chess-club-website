@@ -160,7 +160,7 @@ export default function AnalysisControllerPage() {
               onClick={goToFirst}
               disabled={isAtFirst}
               className="h-32 text-xl font-bold py-8"
-              variant={isAtFirst ? "outline" : "default"}
+              variant={isAtFirst ? "outline" : "primary"}
             >
               <RotateCcw className="mr-2 h-6 w-6" />
               First Move
@@ -171,7 +171,7 @@ export default function AnalysisControllerPage() {
               onClick={goToPrevious}
               disabled={!canGoPrevious}
               className="h-32 text-xl font-bold py-8"
-              variant={!canGoPrevious ? "outline" : "default"}
+              variant={!canGoPrevious ? "outline" : "primary"}
             >
               <ChevronLeft className="mr-2 h-6 w-6" />
               Previous
@@ -182,7 +182,7 @@ export default function AnalysisControllerPage() {
               onClick={goToNext}
               disabled={!canGoNext}
               className="h-32 text-xl font-bold py-8"
-              variant={!canGoNext ? "outline" : "default"}
+              variant={!canGoNext ? "outline" : "primary"}
             >
               Next
               <ChevronRight className="ml-2 h-6 w-6" />
