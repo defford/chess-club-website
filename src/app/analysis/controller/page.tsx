@@ -44,6 +44,7 @@ export default function AnalysisControllerPage() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('[Controller] SSE message received:', data.type, data.state?.currentMoveIndex);
         if (data.type === 'connected' || data.type === 'state-change') {
           setState(data.state);
         }
@@ -67,13 +68,16 @@ export default function AnalysisControllerPage() {
     if (!state) return;
     
     try {
-      await fetch('/api/analysis/state', {
+      console.log('[Controller] Sending POST to navigate to first move');
+      const response = await fetch('/api/analysis/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentMoveIndex: -1, // -1 means starting position
         }),
       });
+      const result = await response.json();
+      console.log('[Controller] POST response:', result);
     } catch (error) {
       console.error('Failed to navigate to first:', error);
     }
@@ -89,13 +93,16 @@ export default function AnalysisControllerPage() {
     if (newIndex < minIndex) return; // Already at first
     
     try {
-      await fetch('/api/analysis/state', {
+      console.log('[Controller] Sending POST to navigate to previous move:', newIndex);
+      const response = await fetch('/api/analysis/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentMoveIndex: newIndex,
         }),
       });
+      const result = await response.json();
+      console.log('[Controller] POST response:', result);
     } catch (error) {
       console.error('Failed to navigate to previous:', error);
     }
@@ -111,13 +118,16 @@ export default function AnalysisControllerPage() {
     if (newIndex > maxIndex) return; // Already at last
     
     try {
-      await fetch('/api/analysis/state', {
+      console.log('[Controller] Sending POST to navigate to next move:', newIndex);
+      const response = await fetch('/api/analysis/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentMoveIndex: newIndex,
         }),
       });
+      const result = await response.json();
+      console.log('[Controller] POST response:', result);
     } catch (error) {
       console.error('Failed to navigate to next:', error);
     }
@@ -160,7 +170,7 @@ export default function AnalysisControllerPage() {
               onClick={goToFirst}
               disabled={isAtFirst}
               className="h-32 text-xl font-bold py-8"
-              variant={isAtFirst ? "outline" : "primary"}
+              variant="outline"
             >
               <RotateCcw className="mr-2 h-6 w-6" />
               First Move
@@ -171,7 +181,7 @@ export default function AnalysisControllerPage() {
               onClick={goToPrevious}
               disabled={!canGoPrevious}
               className="h-32 text-xl font-bold py-8"
-              variant={!canGoPrevious ? "outline" : "primary"}
+              variant="outline"
             >
               <ChevronLeft className="mr-2 h-6 w-6" />
               Previous
@@ -182,7 +192,7 @@ export default function AnalysisControllerPage() {
               onClick={goToNext}
               disabled={!canGoNext}
               className="h-32 text-xl font-bold py-8"
-              variant={!canGoNext ? "outline" : "primary"}
+              variant="outline"
             >
               Next
               <ChevronRight className="ml-2 h-6 w-6" />

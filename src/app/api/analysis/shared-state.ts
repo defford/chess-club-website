@@ -39,13 +39,22 @@ export function broadcastStateChange(state: AnalysisState) {
     state,
   });
 
+  console.log('[Shared State] Broadcasting to', connections.size, 'connections');
+  let successCount = 0;
+  let errorCount = 0;
+
   connections.forEach(controller => {
     try {
       controller.enqueue(`data: ${data}\n\n`);
-    } catch {
+      successCount++;
+    } catch (error) {
       // Remove dead connections
+      console.log('[Shared State] Removing dead connection:', error);
       connections.delete(controller);
+      errorCount++;
     }
   });
+  
+  console.log('[Shared State] Broadcast complete - success:', successCount, 'errors:', errorCount);
 }
 

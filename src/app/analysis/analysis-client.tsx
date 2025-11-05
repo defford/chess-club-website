@@ -113,14 +113,12 @@ export function AnalysisBoardClient() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log('[Analysis Client] SSE message received:', data.type, data.state?.currentMoveIndex);
         if (data.type === 'connected' || data.type === 'state-change') {
           const serverState = data.state;
           
-          // Skip if this update came from our own action
-          if (isUpdatingFromServer.current) {
-            isUpdatingFromServer.current = false;
-            return;
-          }
+          // Set flag to prevent circular updates when we update state
+          isUpdatingFromServer.current = true;
 
           // Update game history if server has one and it's different
           if (serverState.gameHistory) {
