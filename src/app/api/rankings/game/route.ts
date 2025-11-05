@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
 import { GameFormData } from '@/lib/types';
 
 interface GameResult {
@@ -18,7 +17,6 @@ export async function POST(request: NextRequest) {
       player2Id: gameData.player2Id,
       result: gameData.result,
       gameDate: new Date().toISOString().split('T')[0],
-      gameTime: 0, // Default to 0 for legacy compatibility
       gameType: 'ladder',
       recordedBy: 'admin'
     };
