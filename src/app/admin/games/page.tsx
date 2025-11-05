@@ -1,13 +1,13 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { isAdminAuthenticated } from "@/lib/adminAuth"
 import { clientAuthService } from "@/lib/clientAuth"
-import { Gamepad2, Plus, Search, LogOut, ArrowLeft, BarChart3, Trophy, Users, Calendar, Edit, Trash2 } from "lucide-react"
+import { Gamepad2, Plus, Search, LogOut, ArrowLeft, BarChart3, Trophy, Users, Calendar, Edit, Trash2, X, RefreshCw } from "lucide-react"
 import type { GameData, PlayerData, GameFormData, ClubMeetData } from "@/lib/types"
 import GameForm from "@/components/admin/GameForm"
 import SimpleGameForm from "@/components/admin/SimpleGameForm"
@@ -31,7 +31,10 @@ export default function AdminGamesPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [filteredPlayerName, setFilteredPlayerName] = useState<string | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const filteredPlayerId = searchParams.get('playerId')
 
   useEffect(() => {
     const checkAuth = () => {
@@ -53,7 +56,7 @@ export default function AdminGamesPage() {
     }
 
     checkAuth()
-  }, [router])
+  }, [router, filteredPlayerId])
 
   const loadData = async () => {
     try {
@@ -64,8 +67,13 @@ export default function AdminGamesPage() {
       const session = clientAuthService.getCurrentParentSession()
       const userEmail = session?.email || 'dev@example.com'
       
+      // Build games API URL with optional playerId filter
+      const gamesUrl = filteredPlayerId 
+        ? `/api/games?email=${encodeURIComponent(userEmail)}&playerId=${encodeURIComponent(filteredPlayerId)}`
+        : `/api/games?email=${encodeURIComponent(userEmail)}`
+      
       const [gamesResponse, playersResponse, meetsResponse] = await Promise.all([
-        fetch(`/api/games?email=${encodeURIComponent(userEmail)}`),
+        fetch(gamesUrl),
         fetch('/api/members'),
         fetch(`/api/attendance/meets?email=${encodeURIComponent(userEmail)}`).catch(() => null)
       ])
@@ -98,6 +106,14 @@ export default function AdminGamesPage() {
       setGames(gamesData)
       setPlayers(playersData)
       setMeets(meetsData || [])
+      
+      // Set filtered player name if filtering by playerId
+      if (filteredPlayerId) {
+        const filteredPlayer = playersData.find((p: PlayerData) => p.id === filteredPlayerId)
+        setFilteredPlayerName(filteredPlayer?.name || null)
+      } else {
+        setFilteredPlayerName(null)
+      }
     } catch (err) {
       console.error('Error loading data:', err)
       setError('Failed to load games and players')
@@ -411,6 +427,29 @@ export default function AdminGamesPage() {
           </div>
         </div>
 
+        {/* Player Filter Indicator */}
+        {filteredPlayerId && filteredPlayerName && (
+          <Card className="mb-6 p-4 bg-blue-50 border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                <span className="text-[--color-text-primary]">
+                  Showing games for: <span className="font-semibold text-blue-600">{filteredPlayerName}</span>
+                </span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/admin/games")}
+                className="flex items-center gap-2 hover:bg-blue-100"
+              >
+                <X className="h-4 w-4" />
+                Clear Filter
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Quick Stats - Mobile Responsive */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 mb-6 md:mb-8">
           <Card className="p-4 sm:p-6">
@@ -558,6 +597,15 @@ export default function AdminGamesPage() {
                 <span className="hidden sm:inline">Statistics</span>
                 <span className="sm:hidden">Stats</span>
               </Button>
+              <Button
+                onClick={() => router.push("/admin/games/batch-update")}
+                variant="outline"
+                className="flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span className="hidden sm:inline">Batch Update</span>
+                <span className="sm:hidden">Batch</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -696,7 +744,6 @@ export default function AdminGamesPage() {
                         <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Players</th>
                         <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Result</th>
                         <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Type</th>
-                        <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Duration</th>
                         <th className="text-left py-3 px-4 font-medium text-[--color-text-primary]">Notes</th>
                         <th className="text-right py-3 px-4 font-medium text-[--color-text-primary]">Actions</th>
                       </tr>
@@ -736,12 +783,6 @@ export default function AdminGamesPage() {
                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getGameTypeColor(game.gameType)}`}>
                               {game.gameType}
                             </span>
-                          </td>
-                          <td 
-                            className="py-3 px-4 text-[--color-text-primary] cursor-pointer"
-                            onClick={() => router.push(`/admin/games/${game.id}`)}
-                          >
-                            {game.gameTime > 0 ? `${game.gameTime} min` : '-'}
                           </td>
                           <td 
                             className="py-3 px-4 text-[--color-text-primary] cursor-pointer"
@@ -850,19 +891,16 @@ export default function AdminGamesPage() {
                         </div>
 
                         {/* Game Details */}
-                        <div 
-                          className="flex justify-between items-center text-sm text-[--color-text-secondary] cursor-pointer"
-                          onClick={() => router.push(`/admin/games/${game.id}`)}
-                        >
-                          <span>
-                            {game.gameTime > 0 ? `${game.gameTime} min` : 'No duration'}
-                          </span>
-                          {game.notes && (
+                        {game.notes && (
+                          <div 
+                            className="text-sm text-[--color-text-secondary] cursor-pointer"
+                            onClick={() => router.push(`/admin/games/${game.id}`)}
+                          >
                             <span className="truncate max-w-32" title={game.notes}>
                               {game.notes}
                             </span>
-                          )}
-                        </div>
+                          </div>
+                        )}
                       </div>
                     </Card>
                   ))}
@@ -884,7 +922,6 @@ export default function AdminGamesPage() {
               player2Id: editingGame.player2Id,
               result: editingGame.result,
               gameDate: editingGame.gameDate,
-              gameTime: editingGame.gameTime,
               gameType: editingGame.gameType,
               eventId: editingGame.eventId,
               notes: editingGame.notes,
