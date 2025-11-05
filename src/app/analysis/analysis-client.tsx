@@ -52,26 +52,178 @@ export function AnalysisBoardClient() {
   // Worker reference
   const workerRef = useRef<StockfishWorker | null>(null);
   const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Server state sync refs
+  const isUpdatingFromServer = useRef(false);
+  const lastSyncedMoveIndex = useRef(-1);
 
-  // Load game history from localStorage after hydration
+  // Load game history from localStorage and fetch server state after hydration
   useEffect(() => {
-    if (typeof window !== 'undefined') {
+    if (typeof window === 'undefined') return;
+
+    const initializeState = async () => {
+      // First, try to load from server (shared state takes precedence)
+      try {
+        const response = await fetch('/api/analysis/state/current');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.state && data.state.gameHistory) {
+            isUpdatingFromServer.current = true;
+            setGameHistory(data.state.gameHistory);
+            lastSyncedMoveIndex.current = data.state.currentMoveIndex;
+            return; // Server state found, skip localStorage
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch initial state from server:', error);
+      }
+
+      // Fallback to localStorage if no server state
       const saved = localStorage.getItem('chess-analysis-history');
       if (saved) {
         try {
           const parsedHistory = JSON.parse(saved);
           setGameHistory(parsedHistory);
+          lastSyncedMoveIndex.current = parsedHistory.currentMoveIndex;
         } catch (error) {
           console.error('Failed to parse saved game history:', error);
         }
       }
-    }
+    };
+
+    initializeState();
   }, []); // Only run once after hydration
 
-  // Save game history to localStorage whenever it changes
+  // Save game history to localStorage whenever it changes (but not when updating from server)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('chess-analysis-history', JSON.stringify(gameHistory));
+    if (typeof window === 'undefined') return;
+    if (isUpdatingFromServer.current) {
+      isUpdatingFromServer.current = false;
+      return;
+    }
+    localStorage.setItem('chess-analysis-history', JSON.stringify(gameHistory));
+  }, [gameHistory]);
+
+  // Subscribe to server state changes via SSE
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const eventSource = new EventSource('/api/analysis/state');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'connected' || data.type === 'state-change') {
+          const serverState = data.state;
+          
+          // Skip if this update came from our own action
+          if (isUpdatingFromServer.current) {
+            isUpdatingFromServer.current = false;
+            return;
+          }
+
+          // Update game history if server has one and it's different
+          if (serverState.gameHistory) {
+            setGameHistory(prev => {
+              const serverHistory = serverState.gameHistory;
+              // Merge server history with current move index from server state
+              const updatedHistory = {
+                ...serverHistory,
+                currentMoveIndex: serverState.currentMoveIndex,
+              };
+              const localHistoryStr = JSON.stringify(prev);
+              const serverHistoryStr = JSON.stringify(updatedHistory);
+              
+              // Only update if different (to avoid unnecessary re-renders)
+              if (localHistoryStr !== serverHistoryStr) {
+                isUpdatingFromServer.current = true;
+                return updatedHistory;
+              }
+              return prev;
+            });
+          } else if (serverState.currentMoveIndex !== undefined) {
+            // Update just the current move index if no game history
+            setGameHistory(prev => ({
+              ...prev,
+              currentMoveIndex: serverState.currentMoveIndex,
+            }));
+          }
+
+          // Update board position if move index changed
+          if (serverState.currentMoveIndex !== lastSyncedMoveIndex.current) {
+            lastSyncedMoveIndex.current = serverState.currentMoveIndex;
+            
+            if (serverState.gameHistory && serverState.gameHistory.moves) {
+              const targetIndex = serverState.currentMoveIndex;
+              
+              if (targetIndex === -1) {
+                // Navigate to starting position
+                const newGame = new Chess(serverState.gameHistory.startFen);
+                setGame(newGame);
+                setFen(newGame.fen());
+                setEvaluation(null);
+                setIsAnalyzing(false);
+                if (workerRef.current && workerRef.current.isEngineReady()) {
+                  workerRef.current.setPosition(newGame.fen());
+                  workerRef.current.startAnalysis(18);
+                }
+              } else if (targetIndex >= 0 && targetIndex < serverState.gameHistory.moves.length) {
+                // Navigate to specific move
+                const targetMove = serverState.gameHistory.moves[targetIndex];
+                const newGame = new Chess(targetMove.fen);
+                setGame(newGame);
+                setFen(targetMove.fen);
+                setEvaluation(targetMove.evaluation || null);
+                setIsAnalyzing(false);
+                if (workerRef.current && workerRef.current.isEngineReady()) {
+                  workerRef.current.setPosition(targetMove.fen);
+                  workerRef.current.startAnalysis(18);
+                }
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Failed to parse SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = () => {
+      console.error('SSE connection error');
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
+  // Push local game history changes to server
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isUpdatingFromServer.current) return;
+    
+    // Only sync if game history has moves or has changed significantly
+    if (gameHistory.moves.length > 0 || gameHistory.currentMoveIndex !== lastSyncedMoveIndex.current) {
+      const syncToServer = async () => {
+        try {
+          await fetch('/api/analysis/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              gameHistory: gameHistory,
+              currentMoveIndex: gameHistory.currentMoveIndex,
+            }),
+          });
+          lastSyncedMoveIndex.current = gameHistory.currentMoveIndex;
+        } catch (error) {
+          console.error('Failed to sync game history to server:', error);
+        }
+      };
+
+      // Debounce server updates
+      const timeoutId = setTimeout(syncToServer, 500);
+      return () => clearTimeout(timeoutId);
     }
   }, [gameHistory]);
 
@@ -282,7 +434,7 @@ export function AnalysisBoardClient() {
   };
 
   // Navigate to a specific move in history
-  const navigateToMove = (moveIndex: number) => {
+  const navigateToMove = async (moveIndex: number) => {
     if (moveIndex < 0 || moveIndex >= gameHistory.moves.length) return;
     
     const targetMove = gameHistory.moves[moveIndex];
@@ -297,6 +449,20 @@ export function AnalysisBoardClient() {
       ...prev,
       currentMoveIndex: moveIndex
     }));
+    
+    // Sync to server
+    try {
+      await fetch('/api/analysis/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentMoveIndex: moveIndex,
+        }),
+      });
+      lastSyncedMoveIndex.current = moveIndex;
+    } catch (error) {
+      console.error('Failed to sync move navigation to server:', error);
+    }
     
     // Start analysis for the position
     startAnalysis(targetMove.fen);
