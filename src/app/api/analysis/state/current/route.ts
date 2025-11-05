@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getCurrentState } from '../shared-state';
+import { getCurrentState } from '../../shared-state';
 
 // Get current state
 export async function GET() {
