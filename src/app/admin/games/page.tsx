@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +13,7 @@ import GameForm from "@/components/admin/GameForm"
 import SimpleGameForm from "@/components/admin/SimpleGameForm"
 import QuickStartMeet from "@/components/admin/QuickStartMeet"
 
-export default function AdminGamesPage() {
+function AdminGamesPageContent() {
   const [isLoading, setIsLoading] = useState(true)
   const [isAuth, setIsAuth] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -932,5 +932,13 @@ export default function AdminGamesPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function AdminGamesPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AdminGamesPageContent />
+    </Suspense>
   )
 }
