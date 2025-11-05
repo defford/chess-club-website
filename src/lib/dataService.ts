@@ -14,13 +14,21 @@ class DataService {
 
   constructor() {
     // Feature flag: USE_SUPABASE=true to use Supabase, false for Google Sheets
-    this.useSupabase = process.env.USE_SUPABASE === 'true';
+    // Defaults to true in production, false in development
+    const useSupabaseEnv = process.env.USE_SUPABASE;
+    if (useSupabaseEnv !== undefined) {
+      // Explicitly set - use the value
+      this.useSupabase = useSupabaseEnv === 'true';
+    } else {
+      // Not set - default to true in production, false in development
+      this.useSupabase = process.env.NODE_ENV === 'production';
+    }
     
     // Dual-write mode: Write to both backends during migration
     // Set DUAL_WRITE=true to enable dual-write mode
     this.dualWrite = process.env.DUAL_WRITE === 'true';
 
-    console.log(`[DataService] Initialized - useSupabase: ${this.useSupabase}, dualWrite: ${this.dualWrite}`);
+    console.log(`[DataService] Initialized - useSupabase: ${this.useSupabase}, dualWrite: ${this.dualWrite}, NODE_ENV: ${process.env.NODE_ENV}`);
   }
 
   /**
@@ -222,6 +230,13 @@ class DataService {
     );
   }
 
+  async getAllParents(): Promise<any[]> {
+    return this.executeRead(
+      (service) => service.getAllParents(),
+      'getAllParents'
+    );
+  }
+
   async addParentAccount(account: any): Promise<void> {
     return this.executeWrite(
       (service) => service.addParentAccount(account),
@@ -233,6 +248,13 @@ class DataService {
     return this.executeWrite(
       (service) => service.updateParentAccount(parentId, updates),
       'updateParentAccount'
+    );
+  }
+
+  async updateStudentRegistration(studentId: string, updates: any): Promise<void> {
+    return this.executeWrite(
+      (service) => service.updateStudentRegistration(studentId, updates),
+      'updateStudentRegistration'
     );
   }
 
@@ -317,6 +339,29 @@ class DataService {
     );
   }
 
+  // ==================== ELO Rating Methods ====================
+
+  async getPlayerEloRating(playerId: string): Promise<number> {
+    return this.executeRead(
+      (service) => service.getPlayerEloRating(playerId),
+      'getPlayerEloRating'
+    );
+  }
+
+  async updatePlayerEloRating(playerId: string, newRating: number): Promise<void> {
+    return this.executeWrite(
+      (service) => service.updatePlayerEloRating(playerId, newRating),
+      'updatePlayerEloRating'
+    );
+  }
+
+  async initializeAllPlayerEloRatings(): Promise<void> {
+    return this.executeWrite(
+      (service) => service.initializeAllPlayerEloRatings(),
+      'initializeAllPlayerEloRatings'
+    );
+  }
+
   async getGames(filters?: any): Promise<any[]> {
     return this.executeRead(
       (service) => service.getGames(filters),
@@ -342,6 +387,13 @@ class DataService {
     return this.executeWrite(
       (service) => service.deleteGame(gameId),
       'deleteGame'
+    );
+  }
+
+  async deleteGamesByDate(gameDate: string): Promise<void> {
+    return this.executeWrite(
+      (service) => service.deleteGamesByDate(gameDate),
+      'deleteGamesByDate'
     );
   }
 
