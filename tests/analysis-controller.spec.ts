@@ -12,11 +12,32 @@ import {
 } from './helpers/analysis-test-helpers';
 
 /**
- * Base URL for tests. Can be overridden with VERCEL_URL environment variable.
+ * Get base URL from environment variable or default to localhost.
+ * Handles Vercel URL which may or may not include protocol.
  */
-const baseURL = process.env.VERCEL_URL 
-  ? `https://${process.env.VERCEL_URL}` 
-  : process.env.BASE_URL || 'http://localhost:3000';
+function getBaseURL(): string {
+  const vercelUrl = process.env.VERCEL_URL;
+  if (vercelUrl) {
+    // Vercel URL might already include protocol, or might not
+    if (vercelUrl.startsWith('http://') || vercelUrl.startsWith('https://')) {
+      return vercelUrl;
+    }
+    return `https://${vercelUrl}`;
+  }
+  
+  if (process.env.BASE_URL) {
+    return process.env.BASE_URL;
+  }
+  
+  return 'http://localhost:3000';
+}
+
+const baseURL = getBaseURL();
+
+// Log the baseURL being used for debugging
+console.log(`[Test] Using baseURL: ${baseURL}`);
+console.log(`[Test] VERCEL_URL env var: ${process.env.VERCEL_URL || 'not set'}`);
+console.log(`[Test] BASE_URL env var: ${process.env.BASE_URL || 'not set'}`);
 
 test.describe('Analysis Controller Cross-Browser Tests', () => {
   let controllerContext: BrowserContext;
@@ -37,18 +58,23 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     await boardContext.close();
   });
 
-  test.beforeEach(async () => {
+  test.beforeEach(async ({ baseURL: playwrightBaseURL }) => {
+    // Use Playwright's baseURL from config if available, otherwise fall back to calculated baseURL
+    const urlToUse = playwrightBaseURL || baseURL;
+    console.log(`[Test beforeEach] Using baseURL: ${urlToUse} (from Playwright: ${playwrightBaseURL || 'not set'})`);
+    
     // Set up game history on server before each test
     const controllerPage = await controllerContext.newPage();
-    await setupGameHistory(controllerPage, gameHistory, baseURL);
+    await setupGameHistory(controllerPage, gameHistory, urlToUse);
     await controllerPage.close();
   });
 
-  test('Initial state: Board loads with preset game history', async () => {
+  test('Initial state: Board loads with preset game history', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const boardPage = await boardContext.newPage();
     
     try {
-      await boardPage.goto(`${baseURL}/analysis`);
+      await boardPage.goto(`${urlToUse}/analysis`);
       await boardPage.waitForLoadState('networkidle');
       
       // Wait for SSE connection
@@ -62,14 +88,15 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Controller and Board connection status', async () => {
+  test('Controller and Board connection status', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
     const boardPage = await boardContext.newPage();
 
     try {
       // Open both pages
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
-      await boardPage.goto(`${baseURL}/analysis`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
+      await boardPage.goto(`${urlToUse}/analysis`);
 
       // Wait for both to connect
       await waitForSSEConnection(controllerPage, 10000);
@@ -84,14 +111,15 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('First Move button: Navigate to starting position', async () => {
+  test('First Move button: Navigate to starting position', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
     const boardPage = await boardContext.newPage();
 
     try {
       // Open both pages
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
-      await boardPage.goto(`${baseURL}/analysis`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
+      await boardPage.goto(`${urlToUse}/analysis`);
 
       // Wait for connections
       await waitForSSEConnection(controllerPage, 10000);
@@ -120,14 +148,15 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Next button: Advance through moves', async () => {
+  test('Next button: Advance through moves', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
     const boardPage = await boardContext.newPage();
 
     try {
       // Open both pages
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
-      await boardPage.goto(`${baseURL}/analysis`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
+      await boardPage.goto(`${urlToUse}/analysis`);
 
       // Wait for connections
       await waitForSSEConnection(controllerPage, 10000);
@@ -155,14 +184,15 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Previous button: Navigate backwards through moves', async () => {
+  test('Previous button: Navigate backwards through moves', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
     const boardPage = await boardContext.newPage();
 
     try {
       // Open both pages
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
-      await boardPage.goto(`${baseURL}/analysis`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
+      await boardPage.goto(`${urlToUse}/analysis`);
 
       // Wait for connections
       await waitForSSEConnection(controllerPage, 10000);
@@ -198,11 +228,12 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Boundary test: First Move button disabled at start', async () => {
+  test('Boundary test: First Move button disabled at start', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
 
     try {
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
       await waitForSSEConnection(controllerPage, 10000);
 
       // Navigate to first position
@@ -217,11 +248,12 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Boundary test: Next button disabled at last move', async () => {
+  test('Boundary test: Next button disabled at last move', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
 
     try {
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
       await waitForSSEConnection(controllerPage, 10000);
 
       // Navigate to last move
@@ -238,11 +270,12 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Boundary test: Previous button disabled at start', async () => {
+  test('Boundary test: Previous button disabled at start', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
 
     try {
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
       await waitForSSEConnection(controllerPage, 10000);
 
       // Navigate to first position
@@ -257,14 +290,15 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Rapid button clicks: Handle multiple clicks quickly', async () => {
+  test('Rapid button clicks: Handle multiple clicks quickly', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
     const boardPage = await boardContext.newPage();
 
     try {
       // Open both pages
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
-      await boardPage.goto(`${baseURL}/analysis`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
+      await boardPage.goto(`${urlToUse}/analysis`);
 
       // Wait for connections
       await waitForSSEConnection(controllerPage, 10000);
@@ -289,14 +323,15 @@ test.describe('Analysis Controller Cross-Browser Tests', () => {
     }
   });
 
-  test('Full navigation sequence: Complete round trip', async () => {
+  test('Full navigation sequence: Complete round trip', async ({ baseURL: playwrightBaseURL }) => {
+    const urlToUse = playwrightBaseURL || baseURL;
     const controllerPage = await controllerContext.newPage();
     const boardPage = await boardContext.newPage();
 
     try {
       // Open both pages
-      await controllerPage.goto(`${baseURL}/analysis/controller`);
-      await boardPage.goto(`${baseURL}/analysis`);
+      await controllerPage.goto(`${urlToUse}/analysis/controller`);
+      await boardPage.goto(`${urlToUse}/analysis`);
 
       // Wait for connections
       await waitForSSEConnection(controllerPage, 10000);

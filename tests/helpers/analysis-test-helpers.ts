@@ -10,14 +10,17 @@ export async function setupGameHistory(
   gameHistory: GameHistory,
   baseURL: string = 'http://localhost:3000'
 ): Promise<void> {
+  // Use the page's baseURL if available (from Playwright config), otherwise use provided baseURL
+  const urlToUse = baseURL || page.url().split('/').slice(0, 3).join('/');
+  
   // Navigate to the base URL first to establish the page context
   // This ensures relative URLs resolve correctly
   try {
-    await page.goto(baseURL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.goto(urlToUse, { waitUntil: 'domcontentloaded', timeout: 30000 });
   } catch (e) {
     // If navigation fails, the server might not be ready
     throw new Error(
-      `Failed to navigate to ${baseURL}. Is the server running?\n` +
+      `Failed to navigate to ${urlToUse}. Is the server running?\n` +
       `Original error: ${e}`
     );
   }
