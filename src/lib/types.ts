@@ -10,7 +10,7 @@ export interface GameData {
   player2Name: string;
   result: 'player1' | 'player2' | 'draw';
   gameDate: string;
-  gameTime: number; // Duration in minutes
+  gameTime?: number; // Deprecated: kept for backward compatibility with database, no longer displayed or collected
   eventId?: string; // Optional: if part of a tournament/event
   gameType: 'ladder' | 'tournament' | 'friendly' | 'practice';
   notes?: string;
@@ -45,7 +45,6 @@ export interface GameStats {
   losses: number;
   draws: number;
   winRate: number;
-  averageGameTime: number;
   favoriteOpponents: Array<{
     playerId: string;
     playerName: string;
@@ -68,7 +67,6 @@ export interface PlayerGameStats {
   losses: number;
   draws: number;
   winRate: number;
-  averageGameTime: number;
   currentStreak: {
     type: 'win' | 'loss' | 'draw' | 'none';
     count: number;
@@ -92,7 +90,6 @@ export interface GameFormData {
   player2Id: string;
   result: 'player1' | 'player2' | 'draw' | '';
   gameDate: string;
-  gameTime: number;
   gameType: 'ladder' | 'tournament' | 'friendly' | 'practice';
   eventId?: string;
   notes?: string;
@@ -237,6 +234,7 @@ export interface PlayerData {
   lastActive: string;
   email?: string;
   isSystemPlayer?: boolean; // Flag to identify system players (like Unknown Opponent)
+  eloRating?: number; // ELO rating (defaults to 1000)
 }
 
 // Enhanced ladder player data with both daily and overall stats

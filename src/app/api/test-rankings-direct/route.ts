@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/test-rankings-direct - Test rankings calculation directly without cache
 export async function GET(request: NextRequest) {
@@ -7,17 +7,17 @@ export async function GET(request: NextRequest) {
     console.log('[TEST-RANKINGS-DIRECT] Starting direct rankings test...');
     
     // Test 1: Get games directly
-    const games = await googleSheetsService.getGames();
+    const games = await dataService.getGames();
     const ladderGames = games.filter(game => game.gameType === 'ladder');
     
     console.log(`[TEST-RANKINGS-DIRECT] Found ${games.length} total games, ${ladderGames.length} ladder games`);
     
     // Test 2: Get members directly
-    const members = await googleSheetsService.getMembersFromParentsAndStudents();
+    const members = await dataService.getMembersFromParentsAndStudents();
     console.log(`[TEST-RANKINGS-DIRECT] Found ${members.length} members`);
     
     // Test 3: Call calculateRankingsFromGames directly
-    const rankings = await googleSheetsService.calculateRankingsFromGames();
+    const rankings = await dataService.calculateRankingsFromGames();
     console.log(`[TEST-RANKINGS-DIRECT] Calculated ${rankings.length} rankings`);
     
     const playersWithPoints = rankings.filter(p => p.points > 0);

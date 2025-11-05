@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
-import { Trophy, Gamepad2, Users, Plus, LogOut } from "lucide-react"
+import { clientAuthService } from "@/lib/clientAuth"
+import { Trophy, Gamepad2, Users, Plus, LogOut, TrendingUp } from "lucide-react"
 import type { PlayerData } from "@/lib/googleSheets"
 
 export default function AdminRankingsPage() {
@@ -17,6 +18,7 @@ export default function AdminRankingsPage() {
   const [player2Id, setPlayer2Id] = useState("")
   const [gameResult, setGameResult] = useState<"player1" | "player2" | "draw" | "">("")
   const [submitting, setSubmitting] = useState(false)
+  const [initializingElo, setInitializingElo] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -51,6 +53,42 @@ export default function AdminRankingsPage() {
   const handleLogout = () => {
     logout()
     router.push("/")
+  }
+
+  const handleInitializeElo = async () => {
+    if (!confirm('This will calculate ELO ratings for all historical games. This may take a few minutes. Continue?')) {
+      return
+    }
+
+    setInitializingElo(true)
+    try {
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+      
+      const response = await fetch('/api/admin/initialize-elo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-email': userEmail,
+        },
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to initialize ELO ratings')
+      }
+
+      const result = await response.json()
+      alert(`ELO ratings initialized successfully!\nGames processed: ${result.summary.gamesProcessed}\nErrors: ${result.summary.errors}`)
+      
+      // Reload players to see updated ELO ratings
+      await loadPlayers()
+    } catch (error) {
+      console.error('Error initializing ELO:', error)
+      alert(`Error: ${error instanceof Error ? error.message : 'Failed to initialize ELO ratings'}`)
+    } finally {
+      setInitializingElo(false)
+    }
   }
 
   const resetGameForm = () => {
@@ -158,6 +196,40 @@ export default function AdminRankingsPage() {
           </div>
         </div>
 
+        {/* ELO Initialization Button */}
+        <Card className="mb-8 border-orange-200 bg-orange-50">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-[--color-text-primary] mb-1">
+                  Initialize ELO Ratings
+                </h3>
+                <p className="text-sm text-[--color-text-secondary]">
+                  Calculate ELO ratings for all historical games. All players start at 1000 and ratings are calculated retroactively.
+                </p>
+              </div>
+              <Button
+                onClick={handleInitializeElo}
+                disabled={initializingElo}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                {initializingElo ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[--color-primary]"></div>
+                    Initializing...
+                  </>
+                ) : (
+                  <>
+                    <TrendingUp className="h-4 w-4" />
+                    Initialize ELO
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <Card className="p-6">
@@ -238,7 +310,7 @@ export default function AdminRankingsPage() {
                       <option value="">Select Player 1</option>
                       {players.map((player) => (
                         <option key={player.id} value={player.id}>
-                          {player.name} (Grade {player.grade})
+                          {player.name}{player.eloRating !== undefined ? ` (${player.eloRating})` : ''} (Grade {player.grade})
                         </option>
                       ))}
                     </select>
@@ -257,7 +329,7 @@ export default function AdminRankingsPage() {
                       <option value="">Select Player 2</option>
                       {players.filter(p => p.id !== player1Id).map((player) => (
                         <option key={player.id} value={player.id}>
-                          {player.name} (Grade {player.grade})
+                          {player.name}{player.eloRating !== undefined ? ` (${player.eloRating})` : ''} (Grade {player.grade})
                         </option>
                       ))}
                     </select>
@@ -327,6 +399,11 @@ export default function AdminRankingsPage() {
                         <div>
                           <p className="font-medium text-[--color-text-primary]">
                             {player.name}
+                            {player.eloRating !== undefined && (
+                              <span className="ml-2 text-sm font-normal text-[--color-text-secondary]">
+                                ({player.eloRating})
+                              </span>
+                            )}
                           </p>
                           <p className="text-xs text-[--color-text-secondary]">
                             Grade {player.grade}

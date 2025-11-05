@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the parent account
-    const parentAccount = await googleSheetsService.getParentAccount(parentEmail);
+    const parentAccount = await dataService.getParentAccount(parentEmail);
     if (!parentAccount) {
       return NextResponse.json(
         { error: 'Parent account not found' },
@@ -22,10 +22,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Auto-link existing students to this parent
-    await googleSheetsService.autoLinkExistingStudentsToParent(parentAccount.id, parentEmail);
+    await dataService.autoLinkExistingStudentsToParent(parentAccount.id, parentEmail);
 
     // Get the linked players to return count
-    const players = await googleSheetsService.getParentPlayers(parentAccount.id);
+    const players = await dataService.getParentPlayers(parentAccount.id);
 
     return NextResponse.json(
       { 

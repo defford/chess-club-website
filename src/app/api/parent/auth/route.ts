@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parentAuthService } from '@/lib/parentAuth';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -15,14 +15,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email exists in parents sheet
-    const parent = await googleSheetsService.getParentByEmail(email);
+    const parent = await dataService.getParentByEmail(email);
     const emailExists = parent !== null;
 
     // Determine if this is a self-registered student
     let actualIsSelfRegistered = isSelfRegistered || false;
     if (emailExists && parent) {
       // Get the full parent account to check if they're self-registered
-      const parentAccount = await googleSheetsService.getParentAccount(email);
+      const parentAccount = await dataService.getParentAccount(email);
       actualIsSelfRegistered = parentAccount?.isSelfRegistered || false;
     }
 
@@ -50,10 +50,10 @@ export async function POST(request: NextRequest) {
       const { email, isSelfRegistered } = await request.json();
       try {
         // Determine if this is a self-registered student for fallback email
-        const parent = await googleSheetsService.getParentByEmail(email);
+        const parent = await dataService.getParentByEmail(email);
         let actualIsSelfRegistered = isSelfRegistered || false;
         if (parent) {
-          const parentAccount = await googleSheetsService.getParentAccount(email);
+          const parentAccount = await dataService.getParentAccount(email);
           actualIsSelfRegistered = parentAccount?.isSelfRegistered || false;
         }
         

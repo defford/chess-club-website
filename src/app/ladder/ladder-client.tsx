@@ -411,16 +411,6 @@ export function LadderPageClient() {
     }
   }
 
-  const formatGameTime = (minutes: number) => {
-    if (minutes === 0) return 'N/A'
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    if (hours > 0) {
-      return `${hours}h ${mins}m`
-    }
-    return `${mins}m`
-  }
-
   const getGameTypeColor = (gameType: string) => {
     switch (gameType) {
       case 'ladder':
@@ -743,7 +733,14 @@ export function LadderPageClient() {
                                 </div>
                               </td>
                               <td className="py-3 px-4 font-medium text-[--color-text-primary]">
-                                {player.name}
+                                <div className="flex items-center gap-2">
+                                  <span>{player.name}</span>
+                                  {player.eloRating !== undefined && (
+                                    <span className="text-sm font-normal text-[--color-text-secondary]">
+                                      ({player.eloRating})
+                                    </span>
+                                  )}
+                                </div>
                               </td>
                               <td className="py-3 px-4 text-[--color-text-secondary]">
                                 {player.grade}
@@ -818,11 +815,6 @@ export function LadderPageClient() {
                                                 <span className="text-[--color-text-secondary]">
                                                   {formatGameDate(game.gameDate)}
                                                 </span>
-                                                {game.gameTime > 0 && (
-                                                  <span className="text-[--color-text-secondary]">
-                                                    {formatGameTime(game.gameTime)}
-                                                  </span>
-                                                )}
                                               </div>
                                               <div className="flex items-center gap-2">
                                                 {getResultIcon(game, player.name)}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import type { PlayerData } from '@/lib/googleSheets';
 
 export async function PUT(
@@ -11,11 +11,11 @@ export async function PUT(
     const { id } = params;
     const updates: Partial<PlayerData> = await request.json();
     
-    await googleSheetsService.updatePlayer(id, updates);
+    await dataService.updatePlayer(id, updates);
     
     // If points changed, recalculate rankings
     if (updates.points !== undefined || updates.wins !== undefined || updates.losses !== undefined) {
-      await googleSheetsService.recalculateRankings();
+      await dataService.recalculateRankings();
     }
     
     return NextResponse.json(

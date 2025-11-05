@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { isAdminAuthenticated } from "@/lib/adminAuth"
-import { ArrowLeft, LogOut, Edit, Trash2, Calendar, Clock, Users, Trophy, FileText, Gamepad2 } from "lucide-react"
+import { ArrowLeft, LogOut, Edit, Trash2, Calendar, Users, Trophy, FileText, Gamepad2 } from "lucide-react"
 import type { GameData } from "@/lib/types"
 
 export default function GameDetailPage() {
@@ -326,19 +326,6 @@ export default function GameDetailPage() {
                   </span>
                 </div>
 
-                {/* Duration */}
-                {game.gameTime > 0 && (
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                    <div className="flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-[--color-primary]" />
-                      <span className="font-medium text-[--color-text-primary]">Duration:</span>
-                    </div>
-                    <span className="text-[--color-text-primary]">
-                      {game.gameTime} minutes
-                    </span>
-                  </div>
-                )}
-
                 {/* Event ID */}
                 {game.eventId && (
                   <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -402,13 +389,6 @@ export default function GameDetailPage() {
                 <CardTitle className="text-lg">Game Statistics</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-[--color-accent]">
-                    {game.gameTime > 0 ? `${game.gameTime}m` : 'N/A'}
-                  </div>
-                  <div className="text-sm text-[--color-text-secondary]">Duration</div>
-                </div>
-                
                 <div className="text-center">
                   <div className="text-2xl font-bold text-[--color-accent]">
                     {new Date(game.gameDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

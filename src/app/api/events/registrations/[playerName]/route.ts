@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
 import { KVCacheService } from '@/lib/kv';
 
 export async function GET(

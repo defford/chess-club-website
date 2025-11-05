@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { KVCacheService } from '@/lib/kv';
 import { dataService } from '@/lib/dataService';
+import { supabaseService } from '@/lib/supabaseService';
 
 // GET /api/ladder - Get ladder data for a specific date or current date
 export async function GET(request: NextRequest) {
@@ -57,9 +58,35 @@ export async function GET(request: NextRequest) {
           points: 0,
           lastActive: member.timestamp || new Date().toISOString(),
           email: member.parentEmail || '',
-          isSystemPlayer: false
+          isSystemPlayer: false,
+          eloRating: 1000 // Default ELO rating
         });
       });
+      
+      // Fetch ELO ratings for members who have student IDs
+      try {
+        const studentIds = members.map(m => m.studentId).filter((id): id is string => !!id);
+        if (studentIds.length > 0) {
+          // Fetch ELO ratings for all students
+          for (const studentId of studentIds) {
+            try {
+              const eloRating = await supabaseService.getPlayerEloRating(studentId);
+              const member = members.find(m => m.studentId === studentId);
+              if (member) {
+                const id = member.studentId || (member.rowIndex ? `reg_row_${member.rowIndex}` : `member_${members.indexOf(member) + 1}`);
+                const stats = memberStats.get(id);
+                if (stats) {
+                  stats.eloRating = eloRating;
+                }
+              }
+            } catch (error) {
+              // Continue if individual player fetch fails
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('[Ladder API] Failed to fetch ELO ratings in fallback calculation:', error);
+      }
       
       // Process all games to calculate stats
       const allGames = await dataService.getGames();
@@ -81,7 +108,8 @@ export async function GET(request: NextRequest) {
             points: 0,
             lastActive: game.gameDate,
             email: '',
-            isSystemPlayer: game.player1Name === 'Unknown Opponent' || game.player1Id === 'unknown_opponent'
+            isSystemPlayer: game.player1Name === 'Unknown Opponent' || game.player1Id === 'unknown_opponent',
+            eloRating: 1000 // Default ELO rating
           };
           memberStats.set(game.player1Id, player1Stats);
         }
@@ -100,7 +128,8 @@ export async function GET(request: NextRequest) {
             points: 0,
             lastActive: game.gameDate,
             email: '',
-            isSystemPlayer: game.player2Name === 'Unknown Opponent' || game.player2Id === 'unknown_opponent'
+            isSystemPlayer: game.player2Name === 'Unknown Opponent' || game.player2Id === 'unknown_opponent',
+            eloRating: 1000 // Default ELO rating
           };
           memberStats.set(game.player2Id, player2Stats);
         }
@@ -164,6 +193,7 @@ export async function GET(request: NextRequest) {
       lastActive: string;
       email?: string;
       isSystemPlayer?: boolean;
+      eloRating?: number;
       // Overall stats from rankings
       overallGamesPlayed: number;
       overallWins: number;
@@ -187,6 +217,7 @@ export async function GET(request: NextRequest) {
         lastActive: player.lastActive,
         email: player.email,
         isSystemPlayer: player.isSystemPlayer,
+        eloRating: player.eloRating, // Include ELO rating from rankings
         // Overall stats from rankings
         overallGamesPlayed: player.gamesPlayed,
         overallWins: player.wins,
@@ -204,18 +235,21 @@ export async function GET(request: NextRequest) {
       
       // Ensure both players are in the stats map, even if not in initial rankings
       if (!playerStats.has(player1Id)) {
+        // Try to find player in allPlayers to get their ELO rating
+        const existingPlayer = allPlayers.find(p => (p.id || p.name) === player1Id);
         playerStats.set(player1Id, {
           id: player1Id,
           name: game.player1Name,
-          grade: 'Unknown', // Will be updated if found in rankings
+          grade: existingPlayer?.grade || 'Unknown', // Will be updated if found in rankings
           gamesPlayed: 0, // Daily games
           wins: 0, // Daily wins
           losses: 0, // Daily losses
           draws: 0, // Daily draws
           points: 0, // Daily points
           lastActive: game.gameDate,
-          email: undefined,
+          email: existingPlayer?.email,
           isSystemPlayer: game.player1Name === 'Unknown Opponent' || game.player1Id === 'unknown_opponent',
+          eloRating: existingPlayer?.eloRating || 1000, // Default to 1000 if not found
           // Overall stats (unknown players have 0 overall stats)
           overallGamesPlayed: 0,
           overallWins: 0,
@@ -227,18 +261,21 @@ export async function GET(request: NextRequest) {
       }
       
       if (!playerStats.has(player2Id)) {
+        // Try to find player in allPlayers to get their ELO rating
+        const existingPlayer = allPlayers.find(p => (p.id || p.name) === player2Id);
         playerStats.set(player2Id, {
           id: player2Id,
           name: game.player2Name,
-          grade: 'Unknown', // Will be updated if found in rankings
+          grade: existingPlayer?.grade || 'Unknown', // Will be updated if found in rankings
           gamesPlayed: 0, // Daily games
           wins: 0, // Daily wins
           losses: 0, // Daily losses
           draws: 0, // Daily draws
           points: 0, // Daily points
           lastActive: game.gameDate,
-          email: undefined,
+          email: existingPlayer?.email,
           isSystemPlayer: game.player2Name === 'Unknown Opponent' || game.player2Id === 'unknown_opponent',
+          eloRating: existingPlayer?.eloRating || 1000, // Default to 1000 if not found
           // Overall stats (unknown players have 0 overall stats)
           overallGamesPlayed: 0,
           overallWins: 0,

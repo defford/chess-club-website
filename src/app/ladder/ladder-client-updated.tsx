@@ -243,15 +243,6 @@ export function LadderPageClient() {
     }
   }
 
-  const formatGameTime = (minutes: number) => {
-    if (minutes === 0) return 'N/A'
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
-    if (hours > 0) {
-      return `${hours}h ${mins}m`
-    }
-    return `${mins}m`
-  }
 
   const getGameTypeColor = (gameType: string) => {
     switch (gameType) {
@@ -582,10 +573,6 @@ export function LadderPageClient() {
                             <div className="flex items-center gap-1">
                               <Calendar className="h-3 w-3" />
                               {formatDate(game.gameDate)}
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {formatGameTime(game.gameTime)}
                             </div>
                           </div>
                           {game.notes && (

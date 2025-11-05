@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/debug-rankings - Debug rankings calculation specifically
 export async function GET(request: NextRequest) {
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
   try {
     // Test 1: Get games data
     console.log('[DEBUG-RANKINGS] Getting games data...');
-    const games = await googleSheetsService.getGames();
+    const games = await dataService.getGames();
     const ladderGames = games.filter(game => game.gameType === 'ladder');
     
     results.tests.games = {
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     // Test 2: Get members data
     console.log('[DEBUG-RANKINGS] Getting members data...');
-    const members = await googleSheetsService.getMembersFromParentsAndStudents();
+    const members = await dataService.getMembersFromParentsAndStudents();
     
     results.tests.members = {
       totalMembers: members.length,
@@ -191,7 +191,7 @@ export async function GET(request: NextRequest) {
 
     // Test 5: Compare with actual rankings
     console.log('[DEBUG-RANKINGS] Getting actual rankings...');
-    const actualRankings = await googleSheetsService.getPlayers();
+    const actualRankings = await dataService.getPlayers();
     
     results.tests.actualRankings = {
       totalPlayers: actualRankings.length,

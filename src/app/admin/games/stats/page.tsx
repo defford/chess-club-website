@@ -17,7 +17,6 @@ interface GameStats {
   tournamentGames: number
   friendlyGames: number
   practiceGames: number
-  averageGameTime: number
   mostActivePlayer: string
   recentGames: GameData[]
 }
@@ -242,20 +241,6 @@ export default function GameStatsPage() {
                     </p>
                   </div>
                   <TrendingUp className="h-6 w-6 sm:h-8 sm:w-8 text-blue-500" />
-                </div>
-              </Card>
-              
-              <Card className="p-4 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs sm:text-sm font-medium text-[--color-text-primary]">
-                      Avg Duration
-                    </p>
-                    <p className="text-lg sm:text-2xl font-bold text-[--color-accent]">
-                      {stats.averageGameTime}m
-                    </p>
-                  </div>
-                  <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-purple-500" />
                 </div>
               </Card>
             </div>

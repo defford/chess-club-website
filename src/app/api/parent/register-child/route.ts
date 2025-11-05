@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
 
 interface ChildRegistrationData {
@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get parent information from parents sheet
-    const parent = await googleSheetsService.getParentByEmail(data.parentEmail);
+    const parent = await dataService.getParentByEmail(data.parentEmail);
     if (!parent) {
       return NextResponse.json(
         { error: 'Parent account not found. Please contact support.' },
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       medicalInfo: data.medicalInfo || ''
     };
 
-    const studentId = await googleSheetsService.addStudentRegistration(studentData);
+    const studentId = await dataService.addStudentRegistration(studentData);
 
     // Prepare email data 
     const emailRegistrationData = {

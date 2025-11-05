@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card"
 import { isAuthenticated, refreshSession } from "@/lib/auth"
 import type { MemberData } from "@/app/api/members/route"
 import QuickAddStudentForm from "@/components/admin/QuickAddStudentForm"
+import EditMemberForm from "@/components/admin/EditMemberForm"
 import { 
   Search, 
   ArrowLeft, 
@@ -19,11 +20,11 @@ import {
   XCircle,
   AlertTriangle,
   Trophy,
-  ChevronDown,
-  ChevronRight,
   Plus,
   Info,
-  BarChart3
+  BarChart3,
+  Edit,
+  Merge
 } from "lucide-react"
 import Link from "next/link"
 
@@ -37,6 +38,7 @@ export default function MemberManagement() {
   const [error, setError] = useState<string | null>(null)
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set())
   const [showQuickAddForm, setShowQuickAddForm] = useState(false)
+  const [editingMember, setEditingMember] = useState<MemberData | null>(null)
   const router = useRouter()
 
   useEffect(() => {
@@ -180,6 +182,24 @@ export default function MemberManagement() {
           
           {/* Action Buttons */}
           <div className="flex justify-end gap-3">
+            <Link href="/admin/members/missing-players">
+              <Button
+                className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
+                variant="outline"
+              >
+                <AlertTriangle className="h-4 w-4" />
+                Missing Players
+              </Button>
+            </Link>
+            <Link href="/admin/members/merge">
+              <Button
+                className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
+                variant="outline"
+              >
+                <Merge className="h-4 w-4" />
+                Merge Players
+              </Button>
+            </Link>
             <Button
               onClick={() => setShowQuickAddForm(true)}
               className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
@@ -365,6 +385,18 @@ export default function MemberManagement() {
                           >
                             <Info className="h-3 w-3" />
                             Info
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingMember(member)
+                            }}
+                            className="flex items-center gap-1 text-xs hover:bg-blue-50 hover:text-blue-600"
+                          >
+                            <Edit className="h-3 w-3" />
+                            Edit
                           </Button>
                           <Link href={`/admin/members/${member.id}`}>
                             <Button
@@ -574,6 +606,18 @@ export default function MemberManagement() {
             loadMembers(); // Refresh the members list
           }}
           onCancel={() => setShowQuickAddForm(false)}
+        />
+      )}
+
+      {/* Edit Member Form Modal */}
+      {editingMember && (
+        <EditMemberForm
+          member={editingMember}
+          onSuccess={() => {
+            setEditingMember(null);
+            loadMembers(); // Refresh the members list
+          }}
+          onCancel={() => setEditingMember(null)}
         />
       )}
     </div>

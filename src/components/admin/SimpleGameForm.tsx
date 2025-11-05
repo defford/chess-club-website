@@ -13,6 +13,7 @@ interface SimpleGameFormProps {
   isLoading?: boolean
   recentGames?: GameData[] // Optional: for showing recent players
   attendanceMeetId?: string // Optional: filter players by attendance meet
+  initialData?: Partial<GameFormData> // Optional: initial data for editing
 }
 
 export default function SimpleGameForm({ 
@@ -21,14 +22,27 @@ export default function SimpleGameForm({
   onCancel, 
   isLoading = false,
   recentGames = [],
-  attendanceMeetId
+  attendanceMeetId,
+  initialData
 }: SimpleGameFormProps) {
-  const [whitePlayerId, setWhitePlayerId] = useState("")
-  const [blackPlayerId, setBlackPlayerId] = useState("")
-  const [result, setResult] = useState<'white' | 'black' | 'draw' | ''>('')
-  const [gameDate, setGameDate] = useState(new Date().toISOString().split('T')[0])
-  const [whiteSearch, setWhiteSearch] = useState("")
-  const [blackSearch, setBlackSearch] = useState("")
+  const isEdit = !!initialData
+  
+  // Find player names from IDs for initial values
+  const getPlayerName = (playerId: string) => {
+    const player = players.find(p => p.id === playerId)
+    return player?.name || ""
+  }
+
+  const [whitePlayerId, setWhitePlayerId] = useState(initialData?.player1Id || "")
+  const [blackPlayerId, setBlackPlayerId] = useState(initialData?.player2Id || "")
+  const [result, setResult] = useState<'white' | 'black' | 'draw' | ''>(
+    initialData?.result === 'player1' ? 'white' : 
+    initialData?.result === 'player2' ? 'black' : 
+    initialData?.result === 'draw' ? 'draw' : ''
+  )
+  const [gameDate, setGameDate] = useState(initialData?.gameDate || new Date().toISOString().split('T')[0])
+  const [whiteSearch, setWhiteSearch] = useState(initialData?.player1Id ? getPlayerName(initialData.player1Id) : "")
+  const [blackSearch, setBlackSearch] = useState(initialData?.player2Id ? getPlayerName(initialData.player2Id) : "")
   const [showWhiteDropdown, setShowWhiteDropdown] = useState(false)
   const [showBlackDropdown, setShowBlackDropdown] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -42,10 +56,33 @@ export default function SimpleGameForm({
   const whiteInputRef = useRef<HTMLInputElement>(null)
   const blackInputRef = useRef<HTMLInputElement>(null)
 
-  // Auto-focus on mount
+  // Update form when initialData changes
   useEffect(() => {
-    whiteInputRef.current?.focus()
-  }, [])
+    if (initialData) {
+      const getPlayerName = (playerId: string) => {
+        const player = players.find(p => p.id === playerId)
+        return player?.name || ""
+      }
+      
+      setWhitePlayerId(initialData.player1Id || "")
+      setBlackPlayerId(initialData.player2Id || "")
+      setResult(
+        initialData.result === 'player1' ? 'white' : 
+        initialData.result === 'player2' ? 'black' : 
+        initialData.result === 'draw' ? 'draw' : ''
+      )
+      setGameDate(initialData.gameDate || new Date().toISOString().split('T')[0])
+      setWhiteSearch(initialData.player1Id ? getPlayerName(initialData.player1Id) : "")
+      setBlackSearch(initialData.player2Id ? getPlayerName(initialData.player2Id) : "")
+    }
+  }, [initialData, players])
+
+  // Auto-focus on mount (only if not editing)
+  useEffect(() => {
+    if (!isEdit) {
+      whiteInputRef.current?.focus()
+    }
+  }, [isEdit])
 
   // Get recent players from recent games
   const getRecentPlayerIds = (): string[] => {
@@ -184,21 +221,23 @@ export default function SimpleGameForm({
       player2Id: blackPlayerId,
       result: result === 'white' ? 'player1' : result === 'black' ? 'player2' : 'draw',
       gameDate: gameDate,
-      gameTime: 30, // Default 30 minutes
-      gameType: 'ladder',
-      notes: ''
+      gameType: initialData?.gameType || 'ladder',
+      notes: initialData?.notes || '',
+      eventId: initialData?.eventId
     }
 
     try {
       await onSubmit(gameFormData)
-      // Reset form after successful submission
-      setWhitePlayerId("")
-      setBlackPlayerId("")
-      setWhiteSearch("")
-      setBlackSearch("")
-      setResult('')
-      setGameDate(new Date().toISOString().split('T')[0])
-      whiteInputRef.current?.focus()
+      // Reset form after successful submission (only if not editing)
+      if (!isEdit) {
+        setWhitePlayerId("")
+        setBlackPlayerId("")
+        setWhiteSearch("")
+        setBlackSearch("")
+        setResult('')
+        setGameDate(new Date().toISOString().split('T')[0])
+        whiteInputRef.current?.focus()
+      }
     } catch (error) {
       console.error('Error submitting game:', error)
     }
@@ -305,7 +344,7 @@ export default function SimpleGameForm({
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <CardTitle className="text-lg sm:text-xl">Add Game</CardTitle>
+            <CardTitle className="text-lg sm:text-xl">{isEdit ? 'Edit Game' : 'Add Game'}</CardTitle>
           </div>
           <Button
             variant="outline"
@@ -355,6 +394,9 @@ export default function SimpleGameForm({
                         disabled={isLoading}
                       >
                         {player.name}
+                        {player.eloRating !== undefined && (
+                          <span className="ml-1 text-xs text-gray-500">({player.eloRating})</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -407,6 +449,9 @@ export default function SimpleGameForm({
                             >
                               <div className="font-medium flex items-center gap-2">
                                 {player.name}
+                                {player.eloRating !== undefined && (
+                                  <span className="text-xs font-normal text-gray-500">({player.eloRating})</span>
+                                )}
                                 {(player as any).isSystemPlayer && ' [System]'}
                                 {isRecent && !whiteSearch && (
                                   <Clock className="h-3 w-3 text-gray-400" />
@@ -454,13 +499,13 @@ export default function SimpleGameForm({
                 </Button>
               )}
               
-              {/* Result Buttons - Chess Notation Style - Mobile Optimized */}
-              <div className="flex flex-col gap-3 sm:gap-2 w-full max-w-40 sm:max-w-32">
+              {/* Result Buttons - Chess Notation Style - Horizontal Layout */}
+              <div className="flex flex-row gap-2 justify-center">
                 {/* White Wins - 1-0 */}
                 <button
                   type="button"
                   onClick={() => handleResultSelect('white')}
-                  className={`px-6 sm:px-4 py-4 sm:py-2 border-2 rounded-md transition-colors text-lg sm:text-sm font-medium min-h-[56px] sm:min-h-0 flex items-center justify-center touch-manipulation ${
+                  className={`px-3 py-2 border-2 rounded-md transition-colors text-sm font-medium flex items-center justify-center touch-manipulation ${
                     result === 'white'
                       ? 'border-green-500 bg-green-50 text-green-700'
                       : 'border-gray-300 active:border-gray-400 text-gray-700'
@@ -474,7 +519,7 @@ export default function SimpleGameForm({
                 <button
                   type="button"
                   onClick={() => handleResultSelect('draw')}
-                  className={`px-6 sm:px-4 py-4 sm:py-2 border-2 rounded-md transition-colors text-lg sm:text-sm font-medium min-h-[56px] sm:min-h-0 flex items-center justify-center touch-manipulation ${
+                  className={`px-3 py-2 border-2 rounded-md transition-colors text-sm font-medium flex items-center justify-center touch-manipulation ${
                     result === 'draw'
                       ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
                       : 'border-gray-300 active:border-gray-400 text-gray-700'
@@ -488,7 +533,7 @@ export default function SimpleGameForm({
                 <button
                   type="button"
                   onClick={() => handleResultSelect('black')}
-                  className={`px-6 sm:px-4 py-4 sm:py-2 border-2 rounded-md transition-colors text-lg sm:text-sm font-medium min-h-[56px] sm:min-h-0 flex items-center justify-center touch-manipulation ${
+                  className={`px-3 py-2 border-2 rounded-md transition-colors text-sm font-medium flex items-center justify-center touch-manipulation ${
                     result === 'black'
                       ? 'border-green-500 bg-green-50 text-green-700'
                       : 'border-gray-300 active:border-gray-400 text-gray-700'
@@ -530,6 +575,9 @@ export default function SimpleGameForm({
                         disabled={isLoading}
                       >
                         {player.name}
+                        {player.eloRating !== undefined && (
+                          <span className="ml-1 text-xs text-gray-500">({player.eloRating})</span>
+                        )}
                       </button>
                     ))}
                   </div>
@@ -582,6 +630,9 @@ export default function SimpleGameForm({
                             >
                               <div className="font-medium flex items-center gap-2">
                                 {player.name}
+                                {player.eloRating !== undefined && (
+                                  <span className="text-xs font-normal text-gray-500">({player.eloRating})</span>
+                                )}
                                 {(player as any).isSystemPlayer && ' [System]'}
                                 {isRecent && !blackSearch && (
                                   <Clock className="h-3 w-3 text-gray-400" />
@@ -607,48 +658,52 @@ export default function SimpleGameForm({
             </div>
           </div>
 
-          {/* Game Date Section */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-full max-w-xs">
-              <label className="block text-sm font-medium text-[--color-text-primary] mb-2 text-center">
-                Game Date
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2 items-center">
-                <input
-                  type="date"
-                  value={gameDate}
-                  onChange={(e) => setGameDate(e.target.value)}
-                  className="w-full sm:flex-1 px-3 py-3 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] text-center text-base sm:text-sm min-h-[44px]"
-                  disabled={isLoading}
-                />
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={setDateToday}
+          {/* Game Date Section - Hidden when attendanceMeetId is provided (date set by meet) */}
+          {!attendanceMeetId && (
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-full max-w-xs">
+                <label className="block text-sm font-medium text-[--color-text-primary] mb-2 text-center">
+                  Game Date
+                </label>
+                <div className="flex flex-col sm:flex-row gap-2 items-center">
+                  <input
+                    type="date"
+                    value={gameDate}
+                    onChange={(e) => setGameDate(e.target.value)}
+                    className="w-full sm:flex-1 px-3 py-3 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] text-center text-base sm:text-sm min-h-[44px]"
                     disabled={isLoading}
-                    title="Set to today"
-                    className="flex-1 sm:flex-none text-sm px-4 py-2 min-h-[44px] touch-manipulation"
-                  >
-                    Today
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={setDateYesterday}
-                    disabled={isLoading}
-                    title="Set to yesterday"
-                    className="flex-1 sm:flex-none text-sm px-4 py-2 min-h-[44px] touch-manipulation"
-                  >
-                    Yesterday
-                  </Button>
+                  />
+                  <div className="flex gap-2 w-full sm:w-auto">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={setDateToday}
+                      disabled={isLoading}
+                      title="Set to today"
+                      className="flex-1 sm:flex-none text-sm px-4 py-2 min-h-[44px] touch-manipulation"
+                    >
+                      Today
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={setDateYesterday}
+                      disabled={isLoading}
+                      title="Set to yesterday"
+                      className="flex-1 sm:flex-none text-sm px-4 py-2 min-h-[44px] touch-manipulation"
+                    >
+                      Yesterday
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
-            
-            {/* Auto-submit toggle */}
+          )}
+          
+          {/* Auto-submit toggle */}
+          <div className="flex flex-col items-center gap-3">
             <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer touch-manipulation min-h-[44px] sm:min-h-0">
               <input
                 type="checkbox"
@@ -678,7 +733,7 @@ export default function SimpleGameForm({
               disabled={isLoading}
               className="flex items-center justify-center gap-2 w-full sm:w-auto order-1 sm:order-2 min-h-[48px] sm:min-h-0 touch-manipulation text-base sm:text-sm font-semibold"
             >
-              {isLoading ? 'Saving...' : 'Add Game'}
+              {isLoading ? 'Saving...' : isEdit ? 'Update Game' : 'Add Game'}
             </Button>
           </div>
         </form>

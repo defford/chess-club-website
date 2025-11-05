@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
-import { GameData, GameFormData, AchievementNotification } from '@/lib/types';
+import { GameData, GameFormData, AchievementNotification, AchievementType } from '@/lib/types';
 import { requireAdminAuth } from '@/lib/apiAuth';
 import { KVCacheService } from '@/lib/kv';
 import { QuotaHandler } from '@/lib/quotaHandler';
@@ -221,7 +221,7 @@ export async function POST(request: NextRequest) {
       player2Name: player2.name,
       result: gameFormData.result,
       gameDate: gameFormData.gameDate || new Date().toISOString().split('T')[0],
-      gameTime: gameFormData.gameTime || 0,
+      gameTime: 0, // No longer tracking game duration
       gameType: gameFormData.gameType || 'ladder',
       eventId: gameFormData.eventId,
       notes: gameFormData.notes,
@@ -245,10 +245,13 @@ export async function POST(request: NextRequest) {
       const allPlayers = await dataService.calculateRankingsFromGames();
       
       // Check for new achievements
+      // Pass empty Map for existing achievements (can be populated from persistence layer when available)
+      const existingAchievements = new Map<string, Set<AchievementType>>();
       const newAchievements = await AchievementService.checkAchievements(
         finalGameData,
         allGames,
-        allPlayers
+        allPlayers,
+        existingAchievements
       );
 
       // Broadcast achievement notifications

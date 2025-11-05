@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // POST /api/admin/setup-parents-admin - Add admin column to parents sheet
 export async function POST(request: NextRequest) {
   try {
-    const result = await googleSheetsService.setupParentsAdminColumn();
+    const result = await dataService.setupParentsAdminColumn();
     
     return NextResponse.json(result, { status: 200 });
   } catch (error) {

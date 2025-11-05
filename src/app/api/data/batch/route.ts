@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
+import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
 
 export async function GET(request: NextRequest) {
@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Use batch method to get all data efficiently
-    const batchData = await enhancedGoogleSheetsService.getAllDataBatch();
+    const batchData = await dataService.getAllDataBatch();
     
     // Cache the batch data
     await Promise.allSettled([

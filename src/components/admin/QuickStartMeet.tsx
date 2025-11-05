@@ -121,18 +121,16 @@ export default function QuickStartMeet({
   }
 
   const handleAddAttendance = async () => {
-    if (selectedPlayerIds.size === 0) {
-      setError('Please select at least one player')
-      return
-    }
-
     try {
       setSubmitting(true)
       setError(null)
 
-      await onAddAttendance(meetId, Array.from(selectedPlayerIds))
+      // Only add attendance if players are selected
+      if (selectedPlayerIds.size > 0) {
+        await onAddAttendance(meetId, Array.from(selectedPlayerIds))
+      }
       
-      // Complete the flow after adding attendance
+      // Complete the flow (with or without attendance)
       onComplete(meetId)
     } catch (err) {
       console.error('Error adding attendance:', err)
@@ -335,10 +333,14 @@ export default function QuickStartMeet({
                 </Button>
                 <Button
                   onClick={handleAddAttendance}
-                  disabled={submitting || selectedPlayerIds.size === 0}
+                  disabled={submitting}
                   variant="outline"
                 >
-                  {submitting ? 'Adding...' : `Add ${selectedPlayerIds.size} Player${selectedPlayerIds.size !== 1 ? 's' : ''} & Complete`}
+                  {submitting 
+                    ? 'Processing...' 
+                    : selectedPlayerIds.size > 0
+                    ? `Add ${selectedPlayerIds.size} Player${selectedPlayerIds.size !== 1 ? 's' : ''} & Complete`
+                    : 'Complete Without Attendance'}
                 </Button>
               </div>
             </div>

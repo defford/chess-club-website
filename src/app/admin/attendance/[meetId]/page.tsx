@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { isAdminAuthenticated } from "@/lib/adminAuth"
 import { clientAuthService } from "@/lib/clientAuth"
-import { ArrowLeft, LogOut, Users, Plus, X, Search, CheckCircle, Gamepad2 } from "lucide-react"
-import type { MeetWithAttendance, PlayerData, AttendanceData, GameFormData } from "@/lib/types"
+import { ArrowLeft, LogOut, Users, Plus, X, Search, CheckCircle, Gamepad2, Edit, Trash2 } from "lucide-react"
+import type { MeetWithAttendance, PlayerData, AttendanceData, GameFormData, GameData } from "@/lib/types"
 import QuickAddStudentForm from "@/components/admin/QuickAddStudentForm"
 import SimpleGameForm from "@/components/admin/SimpleGameForm"
 
@@ -27,6 +27,8 @@ export default function AttendanceDetailPage() {
   const [showQuickAddPlayer, setShowQuickAddPlayer] = useState(false)
   const [showAddGame, setShowAddGame] = useState(false)
   const [attendancePlayers, setAttendancePlayers] = useState<PlayerData[]>([])
+  const [games, setGames] = useState<GameData[]>([])
+  const [editingGame, setEditingGame] = useState<GameData | null>(null)
   const router = useRouter()
   const params = useParams()
   const meetId = params?.meetId as string
@@ -61,6 +63,7 @@ export default function AttendanceDetailPage() {
       const session = clientAuthService.getCurrentParentSession()
       const userEmail = session?.email || 'dev@example.com'
       
+      // First fetch meet and players data
       const [meetResponse, playersResponse] = await Promise.all([
         fetch(`/api/attendance/meets/${meetId}?email=${encodeURIComponent(userEmail)}`),
         fetch('/api/members')
@@ -76,6 +79,25 @@ export default function AttendanceDetailPage() {
 
       const meetData = await meetResponse.json()
       const membersData = await playersResponse.json()
+
+      // Fetch games filtered by the meet's date (since meet IDs aren't stored as event_id)
+      // Format meet date as YYYY-MM-DD for filtering
+      const meetDateStr = meetData.meetDate ? new Date(meetData.meetDate).toISOString().split('T')[0] : null
+      let gamesData: GameData[] = []
+      
+      if (meetDateStr) {
+        try {
+          const gamesResponse = await fetch(
+            `/api/games?dateFrom=${meetDateStr}&dateTo=${meetDateStr}&email=${encodeURIComponent(userEmail)}`
+          )
+          if (gamesResponse.ok) {
+            gamesData = await gamesResponse.json()
+          }
+        } catch (err) {
+          console.error('Error fetching games:', err)
+          // Continue without games data
+        }
+      }
 
       // Transform members data to PlayerData format
       const playersData = membersData.map((member: any) => ({
@@ -94,6 +116,7 @@ export default function AttendanceDetailPage() {
 
       setMeet(meetData)
       setAllPlayers(playersData)
+      setGames(gamesData)
       
       // Load attendance players for game form
       if (meetData.players && meetData.players.length > 0) {
@@ -198,11 +221,22 @@ export default function AttendanceDetailPage() {
       const session = clientAuthService.getCurrentParentSession()
       const userEmail = session?.email || 'dev@example.com'
 
-      // Use meet date for the game
-      const finalGameData = { ...gameData, gameDate: meet?.meetDate || gameData.gameDate }
+      // Use meet date for the game and set eventId
+      const finalGameData = { 
+        ...gameData, 
+        gameDate: meet?.meetDate || gameData.gameDate,
+        eventId: meetId
+      }
 
-      const response = await fetch(`/api/games?email=${encodeURIComponent(userEmail)}`, {
-        method: 'POST',
+      const isEdit = !!editingGame
+      const url = isEdit 
+        ? `/api/games/${editingGame.id}?email=${encodeURIComponent(userEmail)}`
+        : `/api/games?email=${encodeURIComponent(userEmail)}`
+      
+      const method = isEdit ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
         },
@@ -211,17 +245,84 @@ export default function AttendanceDetailPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || 'Failed to add game')
+        throw new Error(error.error || `Failed to ${isEdit ? 'update' : 'add'} game`)
       }
 
+      // Refresh games list
+      await loadData()
+      
+      // Reset editing state
+      if (isEdit) {
+        setEditingGame(null)
+        setShowAddGame(false)
+      }
       // Game added successfully - keep form open for adding more games
       // The form will reset itself
     } catch (err) {
-      console.error('Error adding game:', err)
-      setError(err instanceof Error ? err.message : 'Failed to add game')
+      console.error('Error submitting game:', err)
+      setError(err instanceof Error ? err.message : 'Failed to submit game')
       throw err // Re-throw so form can handle it
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDeleteGame = async (gameId: string) => {
+    if (!confirm('Are you sure you want to delete this game? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setSubmitting(true)
+      setError(null)
+
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+
+      const response = await fetch(`/api/games/${gameId}?email=${encodeURIComponent(userEmail)}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to delete game')
+      }
+
+      // Refresh games list
+      await loadData()
+    } catch (err) {
+      console.error('Error deleting game:', err)
+      setError(err instanceof Error ? err.message : 'Failed to delete game')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleEditGame = (game: GameData) => {
+    setEditingGame(game)
+    setShowAddGame(true)
+  }
+
+  const handleCancelEdit = () => {
+    setEditingGame(null)
+    setShowAddGame(false)
+  }
+
+  const getResultLabel = (result: string, game: GameData) => {
+    switch (result) {
+      case "player1": return `${game.player1Name} wins`
+      case "player2": return `${game.player2Name} wins`
+      case "draw": return "Draw"
+      default: return "Unknown"
+    }
+  }
+
+  const getResultColor = (result: string) => {
+    switch (result) {
+      case "player1": return "text-green-600 bg-green-50"
+      case "player2": return "text-green-600 bg-green-50"
+      case "draw": return "text-yellow-600 bg-yellow-50"
+      default: return "text-gray-600 bg-gray-50"
     }
   }
 
@@ -281,14 +382,7 @@ export default function AttendanceDetailPage() {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Meets
               </Button>
-              <Button
-                onClick={handleLogout}
-                variant="outline"
-                className="flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Logout</span>
-              </Button>
+
             </div>
           </div>
         </div>
@@ -304,7 +398,7 @@ export default function AttendanceDetailPage() {
         )}
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
           <Card>
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -327,62 +421,123 @@ export default function AttendanceDetailPage() {
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Meet Date</p>
-                  <p className="text-lg font-bold text-[--color-accent]">
-                    {new Date(meet.meetDate).toLocaleDateString()}
-                  </p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
+
         </div>
 
-        {/* Add Game Section */}
+        {/* Games Section */}
         {attendancePlayers.length > 0 && (
           <Card className="mb-6">
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Add Games</CardTitle>
+                  <CardTitle>Games</CardTitle>
                   <CardDescription>
-                    Record games for this meet ({attendancePlayers.length} players available)
+                    {games.length} game{games.length !== 1 ? 's' : ''} recorded for this meet
+                    {attendancePlayers.length > 0 && ` • ${attendancePlayers.length} players available`}
                   </CardDescription>
                 </div>
                 <Button
-                  onClick={() => setShowAddGame(!showAddGame)}
+                  onClick={() => {
+                    if (showAddGame) {
+                      setEditingGame(null)
+                      setShowAddGame(false)
+                    } else {
+                      setEditingGame(null)
+                      setShowAddGame(true)
+                    }
+                  }}
                   variant="outline"
                   size="sm"
                   className="flex items-center gap-1"
                 >
-                  <Gamepad2 className="h-4 w-4" />
-                  {showAddGame ? 'Hide' : 'Add Game'}
+                  <Plus className="h-4 w-4" />
+                  {showAddGame ? 'Cancel' : 'Add Game'}
                 </Button>
               </div>
             </CardHeader>
-            {showAddGame && (
-              <CardContent className="pt-6">
-                <SimpleGameForm
-                  players={attendancePlayers}
-                  onSubmit={handleGameSubmit}
-                  onCancel={() => setShowAddGame(false)}
-                  isLoading={submitting}
-                  attendanceMeetId={meetId}
-                  recentGames={[]}
-                />
-              </CardContent>
-            )}
+            <CardContent>
+              {showAddGame && (
+                <div className="mb-6">
+                  <SimpleGameForm
+                    players={attendancePlayers}
+                    onSubmit={handleGameSubmit}
+                    onCancel={handleCancelEdit}
+                    isLoading={submitting}
+                    attendanceMeetId={meetId}
+                    recentGames={games.slice(0, 20)}
+                    initialData={editingGame ? {
+                      player1Id: editingGame.player1Id,
+                      player2Id: editingGame.player2Id,
+                      result: editingGame.result,
+                      gameDate: editingGame.gameDate,
+                      gameType: editingGame.gameType,
+                      eventId: editingGame.eventId,
+                      notes: editingGame.notes,
+                    } : undefined}
+                  />
+                </div>
+              )}
+              {games.length === 0 ? (
+                <div className="text-center py-8">
+                  <Gamepad2 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No games recorded yet</p>
+                  <p className="text-sm text-gray-500 mt-2">Click the plus button above to add a game</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {games.map((game) => (
+                    <div
+                      key={game.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <div className="font-medium text-[--color-text-primary]">
+                            {game.player1Name} vs {game.player2Name}
+                          </div>
+                          <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${getResultColor(game.result)}`}>
+                            {getResultLabel(game.result, game)}
+                          </span>
+                          <span className="text-sm text-gray-500">
+                            {new Date(game.gameDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                        {game.notes && (
+                          <div className="text-sm text-gray-500 italic mt-1">{game.notes}</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Button
+                          onClick={() => handleEditGame(game)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0"
+                          disabled={submitting}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          onClick={() => handleDeleteGame(game.id)}
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          disabled={submitting}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
           </Card>
         )}
 
         {/* Add Players Section */}
         <Card className="mb-6">
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <CardTitle>Add Players</CardTitle>
                 <CardDescription>Select players to add to attendance</CardDescription>
@@ -395,7 +550,7 @@ export default function AttendanceDetailPage() {
                   className="flex items-center gap-1"
                 >
                   <Plus className="h-4 w-4" />
-                  Quick Register Player
+                  Register Player
                 </Button>
                 <Button
                   onClick={() => setShowAddPlayers(!showAddPlayers)}

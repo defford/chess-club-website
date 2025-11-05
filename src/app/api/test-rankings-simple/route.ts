@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/test-rankings-simple - Simple test of rankings calculation
 export async function GET(request: NextRequest) {
@@ -7,15 +7,15 @@ export async function GET(request: NextRequest) {
     console.log('[TEST-RANKINGS-SIMPLE] Starting simple rankings test...');
     
     // Test 1: Get games
-    const games = await googleSheetsService.getGames();
+    const games = await dataService.getGames();
     console.log(`[TEST-RANKINGS-SIMPLE] Retrieved ${games.length} total games`);
     
     // Test 2: Get members
-    const members = await googleSheetsService.getMembersFromParentsAndStudents();
+    const members = await dataService.getMembersFromParentsAndStudents();
     console.log(`[TEST-RANKINGS-SIMPLE] Retrieved ${members.length} members`);
     
     // Test 3: Call calculateRankingsFromGames
-    const rankings = await googleSheetsService.calculateRankingsFromGames();
+    const rankings = await dataService.calculateRankingsFromGames();
     console.log(`[TEST-RANKINGS-SIMPLE] Retrieved ${rankings.length} rankings`);
     
     const playersWithPoints = rankings.filter(p => p.points > 0);

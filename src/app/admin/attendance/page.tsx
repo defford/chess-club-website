@@ -231,7 +231,30 @@ export default function AttendancePage() {
       const session = clientAuthService.getCurrentParentSession()
       const userEmail = session?.email || 'dev@example.com'
 
-      const response = await fetch(`/api/attendance/meets/${meetId}?email=${encodeURIComponent(userEmail)}`, {
+      // Fetch the meet to get its date
+      const meetResponse = await fetch(`/api/attendance/meets/${meetId}?email=${encodeURIComponent(userEmail)}`)
+      if (!meetResponse.ok) {
+        throw new Error('Failed to fetch meet details')
+      }
+      const meet = await meetResponse.json()
+
+      // Check if there are games on this date
+      const gamesResponse = await fetch(`/api/games?dateFrom=${meet.meetDate}&dateTo=${meet.meetDate}`)
+      let gamesCount = 0
+      if (gamesResponse.ok) {
+        const games = await gamesResponse.json()
+        gamesCount = games.length
+      }
+
+      // Second confirmation: delete games if they exist
+      let deleteGames = false
+      if (gamesCount > 0) {
+        deleteGames = confirm(`There are ${gamesCount} game(s) recorded on ${new Date(meet.meetDate).toLocaleDateString()}. Do you want to delete these games as well?`)
+      }
+
+      // Delete meet with optional game deletion
+      const deleteUrl = `/api/attendance/meets/${meetId}?email=${encodeURIComponent(userEmail)}${deleteGames ? '&deleteGames=true' : ''}`
+      const response = await fetch(deleteUrl, {
         method: 'DELETE',
       })
 

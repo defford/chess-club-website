@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
 import { QuotaHandler } from '@/lib/quotaHandler';
 
@@ -17,11 +17,11 @@ export async function GET(
     const dateTo = searchParams.get('dateTo');
     
     // First try to get games by playerId
-    let games = await googleSheetsService.getPlayerGames(playerId);
+    let games = await dataService.getPlayerGames(playerId);
     
     // If no games found by ID, try to get all games and filter by name
     if (games.length === 0) {
-      const allGames = await googleSheetsService.getGames();
+      const allGames = await dataService.getGames();
       
       // Filter games where the playerId matches either player1Name or player2Name
       games = allGames.filter(game => 

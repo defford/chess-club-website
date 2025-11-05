@@ -28,7 +28,6 @@ export default function GameForm({
     player2Id: initialData?.player2Id || '',
     result: initialData?.result || '',
     gameDate: initialData?.gameDate || new Date().toISOString().split('T')[0],
-    gameTime: initialData?.gameTime || 0,
     gameType: initialData?.gameType || 'ladder',
     eventId: initialData?.eventId || '',
     notes: initialData?.notes || '',
@@ -47,7 +46,6 @@ export default function GameForm({
         player2Id: initialData.player2Id || '',
         result: initialData.result || '',
         gameDate: initialData.gameDate || new Date().toISOString().split('T')[0],
-        gameTime: initialData.gameTime || 0,
         gameType: initialData.gameType || 'ladder',
         eventId: initialData.eventId || '',
         notes: initialData.notes || '',
@@ -72,9 +70,6 @@ export default function GameForm({
     }
     if (!formData.result) {
       newErrors.result = 'Game result is required'
-    }
-    if (formData.gameTime < 0) {
-      newErrors.gameTime = 'Game time cannot be negative'
     }
 
     setErrors(newErrors)
@@ -153,7 +148,7 @@ export default function GameForm({
                   <option value="">Select Player 1</option>
                   {players.map(player => (
                     <option key={player.id} value={player.id}>
-                      {player.name} ({player.grade})
+                      {player.name}{player.eloRating !== undefined ? ` (${player.eloRating})` : ''} ({player.grade})
                       {(player as any).isSystemPlayer && ' [System]'}
                     </option>
                   ))}
@@ -178,7 +173,7 @@ export default function GameForm({
                   <option value="">Select Player 2</option>
                   {players.map(player => (
                     <option key={player.id} value={player.id}>
-                      {player.name} ({player.grade})
+                      {player.name}{player.eloRating !== undefined ? ` (${player.eloRating})` : ''} ({player.grade})
                       {(player as any).isSystemPlayer && ' [System]'}
                     </option>
                   ))}
@@ -221,38 +216,17 @@ export default function GameForm({
             </div>
 
             {/* Game Details */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Game Date
-                </label>
-                <input
-                  type="date"
-                  value={formData.gameDate}
-                  onChange={(e) => handleInputChange('gameDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary]"
-                  disabled={isLoading}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
-                  Game Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={formData.gameTime}
-                  onChange={(e) => handleInputChange('gameTime', parseInt(e.target.value) || 0)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] ${
-                    errors.gameTime ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                  disabled={isLoading}
-                />
-                {errors.gameTime && (
-                  <p className="text-red-500 text-sm mt-1">{errors.gameTime}</p>
-                )}
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-[--color-text-primary] mb-2">
+                Game Date
+              </label>
+              <input
+                type="date"
+                value={formData.gameDate}
+                onChange={(e) => handleInputChange('gameDate', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary]"
+                disabled={isLoading}
+              />
             </div>
 
             {/* Game Type */}

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/debug-games - Simple games diagnostic endpoint
 export async function GET(request: NextRequest) {
@@ -17,10 +16,10 @@ export async function GET(request: NextRequest) {
   };
 
   try {
-    // Test 1: Direct Google Sheets Service
-    console.log(`[DEBUG-GAMES] Testing direct Google Sheets service for ${gameType} games on ${date}`);
+    // Test 1: Data Service
+    console.log(`[DEBUG-GAMES] Testing data service for ${gameType} games on ${date}`);
     try {
-      const directGames = await googleSheetsService.getGames({
+      const directGames = await dataService.getGames({
         dateFrom: date,
         dateTo: date,
         gameType: gameType as any
@@ -46,39 +45,13 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Test 2: Enhanced Google Sheets Service
-    console.log(`[DEBUG-GAMES] Testing enhanced Google Sheets service for ${gameType} games on ${date}`);
-    try {
-      const enhancedGames = await enhancedGoogleSheetsService.getGames({
-        dateFrom: date,
-        dateTo: date,
-        gameType: gameType as any
-      });
-      
-      results.tests.enhancedService = {
-        success: true,
-        count: enhancedGames.length,
-        games: enhancedGames.map(game => ({
-          id: game.id,
-          player1Name: game.player1Name,
-          player2Name: game.player2Name,
-          result: game.result,
-          gameDate: game.gameDate,
-          gameType: game.gameType,
-          gameTime: game.gameTime
-        }))
-      };
-    } catch (error: any) {
-      results.tests.enhancedService = {
-        success: false,
-        error: error.message
-      };
-    }
+    // Test 2: Enhanced Service (same as directService now via dataService)
+    results.tests.enhancedService = results.tests.directService;
 
     // Test 3: All Games (no filters)
     console.log('[DEBUG-GAMES] Testing all games retrieval');
     try {
-      const allGames = await enhancedGoogleSheetsService.getGames();
+      const allGames = await dataService.getGames();
       const filteredGames = allGames.filter(game => 
         game.gameType === gameType && game.gameDate === date
       );
@@ -115,7 +88,7 @@ export async function GET(request: NextRequest) {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const today = new Date().toISOString().split('T')[0];
       
-      const rangeGames = await enhancedGoogleSheetsService.getGames({
+      const rangeGames = await dataService.getGames({
         dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
         dateTo: today,
         gameType: gameType as any

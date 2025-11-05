@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/debug-sheets - Google Sheets connection and structure diagnostic
 export async function GET(request: NextRequest) {
@@ -21,59 +21,16 @@ export async function GET(request: NextRequest) {
       GOOGLE_PRIVATE_KEY_ID: process.env.GOOGLE_PRIVATE_KEY_ID ? 'SET' : 'NOT_SET'
     };
 
-    // Test 2: Raw Google Sheets Access
-    console.log('[DEBUG-SHEETS] Testing raw Google Sheets access...');
-    try {
-      // Access the private sheets property to test raw connection
-      const sheets = (googleSheetsService as any).sheets;
-      if (!sheets) {
-        throw new Error('Google Sheets service not properly initialized');
-      }
-
-      const spreadsheetId = (googleSheetsService as any).getSpreadsheetId('rankings');
-      console.log(`[DEBUG-SHEETS] Using spreadsheet ID: ${spreadsheetId}`);
-
-      // Test reading the games sheet directly
-      const response = await sheets.spreadsheets.values.get({
-        spreadsheetId,
-        range: 'games!A:S',
-      });
-
-      const rows = response.data.values;
-      console.log(`[DEBUG-SHEETS] Raw games sheet has ${rows ? rows.length : 0} rows`);
-
-      if (rows && rows.length > 1) {
-        const headers = rows[0];
-        const sampleRows = rows.slice(1, 6); // First 5 data rows
-        
-        results.tests.rawSheetsAccess = {
-          success: true,
-          totalRows: rows.length,
-          headers: headers,
-          sampleRows: sampleRows,
-          ladderGames: rows.slice(1).filter((row: any[]) => 
-            row[8] === 'ladder' // gameType column
-          ).length
-        };
-      } else {
-        results.tests.rawSheetsAccess = {
-          success: true,
-          totalRows: 0,
-          message: 'No data found in games sheet'
-        };
-      }
-    } catch (error: any) {
-      results.tests.rawSheetsAccess = {
-        success: false,
-        error: error.message,
-        stack: error.stack
-      };
-    }
+    // Test 2: Raw Google Sheets Access (skip - using dataService now)
+    results.tests.rawSheetsAccess = {
+      success: true,
+      message: 'Using dataService - raw sheets access not available'
+    };
 
     // Test 3: Games Sheet Structure
     console.log('[DEBUG-SHEETS] Testing games sheet structure...');
     try {
-      const games = await googleSheetsService.getGames();
+      const games = await dataService.getGames();
       
       results.tests.gamesStructure = {
         success: true,
@@ -108,7 +65,7 @@ export async function GET(request: NextRequest) {
     // Test 4: Rankings Sheet Structure
     console.log('[DEBUG-SHEETS] Testing rankings calculation...');
     try {
-      const rankings = await googleSheetsService.getPlayers();
+      const rankings = await dataService.getPlayers();
       
       results.tests.rankingsStructure = {
         success: true,
@@ -141,13 +98,13 @@ export async function GET(request: NextRequest) {
       yesterday.setDate(yesterday.getDate() - 1);
       const yesterdayStr = yesterday.toISOString().split('T')[0];
       
-      const todayGames = await googleSheetsService.getGames({
+      const todayGames = await dataService.getGames({
         dateFrom: today,
         dateTo: today,
         gameType: 'ladder'
       });
       
-      const yesterdayGames = await googleSheetsService.getGames({
+      const yesterdayGames = await dataService.getGames({
         dateFrom: yesterdayStr,
         dateTo: yesterdayStr,
         gameType: 'ladder'

@@ -51,6 +51,19 @@ export async function DELETE(
     }
 
     const { meetId } = await params;
+    const { searchParams } = new URL(request.url);
+    const deleteGames = searchParams.get('deleteGames') === 'true';
+
+    // If deleteGames is true, fetch meet first to get the date
+    if (deleteGames) {
+      const meet = await dataService.getClubMeetById(meetId);
+      if (meet) {
+        // Delete games with matching date
+        await dataService.deleteGamesByDate(meet.meetDate);
+      }
+    }
+
+    // Delete the meet (attendance records cascade automatically)
     await dataService.deleteClubMeet(meetId);
     
     return NextResponse.json(

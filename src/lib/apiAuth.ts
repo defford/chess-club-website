@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server'
-import { googleSheetsService } from './googleSheets'
+import { dataService } from './dataService'
 
 export async function requireAdminAuth(request: NextRequest): Promise<{ isAdmin: boolean; error?: string }> {
   try {
@@ -15,8 +15,8 @@ export async function requireAdminAuth(request: NextRequest): Promise<{ isAdmin:
       return { isAdmin: true }
     }
 
-    // Get the parent account from Google Sheets
-    const parentAccount = await googleSheetsService.getParentAccount(email)
+    // Get the parent account from dataService (routes to Supabase or Google Sheets)
+    const parentAccount = await dataService.getParentAccount(email)
     
     if (!parentAccount) {
       return { isAdmin: false, error: 'Parent account not found' }
@@ -42,8 +42,8 @@ export async function requireParentAuth(request: NextRequest): Promise<{ isAuthe
       return { isAuthenticated: false, error: 'No email provided' }
     }
 
-    // Get the parent account from Google Sheets
-    const parentAccount = await googleSheetsService.getParentAccount(email)
+    // Get the parent account from dataService (routes to Supabase or Google Sheets)
+    const parentAccount = await dataService.getParentAccount(email)
     
     if (!parentAccount) {
       return { isAuthenticated: false, error: 'Parent account not found' }

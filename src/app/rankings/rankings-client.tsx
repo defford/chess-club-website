@@ -256,7 +256,14 @@ export function RankingsPageClient({ initialPlayers = [] }: RankingsPageClientPr
                         </span>
                       </td>
                       <td className="p-4 font-medium text-[--color-text-primary]">
-                        {player.name}
+                        <div className="flex items-center gap-2">
+                          <span>{player.name}</span>
+                          {player.eloRating !== undefined && (
+                            <span className="text-sm font-normal text-[--color-text-secondary]">
+                              ({player.eloRating})
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 text-[--color-text-secondary]">
                         {player.grade}

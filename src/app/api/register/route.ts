@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       createAccount: data.createAccount || false
     };
 
-    const parentId = await googleSheetsService.addParentRegistration(parentData);
+    const parentId = await dataService.addParentRegistration(parentData);
 
     // Add student registration to students sheet
     const studentData = {
@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       medicalInfo: data.medicalInfo || ''
     };
 
-    await googleSheetsService.addStudentRegistration(studentData);
+    await dataService.addStudentRegistration(studentData);
 
     // Send confirmation email
     try {

@@ -1,4 +1,5 @@
 import { getSupabaseClient } from './supabaseClient';
+import { EloService } from './eloService';
 import type {
   RegistrationData,
   EventData,
@@ -537,6 +538,7 @@ export class SupabaseService {
         lastActive: string;
         email: string;
         isSystemPlayer?: boolean;
+        eloRating?: number;
       }>();
 
       // Initialize all registered players
@@ -553,6 +555,7 @@ export class SupabaseService {
           lastActive: member.timestamp || new Date().toISOString(),
           email: member.parentEmail || '',
           isSystemPlayer: false,
+          eloRating: 1000, // Default, will be updated from database
         });
       });
 
@@ -573,6 +576,7 @@ export class SupabaseService {
             lastActive: game.game_date,
             email: '',
             isSystemPlayer: game.player1_name === 'Unknown Opponent' || game.player1_id === 'unknown_opponent',
+            eloRating: 1000, // Default, will be updated from database
           };
           playerStats.set(game.player1_id, player1Stats);
         }
@@ -592,6 +596,7 @@ export class SupabaseService {
             lastActive: game.game_date,
             email: '',
             isSystemPlayer: game.player2_name === 'Unknown Opponent' || game.player2_id === 'unknown_opponent',
+            eloRating: 1000, // Default, will be updated from database
           };
           playerStats.set(game.player2_id, player2Stats);
         }
@@ -643,6 +648,38 @@ export class SupabaseService {
       players.forEach((player, index) => {
         player.rank = index + 1;
       });
+
+      // Fetch ELO ratings for all players from students table
+      const playerIds = players.map(p => p.id).filter((id): id is string => !!id);
+      if (playerIds.length > 0) {
+        const { data: studentsData } = await this.supabase
+          .from('students')
+          .select('id, elo_rating')
+          .in('id', playerIds);
+
+        if (studentsData) {
+          const eloMap = new Map<string, number>();
+          studentsData.forEach(student => {
+            if (student.elo_rating !== null && student.elo_rating !== undefined) {
+              eloMap.set(student.id, student.elo_rating);
+            }
+          });
+
+          // Update players with ELO ratings
+          players.forEach(player => {
+            if (player.id && eloMap.has(player.id)) {
+              player.eloRating = eloMap.get(player.id);
+            } else {
+              player.eloRating = 1000; // Default rating
+            }
+          });
+        }
+      } else {
+        // No valid player IDs, set default ELO
+        players.forEach(player => {
+          player.eloRating = 1000;
+        });
+      }
 
       return players;
     } catch (error) {
@@ -749,6 +786,56 @@ export class SupabaseService {
     }
   }
 
+  async updateStudentRegistration(studentId: string, updates: Partial<StudentRegistrationData>): Promise<void> {
+    const updateData: any = {};
+
+    if (updates.parentId !== undefined) updateData.parent_id = updates.parentId;
+    if (updates.playerName !== undefined) updateData.name = updates.playerName;
+    if (updates.playerAge !== undefined) updateData.age = updates.playerAge;
+    if (updates.playerGrade !== undefined) updateData.grade = updates.playerGrade;
+    if (updates.emergencyContact !== undefined) updateData.emergency_contact = updates.emergencyContact;
+    if (updates.emergencyPhone !== undefined) updateData.emergency_phone = updates.emergencyPhone;
+    if (updates.medicalInfo !== undefined) updateData.medical_info = updates.medicalInfo;
+
+    // Always update the updated_at timestamp
+    updateData.updated_at = new Date().toISOString();
+
+    const { error } = await this.supabase
+      .from('students')
+      .update(updateData)
+      .eq('id', studentId);
+
+    if (error) {
+      console.error('Error updating student registration in Supabase:', error);
+      throw new Error('Failed to update student registration in Supabase');
+    }
+  }
+
+  async getAllParents(): Promise<ParentAccount[]> {
+    const { data, error } = await this.supabase
+      .from('parents')
+      .select('*')
+      .order('email', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching all parents from Supabase:', error);
+      throw new Error('Failed to fetch all parents from Supabase');
+    }
+
+    if (!data) return [];
+
+    return data.map((row) => ({
+      id: row.id,
+      email: row.email,
+      createdDate: row.created_at || row.timestamp,
+      lastLogin: row.updated_at || row.created_at || row.timestamp,
+      isActive: true,
+      isSelfRegistered: row.registration_type === 'self',
+      registrationType: row.registration_type as 'parent' | 'self' | undefined,
+      isAdmin: row.is_admin || false,
+    }));
+  }
+
   async getStudentsByParentId(parentId: string): Promise<StudentData[]> {
     const { data, error } = await this.supabase
       .from('students')
@@ -845,6 +932,8 @@ export class SupabaseService {
 
   async getMembersFromParentsAndStudents(): Promise<RegistrationData[]> {
     // Combine parents and students into member records
+    // Fetch students separately (without join) to ensure we get ALL students,
+    // even if parent relationships are missing or broken
     const [parentsResult, studentsResult] = await Promise.all([
       this.logPerformance(
         async () => this.supabase.from('parents').select('*'),
@@ -855,12 +944,12 @@ export class SupabaseService {
         }
       ),
       this.logPerformance(
-        async () => this.supabase.from('students').select('*, parents(*)'),
+        async () => this.supabase.from('students').select('*'),
         {
           methodName: 'getMembersFromParentsAndStudents',
           table: 'students',
           operation: 'select',
-          additionalInfo: 'with parents join',
+          additionalInfo: 'all students without join',
         }
       ),
     ]);
@@ -873,9 +962,12 @@ export class SupabaseService {
     const parents = parentsResult.data || [];
     const students = studentsResult.data || [];
 
-    // Map students to RegistrationData format
+    // Create a parent lookup map for efficient lookups
+    const parentMap = new Map(parents.map(p => [p.id, p]));
+
+    // Map students to RegistrationData format, manually joining with parents
     return students.map((student) => {
-      const parent = student.parents || parents.find((p) => p.id === student.parent_id);
+      const parent = student.parent_id ? parentMap.get(student.parent_id) : null;
       return {
         parentName: parent?.name || '',
         parentEmail: parent?.email || '',
@@ -1034,10 +1126,134 @@ export class SupabaseService {
     console.log('generatePlayerIdsForExistingRegistrations() called - not needed in Supabase');
   }
 
+  // ==================== ELO Rating Methods ====================
+
+  async getPlayerEloRating(playerId: string): Promise<number> {
+    try {
+      const { data, error } = await this.supabase
+        .from('students')
+        .select('elo_rating')
+        .eq('id', playerId)
+        .single();
+
+      if (error || !data) {
+        // Player not found in students table, return initial rating
+        return 1000;
+      }
+
+      return data.elo_rating ?? 1000;
+    } catch (error) {
+      console.error(`Error getting ELO rating for player ${playerId}:`, error);
+      return 1000;
+    }
+  }
+
+  async updatePlayerEloRating(playerId: string, newRating: number): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('students')
+        .update({ elo_rating: newRating })
+        .eq('id', playerId);
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error(`Error updating ELO rating for player ${playerId}:`, error);
+      throw error;
+    }
+  }
+
+  async initializeAllPlayerEloRatings(): Promise<void> {
+    try {
+      const { error } = await this.supabase
+        .from('students')
+        .update({ elo_rating: 1000 })
+        .is('elo_rating', null);
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error('Error initializing ELO ratings:', error);
+      throw error;
+    }
+  }
+
   // ==================== Game Methods ====================
 
   async addGame(gameData: any): Promise<string> {
     const gameId = `game_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+    // Validate eventId: if provided, check if it exists in events table
+    // Meet IDs (starting with 'meet_') are not valid event IDs and should be set to null
+    let validEventId: string | null = null;
+    if (gameData.eventId) {
+      // If it's a meet ID, don't use it as event_id
+      if (gameData.eventId.startsWith('meet_')) {
+        validEventId = null;
+      } else {
+        // Check if the event exists in the events table
+        const { data: eventData, error: eventError } = await this.supabase
+          .from('events')
+          .select('id')
+          .eq('id', gameData.eventId)
+          .single();
+        
+        if (eventError || !eventData) {
+          // Event doesn't exist, set to null to avoid foreign key violation
+          validEventId = null;
+        } else {
+          validEventId = gameData.eventId;
+        }
+      }
+    }
+
+    // Calculate ELO rating changes for both players
+    let ratingChange = gameData.ratingChange;
+    if (!ratingChange) {
+      try {
+        // Get current ELO ratings for both players
+        const player1Rating = await this.getPlayerEloRating(gameData.player1Id);
+        const player2Rating = await this.getPlayerEloRating(gameData.player2Id);
+
+        // Calculate rating changes
+        const changes = EloService.calculateRatingChange(
+          player1Rating,
+          player2Rating,
+          gameData.result as 'player1' | 'player2' | 'draw'
+        );
+
+        // Update player ELO ratings in database
+        const newPlayer1Rating = player1Rating + changes.player1Change;
+        const newPlayer2Rating = player2Rating + changes.player2Change;
+
+        try {
+          await this.updatePlayerEloRating(gameData.player1Id, newPlayer1Rating);
+        } catch (error) {
+          // Player might not exist in students table (e.g., "Unknown Opponent")
+          // Continue with game creation
+          console.warn(`Could not update ELO for player ${gameData.player1Id}:`, error);
+        }
+
+        try {
+          await this.updatePlayerEloRating(gameData.player2Id, newPlayer2Rating);
+        } catch (error) {
+          // Player might not exist in students table
+          // Continue with game creation
+          console.warn(`Could not update ELO for player ${gameData.player2Id}:`, error);
+        }
+
+        // Store rating changes in game data
+        ratingChange = {
+          player1: changes.player1Change,
+          player2: changes.player2Change,
+        };
+      } catch (error) {
+        console.error('Error calculating ELO ratings:', error);
+        // Continue with game creation even if ELO calculation fails
+      }
+    }
 
     const { error } = await this.supabase.from('games').insert({
       id: gameId,
@@ -1049,13 +1265,13 @@ export class SupabaseService {
       game_date: gameData.gameDate,
       game_time: gameData.gameTime || 0,
       game_type: gameData.gameType,
-      event_id: gameData.eventId || null,
+      event_id: validEventId,
       notes: gameData.notes || null,
       recorded_by: gameData.recordedBy,
       recorded_at: gameData.recordedAt || new Date().toISOString(),
       opening: gameData.opening || null,
       endgame: gameData.endgame || null,
-      rating_change: gameData.ratingChange ? JSON.stringify(gameData.ratingChange) : null,
+      rating_change: ratingChange ? JSON.stringify(ratingChange) : null,
       is_verified: gameData.isVerified || false,
       verified_by: gameData.verifiedBy || null,
       verified_at: gameData.verifiedAt || null,
@@ -1123,7 +1339,11 @@ export class SupabaseService {
           recordedAt: row.recorded_at,
           opening: row.opening || undefined,
           endgame: row.endgame || undefined,
-          ratingChange: row.rating_change ? JSON.parse(row.rating_change) : undefined,
+          ratingChange: row.rating_change 
+            ? (typeof row.rating_change === 'string' 
+                ? JSON.parse(row.rating_change) 
+                : row.rating_change)
+            : undefined,
           isVerified: row.is_verified || false,
           verifiedBy: row.verified_by || undefined,
           verifiedAt: row.verified_at || undefined,
@@ -1153,7 +1373,31 @@ export class SupabaseService {
     if (updates.gameDate !== undefined) updateData.game_date = updates.gameDate;
     if (updates.gameTime !== undefined) updateData.game_time = updates.gameTime;
     if (updates.gameType !== undefined) updateData.game_type = updates.gameType;
-    if (updates.eventId !== undefined) updateData.event_id = updates.eventId;
+    
+    // Validate eventId: if provided, check if it exists in events table
+    // Meet IDs (starting with 'meet_') are not valid event IDs and should be set to null
+    if (updates.eventId !== undefined) {
+      if (!updates.eventId) {
+        updateData.event_id = null;
+      } else if (updates.eventId.startsWith('meet_')) {
+        updateData.event_id = null;
+      } else {
+        // Check if the event exists in the events table
+        const { data: eventData, error: eventError } = await this.supabase
+          .from('events')
+          .select('id')
+          .eq('id', updates.eventId)
+          .single();
+        
+        if (eventError || !eventData) {
+          // Event doesn't exist, set to null to avoid foreign key violation
+          updateData.event_id = null;
+        } else {
+          updateData.event_id = updates.eventId;
+        }
+      }
+    }
+    
     if (updates.notes !== undefined) updateData.notes = updates.notes;
     if (updates.opening !== undefined) updateData.opening = updates.opening;
     if (updates.endgame !== undefined) updateData.endgame = updates.endgame;
@@ -1179,6 +1423,18 @@ export class SupabaseService {
     if (error) {
       console.error('Error deleting game from Supabase:', error);
       throw new Error('Failed to delete game from Supabase');
+    }
+  }
+
+  async deleteGamesByDate(gameDate: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('games')
+      .delete()
+      .eq('game_date', gameDate);
+
+    if (error) {
+      console.error('Error deleting games by date from Supabase:', error);
+      throw new Error('Failed to delete games by date from Supabase');
     }
   }
 
@@ -1212,7 +1468,6 @@ export class SupabaseService {
       losses,
       draws,
       winRate: totalGames > 0 ? wins / totalGames : 0,
-      averageGameTime: games.reduce((sum, g) => sum + (g.gameTime || 0), 0) / totalGames || 0,
       favoriteOpponents: [], // Would need additional calculation
       recentGames: games.slice(0, 10),
       monthlyStats: Array.from(monthlyStats.values()),
@@ -1238,7 +1493,6 @@ export class SupabaseService {
       losses,
       draws,
       winRate: totalGames > 0 ? wins / totalGames : 0,
-      averageGameTime: games.reduce((sum, g) => sum + (g.gameTime || 0), 0) / totalGames || 0,
       currentStreak: { type: 'none' as const, count: 0 },
       bestStreak: { type: 'win' as const, count: 0 },
       recentGames: games.slice(0, 10),

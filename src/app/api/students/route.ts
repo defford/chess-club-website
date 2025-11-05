@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 export async function GET(request: NextRequest) {
   try {
     // Get all students from the students sheet
-    const students = await googleSheetsService.getAllStudents();
+    const students = await dataService.getAllStudents();
 
     return NextResponse.json(
       { 

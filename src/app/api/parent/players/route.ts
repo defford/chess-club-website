@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parentAuthService } from '@/lib/parentAuth';
-import { googleSheetsService } from '@/lib/googleSheets';
 import { KVCacheService } from '@/lib/kv';
 
 export async function GET(request: NextRequest) {

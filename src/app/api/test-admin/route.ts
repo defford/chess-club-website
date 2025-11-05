@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdminAuth } from '@/lib/apiAuth';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/test-admin - Test admin authentication
 export async function GET(request: NextRequest) {
@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
 
     console.log(`🧪 Testing admin auth for email: ${email}`);
 
-    // Test 1: Check if email exists in Google Sheets
-    const parentAccount = await googleSheetsService.getParentAccount(email);
+    // Test 1: Check if email exists in data store
+    const parentAccount = await dataService.getParentAccount(email);
     
     // Test 2: Check admin authentication
     const authResult = await requireAdminAuth(request);

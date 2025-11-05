@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // POST /api/games/initialize - Initialize the games sheet
 export async function POST(request: NextRequest) {
   try {
-    await googleSheetsService.initializeGamesSheet();
+    await dataService.initializeGamesSheet();
     
     return NextResponse.json(
       { message: 'Games sheet initialized successfully' },

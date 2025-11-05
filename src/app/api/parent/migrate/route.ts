@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // This is a one-time migration endpoint to generate player IDs for existing registrations
 // Should be run once to set up the parent system
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     // Sheets already exist, no initialization needed
 
     // Generate player IDs for all existing registrations
-    await googleSheetsService.generatePlayerIdsForExistingRegistrations();
+    await dataService.generatePlayerIdsForExistingRegistrations();
 
     return NextResponse.json(
       { 

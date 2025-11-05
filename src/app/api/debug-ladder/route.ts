@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { KVCacheService } from '@/lib/kv';
-import { enhancedGoogleSheetsService } from '@/lib/googleSheetsEnhanced';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/debug-ladder - Comprehensive diagnostic endpoint for ladder issues
 export async function GET(request: NextRequest) {
@@ -26,10 +25,10 @@ export async function GET(request: NextRequest) {
       KV_REST_API_TOKEN: process.env.KV_REST_API_TOKEN ? 'SET' : 'NOT_SET',
     };
 
-    // Test 2: Google Sheets Direct Access
+    // Test 2: Data Service Access
     try {
-      console.log('[DEBUG] Testing direct Google Sheets access...');
-      const directGames = await googleSheetsService.getGames({
+      console.log('[DEBUG] Testing data service access...');
+      const directGames = await dataService.getGames({
         dateFrom: date,
         dateTo: date,
         gameType: 'ladder'
@@ -55,39 +54,13 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Test 3: Enhanced Google Sheets Service
-    try {
-      console.log('[DEBUG] Testing enhanced Google Sheets service...');
-      const enhancedGames = await enhancedGoogleSheetsService.getGames({
-        dateFrom: date,
-        dateTo: date,
-        gameType: 'ladder'
-      });
-      
-      diagnostics.tests.enhancedGoogleSheets = {
-        success: true,
-        gamesCount: enhancedGames.length,
-        sampleGames: enhancedGames.slice(0, 3).map(game => ({
-          id: game.id,
-          player1Name: game.player1Name,
-          player2Name: game.player2Name,
-          result: game.result,
-          gameDate: game.gameDate,
-          gameType: game.gameType
-        }))
-      };
-    } catch (error: any) {
-      diagnostics.tests.enhancedGoogleSheets = {
-        success: false,
-        error: error.message,
-        stack: error.stack
-      };
-    }
+    // Test 3: Enhanced Service (same as directService now via dataService)
+    diagnostics.tests.enhancedGoogleSheets = diagnostics.tests.directGoogleSheets;
 
     // Test 4: All Games (no date filter)
     try {
       console.log('[DEBUG] Testing all games retrieval...');
-      const allGames = await enhancedGoogleSheetsService.getGames();
+      const allGames = await dataService.getGames();
       const ladderGames = allGames.filter(game => game.gameType === 'ladder');
       const recentGames = allGames
         .filter(game => game.gameType === 'ladder')
@@ -169,7 +142,7 @@ export async function GET(request: NextRequest) {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const today = new Date().toISOString().split('T')[0];
       
-      const rangeGames = await enhancedGoogleSheetsService.getGames({
+      const rangeGames = await dataService.getGames({
         dateFrom: thirtyDaysAgo.toISOString().split('T')[0],
         dateTo: today,
         gameType: 'ladder'
@@ -198,7 +171,7 @@ export async function GET(request: NextRequest) {
     // Test 8: Ladder API Simulation
     try {
       console.log('[DEBUG] Simulating ladder API logic...');
-      const games = await enhancedGoogleSheetsService.getGames({
+      const games = await dataService.getGames({
         dateFrom: date,
         dateTo: date,
         gameType: 'ladder'

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parentAuthService } from '@/lib/parentAuth';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
     const parentAccount = await parentAuthService.createOrGetParentAccount(parentEmail);
 
     // Find the player by email and name
-    const registrations = await googleSheetsService.getRegistrations();
+    const registrations = await dataService.getRegistrations();
     const playerRegistration = registrations.find(reg => 
       reg.parentEmail.toLowerCase() === playerEmail.toLowerCase() && 
       reg.playerName.toLowerCase() === playerName.toLowerCase()
@@ -35,7 +35,7 @@ export async function POST(request: NextRequest) {
     const playerId = `chld_${playerRegistration.playerName}_${playerRegistration.parentEmail}_${playerRegistration.timestamp}`.replace(/[^a-zA-Z0-9_]/g, '_');
 
     // Check if player ownership already exists
-    const existingOwnership = await googleSheetsService.getPlayerOwnership(playerId);
+    const existingOwnership = await dataService.getPlayerOwnership(playerId);
 
     if (!existingOwnership) {
       // No ownership record exists - create one and assign to this parent
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         claimDate: new Date().toISOString()
       };
 
-      await googleSheetsService.addPlayerOwnership(ownership);
+      await dataService.addPlayerOwnership(ownership);
 
       return NextResponse.json(
         { 
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Get the current owner's account
-      const currentOwnerAccount = await googleSheetsService.getParentAccount(existingOwnership.ownerParentId);
+      const currentOwnerAccount = await dataService.getParentAccount(existingOwnership.ownerParentId);
       if (!currentOwnerAccount) {
         return NextResponse.json(
           { error: 'Current owner account not found' },
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Update ownership record with pending request
-      await googleSheetsService.updatePlayerOwnership(playerId, {
+      await dataService.updatePlayerOwnership(playerId, {
         pendingParentId: parentAccount.id,
         approvalStatus: 'pending'
       });
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
     }
 
     // No current owner - assign to this parent
-    await googleSheetsService.updatePlayerOwnership(playerId, {
+    await dataService.updatePlayerOwnership(playerId, {
       ownerParentId: parentAccount.id,
       approvalStatus: 'approved'
     });

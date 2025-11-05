@@ -14,14 +14,10 @@ import {
   Target,
   TrendingUp,
   Calendar,
-  Clock,
-  Users,
   Award,
   Medal,
-  Star,
   CheckCircle,
   XCircle,
-  BarChart3,
   Gamepad2
 } from "lucide-react"
 import Link from "next/link"
@@ -88,12 +84,26 @@ export default function PlayerStatsPage() {
       }
       const games: GameData[] = await gamesResponse.json()
 
+      // Fetch all games and players for achievement calculation
+      const allGamesResponse = await fetch('/api/games')
+      if (!allGamesResponse.ok) {
+        throw new Error('Failed to fetch all games')
+      }
+      const allGames: GameData[] = await allGamesResponse.json()
+
+      // Fetch rankings to get all players data
+      const rankingsResponse = await fetch('/api/rankings')
+      if (!rankingsResponse.ok) {
+        throw new Error('Failed to fetch rankings')
+      }
+      const allPlayers = await rankingsResponse.json()
+
       // Calculate game statistics
       const gameStats = calculatePlayerStats(member, games)
 
-      // Get all possible achievements and check which ones are achieved
+      // Get all possible achievements and check which ones are achieved using AchievementService
       const allAchievements = getAllPossibleAchievements()
-      const achievedAchievements = await getPlayerAchievements(playerId, games)
+      const achievedAchievements = await AchievementService.getPlayerAchievements(playerId, allGames, allPlayers)
       
       const achievementsWithStatus = allAchievements.map(achievement => {
         const achieved = achievedAchievements.find(a => a.type === achievement.type)
@@ -137,10 +147,6 @@ export default function PlayerStatsPage() {
 
     const winRate = playerGames.length > 0 ? Math.round((wins / playerGames.length) * 100) : 0
 
-    const averageGameTime = playerGames.length > 0 
-      ? Math.round(playerGames.reduce((sum, g) => sum + g.gameTime, 0) / playerGames.length)
-      : 0
-
     // Calculate current streak
     const recentGames = playerGames
       .sort((a, b) => new Date(b.gameDate).getTime() - new Date(a.gameDate).getTime())
@@ -171,9 +177,6 @@ export default function PlayerStatsPage() {
       }
     }
 
-    // Calculate monthly stats
-    const monthlyStats = calculateMonthlyStats(playerGames)
-
     return {
       playerId: member.id || '',
       playerName: member.playerName,
@@ -182,43 +185,11 @@ export default function PlayerStatsPage() {
       losses,
       draws,
       winRate,
-      averageGameTime,
       currentStreak,
       bestStreak: { type: 'win' as const, count: 0 }, // TODO: Calculate from all games
       recentGames: recentGames.slice(0, 5),
-      monthlyStats
+      monthlyStats: [] // Empty array to satisfy type requirement
     }
-  }
-
-  const calculateMonthlyStats = (games: GameData[]) => {
-    const monthlyData: Record<string, { games: number; wins: number; losses: number }> = {}
-    
-    games.forEach(game => {
-      const month = new Date(game.gameDate).toISOString().slice(0, 7) // YYYY-MM
-      if (!monthlyData[month]) {
-        monthlyData[month] = { games: 0, wins: 0, losses: 0 }
-      }
-      monthlyData[month].games++
-      
-      if (game.result === 'player1' && game.player1Id === playerId) {
-        monthlyData[month].wins++
-      } else if (game.result === 'player2' && game.player2Id === playerId) {
-        monthlyData[month].wins++
-      } else if (game.result !== 'draw') {
-        monthlyData[month].losses++
-      }
-    })
-
-    return Object.entries(monthlyData)
-      .map(([month, stats]) => ({
-        month,
-        games: stats.games,
-        wins: stats.wins,
-        losses: stats.losses,
-        winRate: stats.games > 0 ? Math.round((stats.wins / stats.games) * 100) : 0
-      }))
-      .sort((a, b) => b.month.localeCompare(a.month))
-      .slice(0, 6) // Last 6 months
   }
 
   const getAllPossibleAchievements = () => {
@@ -239,88 +210,6 @@ export default function PlayerStatsPage() {
     })
   }
 
-  const getPlayerAchievements = async (playerId: string, games: GameData[]): Promise<Achievement[]> => {
-    // For now, we'll simulate achievements based on game data
-    // In a real implementation, this would fetch from a database
-    const achievements: Achievement[] = []
-    
-    // Check for basic achievements
-    const playerGames = games.filter(g => 
-      g.player1Id === playerId || g.player2Id === playerId
-    )
-
-    const wins = playerGames.filter(g => 
-      (g.player1Id === playerId && g.result === 'player1') ||
-      (g.player2Id === playerId && g.result === 'player2')
-    )
-
-    const draws = playerGames.filter(g => g.result === 'draw')
-
-    // First win
-    if (wins.length === 1) {
-      achievements.push({
-        id: `${playerId}_first_win`,
-        playerId,
-        playerName: playerData?.member.playerName || '',
-        type: 'first_win',
-        title: "First Victory! 🎉",
-        description: "Won your first game",
-        earnedAt: wins[0].gameDate
-      })
-    }
-
-    // First draw
-    if (draws.length === 1) {
-      achievements.push({
-        id: `${playerId}_first_draw`,
-        playerId,
-        playerName: playerData?.member.playerName || '',
-        type: 'first_draw',
-        title: "First Draw! 🤝",
-        description: "Had your first draw",
-        earnedAt: draws[0].gameDate
-      })
-    }
-
-    // Games played milestones
-    if (playerGames.length >= 10) {
-      achievements.push({
-        id: `${playerId}_games_played_10`,
-        playerId,
-        playerName: playerData?.member.playerName || '',
-        type: 'games_played_10',
-        title: "Getting Started! 🎯",
-        description: "Played 10 games",
-        earnedAt: playerGames[9].gameDate
-      })
-    }
-
-    if (playerGames.length >= 25) {
-      achievements.push({
-        id: `${playerId}_games_played_25`,
-        playerId,
-        playerName: playerData?.member.playerName || '',
-        type: 'games_played_25',
-        title: "Dedicated Player! 🏆",
-        description: "Played 25 games",
-        earnedAt: playerGames[24].gameDate
-      })
-    }
-
-    if (playerGames.length >= 50) {
-      achievements.push({
-        id: `${playerId}_games_played_50`,
-        playerId,
-        playerName: playerData?.member.playerName || '',
-        type: 'games_played_50',
-        title: "Chess Veteran! 🎖️",
-        description: "Played 50 games",
-        earnedAt: playerGames[49].gameDate
-      })
-    }
-
-    return achievements
-  }
 
   if (isLoading) {
     return (
@@ -410,7 +299,7 @@ export default function PlayerStatsPage() {
         </div>
 
         {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           <Card className="p-4">
             <div className="flex items-center justify-between">
               <div>
@@ -446,25 +335,23 @@ export default function PlayerStatsPage() {
               <Target className="h-8 w-8 text-blue-600" />
             </div>
           </Card>
-          
-          <Card className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-[--color-text-primary]">Avg Game Time</p>
-                <p className="text-2xl font-bold text-purple-600">{gameStats.averageGameTime}m</p>
-              </div>
-              <Clock className="h-8 w-8 text-purple-600" />
-            </div>
-          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Games */}
           <Card className="p-6">
-            <h3 className="font-semibold text-lg text-[--color-accent] mb-4 flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Recent Games
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg text-[--color-accent] flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Recent Games
+              </h3>
+              <Link href={`/admin/games?playerId=${playerId}`}>
+                <Button variant="outline" size="sm" className="flex items-center gap-2 hover:bg-black hover:text-white">
+                  <Gamepad2 className="h-4 w-4" />
+                  View All Games
+                </Button>
+              </Link>
+            </div>
             {gameStats.recentGames.length > 0 ? (
               <div className="space-y-3">
                 {gameStats.recentGames.map((game, index) => {
@@ -479,7 +366,7 @@ export default function PlayerStatsPage() {
                       <div>
                         <p className="font-medium text-[--color-text-primary]">vs {opponentName}</p>
                         <p className="text-sm text-[--color-text-secondary]">
-                          {new Date(game.gameDate).toLocaleDateString()} • {game.gameTime}m
+                          {new Date(game.gameDate).toLocaleDateString()}
                         </p>
                       </div>
                       <div className={`px-2 py-1 rounded text-xs font-medium ${
@@ -552,46 +439,6 @@ export default function PlayerStatsPage() {
             </div>
           </Card>
         </div>
-
-        {/* Monthly Stats */}
-        {gameStats.monthlyStats.length > 0 && (
-          <Card className="p-6 mt-8">
-            <h3 className="font-semibold text-lg text-[--color-accent] mb-4 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5" />
-              Monthly Performance
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {gameStats.monthlyStats.map((month, index) => (
-                <div key={month.month} className="p-4 bg-gray-50 rounded-md">
-                  <h4 className="font-medium text-[--color-text-primary] mb-2">
-                    {new Date(month.month + '-01').toLocaleDateString('en-US', { 
-                      month: 'long', 
-                      year: 'numeric' 
-                    })}
-                  </h4>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-[--color-text-secondary]">Games:</span>
-                      <span className="font-medium">{month.games}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[--color-text-secondary]">Wins:</span>
-                      <span className="font-medium text-green-600">{month.wins}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[--color-text-secondary]">Losses:</span>
-                      <span className="font-medium text-red-600">{month.losses}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-[--color-text-secondary]">Win Rate:</span>
-                      <span className="font-medium text-blue-600">{month.winRate}%</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   )

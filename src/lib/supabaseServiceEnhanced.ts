@@ -97,6 +97,17 @@ export class EnhancedSupabaseService extends SupabaseService {
     console.log(`Game deleted: ${gameId}, games and rankings cache invalidated`);
   }
 
+  async deleteGamesByDate(gameDate: string): Promise<void> {
+    await super.deleteGamesByDate(gameDate);
+    
+    // Invalidate games and rankings cache since rankings are calculated from games
+    await KVCacheService.invalidateKey('games:all');
+    await KVCacheService.invalidateKey('rankings:all');
+    await KVCacheService.invalidateByTags(['games', 'rankings']);
+    
+    console.log(`Games deleted for date: ${gameDate}, games and rankings cache invalidated`);
+  }
+
   // Override registration methods with cache invalidation
   async addParentRegistration(data: ParentRegistrationData): Promise<string> {
     const parentId = await super.addParentRegistration(data);
@@ -115,10 +126,23 @@ export class EnhancedSupabaseService extends SupabaseService {
     // Invalidate members and parent-specific caches
     await KVCacheService.invalidateKey('members:all');
     await KVCacheService.invalidateKey(`students:parent:${data.parentId}`);
-    await KVCacheService.invalidateByTags(['members', 'parent-data']);
+    await KVCacheService.invalidateByTags(['members', 'parent-data', 'student-data']);
     
     console.log(`Student registration added: ${studentId}, cache invalidated`);
     return studentId;
+  }
+
+  async updateStudentRegistration(studentId: string, updates: Partial<StudentRegistrationData>): Promise<void> {
+    await super.updateStudentRegistration(studentId, updates);
+    
+    // Invalidate members and student caches
+    await KVCacheService.invalidateKey('members:all');
+    if (updates.parentId) {
+      await KVCacheService.invalidateKey(`students:parent:${updates.parentId}`);
+    }
+    await KVCacheService.invalidateByTags(['members', 'parent-data', 'student-data']);
+    
+    console.log(`Student registration updated: ${studentId}, cache invalidated`);
   }
 
   async addSelfRegistration(data: SelfRegistrationData): Promise<string> {

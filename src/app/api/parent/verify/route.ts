@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parentAuthService } from '@/lib/parentAuth';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         
         // Ensure any existing student registrations are linked to this parent account
         try {
-          await googleSheetsService.autoLinkExistingStudentsToParent(session.parentId, decoded.email);
+          await dataService.autoLinkExistingStudentsToParent(session.parentId, decoded.email);
         } catch (error) {
           console.error('Failed to auto-link existing students during login:', error);
           // Don't fail the login if auto-linking fails
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get the player ownership record
-        const ownership = await googleSheetsService.getPlayerOwnership(decoded.playerId);
+        const ownership = await dataService.getPlayerOwnership(decoded.playerId);
         if (!ownership) {
           return NextResponse.json(
             { error: 'Player not found' },
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get requester account
-        const requesterAccount = await googleSheetsService.getParentAccount(decoded.requesterId);
+        const requesterAccount = await dataService.getParentAccount(decoded.requesterId);
         if (!requesterAccount) {
           return NextResponse.json(
             { error: 'Requester account not found' },
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
 
         if (action === 'approve') {
           // Transfer ownership to the requester
-          await googleSheetsService.updatePlayerOwnership(decoded.playerId, {
+          await dataService.updatePlayerOwnership(decoded.playerId, {
             ownerParentId: requesterAccount.id,
             pendingParentId: undefined,
             approvalStatus: 'approved'
@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
           );
         } else {
           // Deny the request
-          await googleSheetsService.updatePlayerOwnership(decoded.playerId, {
+          await dataService.updatePlayerOwnership(decoded.playerId, {
             pendingParentId: undefined,
             approvalStatus: 'denied'
           });

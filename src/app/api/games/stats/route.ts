@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
+import { dataService } from '@/lib/dataService';
 
 // GET /api/games/stats - Get overall game statistics
 export async function GET(request: NextRequest) {
@@ -10,10 +10,10 @@ export async function GET(request: NextRequest) {
     let stats;
     if (playerId) {
       // Get player-specific stats
-      stats = await googleSheetsService.getPlayerGameStats(playerId);
+      stats = await dataService.getPlayerGameStats(playerId);
     } else {
       // Get overall game stats
-      stats = await googleSheetsService.getGameStats();
+      stats = await dataService.getGameStats();
     }
     
     return NextResponse.json(stats);
