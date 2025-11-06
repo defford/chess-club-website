@@ -64,14 +64,37 @@ export function AnalysisBoardClient() {
   const lastServerUpdateRef = useRef<string | null>(null);
 
   const applyServerState = useCallback((serverState: ServerAnalysisState | null | undefined) => {
-    if (!serverState) return;
+    console.log('[Analysis Board] applyServerState called:', {
+      hasState: !!serverState,
+      currentMoveIndex: serverState?.currentMoveIndex,
+      lastUpdated: serverState?.lastUpdated,
+      hasGameHistory: !!serverState?.gameHistory,
+      movesCount: serverState?.gameHistory?.moves?.length,
+      lastSyncedMoveIndex: lastSyncedMoveIndex.current,
+      lastServerUpdate: lastServerUpdateRef.current,
+    });
+
+    if (!serverState) {
+      console.log('[Analysis Board] applyServerState: No server state, returning early');
+      return;
+    }
 
     const { lastUpdated, currentMoveIndex, gameHistory: serverHistory } = serverState;
 
     const hasNewTimestamp = typeof lastUpdated === 'string' && lastServerUpdateRef.current !== lastUpdated;
     const moveIndexChanged = typeof currentMoveIndex === 'number' && currentMoveIndex !== lastSyncedMoveIndex.current;
 
+    console.log('[Analysis Board] applyServerState: Change detection:', {
+      hasNewTimestamp,
+      moveIndexChanged,
+      hasServerHistory: !!serverHistory,
+      lastUpdated,
+      currentMoveIndex,
+      lastSyncedMoveIndex: lastSyncedMoveIndex.current,
+    });
+
     if (!hasNewTimestamp && !moveIndexChanged && !serverHistory) {
+      console.log('[Analysis Board] applyServerState: No changes detected, returning early');
       return;
     }
 
@@ -116,43 +139,85 @@ export function AnalysisBoardClient() {
     }
 
     if (typeof currentMoveIndex === 'number' && currentMoveIndex !== lastSyncedMoveIndex.current) {
+      console.log('[Analysis Board] applyServerState: Move index changed, updating board:', {
+        oldIndex: lastSyncedMoveIndex.current,
+        newIndex: currentMoveIndex,
+        hasServerHistory: !!serverHistory,
+        movesLength: serverHistory?.moves?.length,
+      });
+
       lastSyncedMoveIndex.current = currentMoveIndex;
 
       if (serverHistory && serverHistory.moves) {
         if (currentMoveIndex === -1) {
+          console.log('[Analysis Board] applyServerState: Navigating to starting position');
           const startFen = serverHistory.startFen || new Chess().fen();
           const newGame = new Chess(startFen);
           setGame(newGame);
           setFen(newGame.fen());
           setEvaluation(null);
           setIsAnalyzing(false);
+          console.log('[Analysis Board] applyServerState: Board updated to starting position, FEN:', newGame.fen());
           if (workerRef.current && workerRef.current.isEngineReady()) {
             workerRef.current.setPosition(newGame.fen());
             workerRef.current.startAnalysis(18);
+            console.log('[Analysis Board] applyServerState: Stockfish analysis started for starting position');
+          } else {
+            console.log('[Analysis Board] applyServerState: Stockfish worker not ready, skipping analysis');
           }
         } else if (currentMoveIndex >= 0 && currentMoveIndex < serverHistory.moves.length) {
           const targetMove = serverHistory.moves[currentMoveIndex];
+          console.log('[Analysis Board] applyServerState: Navigating to move:', {
+            moveIndex: currentMoveIndex,
+            move: targetMove.move,
+            fen: targetMove.fen,
+          });
           const newGame = new Chess(targetMove.fen);
           setGame(newGame);
           setFen(targetMove.fen);
           setEvaluation(targetMove.evaluation || null);
           setIsAnalyzing(false);
+          console.log('[Analysis Board] applyServerState: Board updated to move', currentMoveIndex, 'FEN:', targetMove.fen);
           if (workerRef.current && workerRef.current.isEngineReady()) {
             workerRef.current.setPosition(targetMove.fen);
             workerRef.current.startAnalysis(18);
+            console.log('[Analysis Board] applyServerState: Stockfish analysis started for move', currentMoveIndex);
+          } else {
+            console.log('[Analysis Board] applyServerState: Stockfish worker not ready, skipping analysis');
           }
+        } else {
+          console.warn('[Analysis Board] applyServerState: Invalid move index:', {
+            currentMoveIndex,
+            movesLength: serverHistory.moves.length,
+          });
         }
+      } else {
+        console.log('[Analysis Board] applyServerState: No server history or moves available, skipping board update');
       }
+    } else {
+      console.log('[Analysis Board] applyServerState: Move index unchanged or invalid, skipping board update');
     }
   }, [setGameHistory, setGame, setFen, setEvaluation, setIsAnalyzing]);
+
+  // Log game history changes
+  useEffect(() => {
+    console.log('[Analysis Board] Game history changed:', {
+      currentMoveIndex: gameHistory.currentMoveIndex,
+      movesCount: gameHistory.moves.length,
+      lastUpdated: gameHistory.lastUpdated,
+      isUpdatingFromServer: isUpdatingFromServer.current,
+    });
+  }, [gameHistory]);
 
   // Save game history to localStorage whenever it changes (but not when updating from server)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (isUpdatingFromServer.current) {
+      console.log('[Analysis Board] Skipping localStorage save (updating from server)');
       isUpdatingFromServer.current = false;
       return;
     }
+    console.log('[Analysis Board] Saving game history to localStorage');
     localStorage.setItem('chess-analysis-history', JSON.stringify(gameHistory));
   }, [gameHistory]);
 
@@ -160,26 +225,44 @@ export function AnalysisBoardClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    console.log('[Analysis Board] Setting up SSE connection');
     const eventSource = new EventSource('/api/analysis/state');
+
+    eventSource.onopen = () => {
+      console.log('[Analysis Board] SSE connection opened');
+    };
 
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        console.log('[Analysis Client] SSE message received:', data.type, data.state?.currentMoveIndex);
+        console.log('[Analysis Board] SSE message received:', {
+          type: data.type,
+          currentMoveIndex: data.state?.currentMoveIndex,
+          lastUpdated: data.state?.lastUpdated,
+          hasGameHistory: !!data.state?.gameHistory,
+          movesCount: data.state?.gameHistory?.moves?.length,
+        });
         if (data.type === 'connected' || data.type === 'state-change') {
+          console.log('[Analysis Board] Applying SSE state update');
           applyServerState(data.state);
+        } else {
+          console.log('[Analysis Board] SSE message type not handled:', data.type);
         }
       } catch (error) {
-        console.error('Failed to parse SSE message:', error);
+        console.error('[Analysis Board] Failed to parse SSE message:', error, 'Raw data:', event.data);
       }
     };
 
-    eventSource.onerror = () => {
-      console.error('SSE connection error');
-      eventSource.close();
+    eventSource.onerror = (error) => {
+      console.error('[Analysis Board] SSE connection error:', error);
+      console.log('[Analysis Board] SSE readyState:', eventSource.readyState);
+      if (eventSource.readyState === EventSource.CLOSED) {
+        console.log('[Analysis Board] SSE connection closed, will not reconnect automatically');
+      }
     };
 
     return () => {
+      console.log('[Analysis Board] Cleaning up SSE connection');
       eventSource.close();
     };
   }, [applyServerState]);
@@ -187,28 +270,54 @@ export function AnalysisBoardClient() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
+    console.log('[Analysis Board] Setting up polling (3s interval)');
     let isCancelled = false;
+    let pollCount = 0;
 
     const pollServerState = async () => {
+      if (isCancelled) {
+        console.log('[Analysis Board] Poll cancelled, skipping');
+        return;
+      }
+
+      pollCount++;
+      console.log(`[Analysis Board] Polling server state (attempt ${pollCount})`);
+
       try {
         const response = await fetch('/api/analysis/state/current', { cache: 'no-store' });
+        console.log('[Analysis Board] Poll response status:', response.status, response.statusText);
+
         if (!response.ok) {
+          console.warn('[Analysis Board] Poll response not OK:', response.status);
           return;
         }
 
         const data = await response.json();
-        if (!isCancelled) {
+        console.log('[Analysis Board] Poll response data:', {
+          success: data.success,
+          currentMoveIndex: data.state?.currentMoveIndex,
+          lastUpdated: data.state?.lastUpdated,
+          hasGameHistory: !!data.state?.gameHistory,
+          movesCount: data.state?.gameHistory?.moves?.length,
+        });
+
+        if (!isCancelled && data.state) {
+          console.log('[Analysis Board] Applying polled state update');
           applyServerState(data.state);
+        } else if (!data.state) {
+          console.warn('[Analysis Board] Poll response missing state');
         }
       } catch (error) {
-        console.error('Failed to poll analysis state:', error);
+        console.error('[Analysis Board] Failed to poll analysis state:', error);
       }
     };
 
     pollServerState();
     const intervalId = window.setInterval(pollServerState, 3000);
+    console.log('[Analysis Board] Polling interval started, ID:', intervalId);
 
     return () => {
+      console.log('[Analysis Board] Cleaning up polling, cancelling and clearing interval');
       isCancelled = true;
       window.clearInterval(intervalId);
     };
@@ -217,13 +326,30 @@ export function AnalysisBoardClient() {
   // Push local game history changes to server
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (isUpdatingFromServer.current) return;
+    
+    console.log('[Analysis Board] Server sync effect triggered:', {
+      isUpdatingFromServer: isUpdatingFromServer.current,
+      movesLength: gameHistory.moves.length,
+      currentMoveIndex: gameHistory.currentMoveIndex,
+      lastSyncedMoveIndex: lastSyncedMoveIndex.current,
+      shouldSync: gameHistory.moves.length > 0 || gameHistory.currentMoveIndex !== lastSyncedMoveIndex.current,
+    });
+    
+    if (isUpdatingFromServer.current) {
+      console.log('[Analysis Board] Skipping server sync (updating from server)');
+      return;
+    }
     
     // Only sync if game history has moves or has changed significantly
     if (gameHistory.moves.length > 0 || gameHistory.currentMoveIndex !== lastSyncedMoveIndex.current) {
       const syncToServer = async () => {
+        console.log('[Analysis Board] Syncing local changes to server:', {
+          currentMoveIndex: gameHistory.currentMoveIndex,
+          movesLength: gameHistory.moves.length,
+        });
+        
         try {
-          await fetch('/api/analysis/state', {
+          const response = await fetch('/api/analysis/state', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -231,15 +357,30 @@ export function AnalysisBoardClient() {
               currentMoveIndex: gameHistory.currentMoveIndex,
             }),
           });
+          
+          console.log('[Analysis Board] Server sync response:', response.status, response.statusText);
+          const result = await response.json();
+          console.log('[Analysis Board] Server sync result:', {
+            success: result.success,
+            serverMoveIndex: result.state?.currentMoveIndex,
+          });
+          
           lastSyncedMoveIndex.current = gameHistory.currentMoveIndex;
+          console.log('[Analysis Board] Updated lastSyncedMoveIndex to:', lastSyncedMoveIndex.current);
         } catch (error) {
-          console.error('Failed to sync game history to server:', error);
+          console.error('[Analysis Board] Failed to sync game history to server:', error);
         }
       };
 
       // Debounce server updates
+      console.log('[Analysis Board] Scheduling server sync (500ms debounce)');
       const timeoutId = setTimeout(syncToServer, 500);
-      return () => clearTimeout(timeoutId);
+      return () => {
+        console.log('[Analysis Board] Cancelling scheduled server sync');
+        clearTimeout(timeoutId);
+      };
+    } else {
+      console.log('[Analysis Board] No server sync needed (no changes detected)');
     }
   }, [gameHistory]);
 
