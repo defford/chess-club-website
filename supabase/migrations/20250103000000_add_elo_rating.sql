@@ -11,3 +11,5 @@ UPDATE students SET elo_rating = 1000 WHERE elo_rating IS NULL;
 CREATE INDEX IF NOT EXISTS idx_students_elo_rating ON students(elo_rating);
 
 
+
+

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connections, getCurrentState, updateState, broadcastStateChange } from '../shared-state';
 
+export const dynamic = 'force-dynamic';
+
 // GET endpoint for SSE stream
 export async function GET(request: NextRequest) {
   let controller: ReadableStreamDefaultController | null = null;
@@ -15,12 +17,17 @@ export async function GET(request: NextRequest) {
       console.log('[Analysis State API] New SSE connection established. Total connections:', connections.size);
       
       // Send initial connection message with current state
-      const currentState = getCurrentState();
-      const data = JSON.stringify({
-        type: 'connected',
-        state: currentState,
-      });
-      ctrl.enqueue(`data: ${data}\n\n`);
+      getCurrentState()
+        .then(currentState => {
+          const data = JSON.stringify({
+            type: 'connected',
+            state: currentState,
+          });
+          ctrl.enqueue(`data: ${data}\n\n`);
+        })
+        .catch(error => {
+          console.error('[Analysis State API] Failed to load initial state for SSE:', error);
+        });
 
       // Handle client disconnect
       request.signal.addEventListener('abort', () => {
@@ -53,7 +60,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { currentMoveIndex, gameHistory } = body;
-    const currentState = getCurrentState();
+    const currentState = await getCurrentState();
     
     console.log('[Analysis State API] POST received:', { currentMoveIndex, gameHistory: gameHistory ? 'present' : 'null', connections: connections.size });
 
@@ -72,7 +79,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Update global state
-      const updatedState = updateState({
+      const updatedState = await updateState({
         currentMoveIndex: newMoveIndex,
         gameHistory: gameHistory || currentState.gameHistory,
       });
@@ -93,7 +100,7 @@ export async function POST(request: NextRequest) {
         const maxIndex = existingHistory.moves.length - 1;
         const minIndex = -1;
         const clampedIndex = Math.max(minIndex, Math.min(maxIndex, currentMoveIndex));
-        const updatedState = updateState({ currentMoveIndex: clampedIndex });
+        const updatedState = await updateState({ currentMoveIndex: clampedIndex });
         console.log('[Analysis State API] Broadcasting state change (move index with existing history) to', connections.size, 'connections');
         broadcastStateChange(updatedState);
         return NextResponse.json({
@@ -101,7 +108,7 @@ export async function POST(request: NextRequest) {
           state: updatedState,
         });
       } else {
-        const updatedState = updateState({ currentMoveIndex });
+        const updatedState = await updateState({ currentMoveIndex });
         console.log('[Analysis State API] Broadcasting state change (move index only, no history) to', connections.size, 'connections');
         broadcastStateChange(updatedState);
         return NextResponse.json({
@@ -111,7 +118,7 @@ export async function POST(request: NextRequest) {
       }
     } else if (gameHistory) {
       // Update game history if provided
-      const updatedState = updateState({ gameHistory });
+      const updatedState = await updateState({ gameHistory });
       console.log('[Analysis State API] Broadcasting state change (game history) to', connections.size, 'connections');
       broadcastStateChange(updatedState);
       return NextResponse.json({

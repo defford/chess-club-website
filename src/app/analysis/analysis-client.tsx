@@ -1,14 +1,13 @@
 "use client"
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Chess } from 'chess.js';
 import { Chessboard } from 'react-chessboard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Play, Square, BarChart3, PanelRight, Edit3, Check, Puzzle, ArrowRight } from 'lucide-react';
+import { RotateCcw, BarChart3, PanelRight, Edit3, Puzzle, ArrowRight } from 'lucide-react';
 import { StockfishWorker, StockfishMessage, EvaluationData } from '@/lib/stockfish-worker';
 import { VerticalEvaluationBar } from '@/components/analysis/VerticalEvaluationBar';
-import { PositionSetup } from '@/components/analysis/PositionSetup';
 import { GameHistory } from '@/components/analysis/GameHistory';
 import { PuzzleSelector } from '@/components/analysis/PuzzleSelector';
 import { GameHistoryMove, GameHistory as GameHistoryType, PuzzleData, PuzzleParams, PuzzleState } from '@/lib/types';
@@ -22,7 +21,13 @@ interface MoveNode {
   parent?: MoveNode;
 }
 
-interface Evaluation extends EvaluationData {}
+type Evaluation = EvaluationData;
+
+interface ServerAnalysisState {
+  currentMoveIndex: number;
+  gameHistory: GameHistoryType | null;
+  lastUpdated?: string;
+}
 
 export function AnalysisBoardClient() {
   // Game state
@@ -56,43 +61,90 @@ export function AnalysisBoardClient() {
   // Server state sync refs
   const isUpdatingFromServer = useRef(false);
   const lastSyncedMoveIndex = useRef(-1);
+  const lastServerUpdateRef = useRef<string | null>(null);
 
-  // Load game history from localStorage and fetch server state after hydration
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
+  const applyServerState = useCallback((serverState: ServerAnalysisState | null | undefined) => {
+    if (!serverState) return;
 
-    const initializeState = async () => {
-      // First, try to load from server (shared state takes precedence)
-      try {
-        const response = await fetch('/api/analysis/state/current');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.state && data.state.gameHistory) {
-            isUpdatingFromServer.current = true;
-            setGameHistory(data.state.gameHistory);
-            lastSyncedMoveIndex.current = data.state.currentMoveIndex;
-            return; // Server state found, skip localStorage
+    const { lastUpdated, currentMoveIndex, gameHistory: serverHistory } = serverState;
+
+    const hasNewTimestamp = typeof lastUpdated === 'string' && lastServerUpdateRef.current !== lastUpdated;
+    const moveIndexChanged = typeof currentMoveIndex === 'number' && currentMoveIndex !== lastSyncedMoveIndex.current;
+
+    if (!hasNewTimestamp && !moveIndexChanged && !serverHistory) {
+      return;
+    }
+
+    if (typeof lastUpdated === 'string') {
+      lastServerUpdateRef.current = lastUpdated;
+    }
+
+    let historyChanged = false;
+
+    if (serverHistory) {
+      const nextHistory: GameHistoryType = {
+        ...serverHistory,
+        currentMoveIndex: typeof currentMoveIndex === 'number'
+          ? currentMoveIndex
+          : serverHistory.currentMoveIndex ?? -1,
+      };
+
+      setGameHistory(prev => {
+        const localStr = JSON.stringify(prev);
+        const serverStr = JSON.stringify(nextHistory);
+        if (localStr !== serverStr) {
+          historyChanged = true;
+          return nextHistory;
+        }
+        return prev;
+      });
+    } else if (typeof currentMoveIndex === 'number') {
+      setGameHistory(prev => {
+        if (prev.currentMoveIndex === currentMoveIndex) {
+          return prev;
+        }
+        historyChanged = true;
+        return {
+          ...prev,
+          currentMoveIndex,
+        };
+      });
+    }
+
+    if (historyChanged) {
+      isUpdatingFromServer.current = true;
+    }
+
+    if (typeof currentMoveIndex === 'number' && currentMoveIndex !== lastSyncedMoveIndex.current) {
+      lastSyncedMoveIndex.current = currentMoveIndex;
+
+      if (serverHistory && serverHistory.moves) {
+        if (currentMoveIndex === -1) {
+          const startFen = serverHistory.startFen || new Chess().fen();
+          const newGame = new Chess(startFen);
+          setGame(newGame);
+          setFen(newGame.fen());
+          setEvaluation(null);
+          setIsAnalyzing(false);
+          if (workerRef.current && workerRef.current.isEngineReady()) {
+            workerRef.current.setPosition(newGame.fen());
+            workerRef.current.startAnalysis(18);
+          }
+        } else if (currentMoveIndex >= 0 && currentMoveIndex < serverHistory.moves.length) {
+          const targetMove = serverHistory.moves[currentMoveIndex];
+          const newGame = new Chess(targetMove.fen);
+          setGame(newGame);
+          setFen(targetMove.fen);
+          setEvaluation(targetMove.evaluation || null);
+          setIsAnalyzing(false);
+          if (workerRef.current && workerRef.current.isEngineReady()) {
+            workerRef.current.setPosition(targetMove.fen);
+            workerRef.current.startAnalysis(18);
           }
         }
-      } catch (error) {
-        console.error('Failed to fetch initial state from server:', error);
       }
-
-      // Fallback to localStorage if no server state
-      const saved = localStorage.getItem('chess-analysis-history');
-      if (saved) {
-        try {
-          const parsedHistory = JSON.parse(saved);
-          setGameHistory(parsedHistory);
-          lastSyncedMoveIndex.current = parsedHistory.currentMoveIndex;
-        } catch (error) {
-          console.error('Failed to parse saved game history:', error);
-        }
-      }
-    };
-
-    initializeState();
-  }, []); // Only run once after hydration
+    }
+  }, [setGameHistory, setGame, setFen, setEvaluation, setIsAnalyzing]);
 
   // Save game history to localStorage whenever it changes (but not when updating from server)
   useEffect(() => {
@@ -115,71 +167,7 @@ export function AnalysisBoardClient() {
         const data = JSON.parse(event.data);
         console.log('[Analysis Client] SSE message received:', data.type, data.state?.currentMoveIndex);
         if (data.type === 'connected' || data.type === 'state-change') {
-          const serverState = data.state;
-          
-          // Set flag to prevent circular updates when we update state
-          isUpdatingFromServer.current = true;
-
-          // Update game history if server has one and it's different
-          if (serverState.gameHistory) {
-            setGameHistory(prev => {
-              const serverHistory = serverState.gameHistory;
-              // Merge server history with current move index from server state
-              const updatedHistory = {
-                ...serverHistory,
-                currentMoveIndex: serverState.currentMoveIndex,
-              };
-              const localHistoryStr = JSON.stringify(prev);
-              const serverHistoryStr = JSON.stringify(updatedHistory);
-              
-              // Only update if different (to avoid unnecessary re-renders)
-              if (localHistoryStr !== serverHistoryStr) {
-                isUpdatingFromServer.current = true;
-                return updatedHistory;
-              }
-              return prev;
-            });
-          } else if (serverState.currentMoveIndex !== undefined) {
-            // Update just the current move index if no game history
-            setGameHistory(prev => ({
-              ...prev,
-              currentMoveIndex: serverState.currentMoveIndex,
-            }));
-          }
-
-          // Update board position if move index changed
-          if (serverState.currentMoveIndex !== lastSyncedMoveIndex.current) {
-            lastSyncedMoveIndex.current = serverState.currentMoveIndex;
-            
-            if (serverState.gameHistory && serverState.gameHistory.moves) {
-              const targetIndex = serverState.currentMoveIndex;
-              
-              if (targetIndex === -1) {
-                // Navigate to starting position
-                const newGame = new Chess(serverState.gameHistory.startFen);
-                setGame(newGame);
-                setFen(newGame.fen());
-                setEvaluation(null);
-                setIsAnalyzing(false);
-                if (workerRef.current && workerRef.current.isEngineReady()) {
-                  workerRef.current.setPosition(newGame.fen());
-                  workerRef.current.startAnalysis(18);
-                }
-              } else if (targetIndex >= 0 && targetIndex < serverState.gameHistory.moves.length) {
-                // Navigate to specific move
-                const targetMove = serverState.gameHistory.moves[targetIndex];
-                const newGame = new Chess(targetMove.fen);
-                setGame(newGame);
-                setFen(targetMove.fen);
-                setEvaluation(targetMove.evaluation || null);
-                setIsAnalyzing(false);
-                if (workerRef.current && workerRef.current.isEngineReady()) {
-                  workerRef.current.setPosition(targetMove.fen);
-                  workerRef.current.startAnalysis(18);
-                }
-              }
-            }
-          }
+          applyServerState(data.state);
         }
       } catch (error) {
         console.error('Failed to parse SSE message:', error);
@@ -194,7 +182,37 @@ export function AnalysisBoardClient() {
     return () => {
       eventSource.close();
     };
-  }, []);
+  }, [applyServerState]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    let isCancelled = false;
+
+    const pollServerState = async () => {
+      try {
+        const response = await fetch('/api/analysis/state/current', { cache: 'no-store' });
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        if (!isCancelled) {
+          applyServerState(data.state);
+        }
+      } catch (error) {
+        console.error('Failed to poll analysis state:', error);
+      }
+    };
+
+    pollServerState();
+    const intervalId = window.setInterval(pollServerState, 3000);
+
+    return () => {
+      isCancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [applyServerState]);
 
   // Push local game history changes to server
   useEffect(() => {
@@ -394,6 +412,39 @@ export function AnalysisBoardClient() {
     workerRef.current.startAnalysis(18);
   };
 
+  // Load game history from localStorage and fetch server state after hydration
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const initializeState = async () => {
+      try {
+        const response = await fetch('/api/analysis/state/current', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.state) {
+            applyServerState(data.state);
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch initial state from server:', error);
+      }
+
+      const saved = localStorage.getItem('chess-analysis-history');
+      if (saved) {
+        try {
+          const parsedHistory = JSON.parse(saved);
+          setGameHistory(parsedHistory);
+          lastSyncedMoveIndex.current = parsedHistory.currentMoveIndex;
+        } catch (error) {
+          console.error('Failed to parse saved game history:', error);
+        }
+      }
+    };
+
+    initializeState();
+  }, [applyServerState, setGameHistory]);
+
   // Reset to starting position
   const resetPosition = () => {
     const newGame = new Chess();
@@ -419,16 +470,6 @@ export function AnalysisBoardClient() {
       lastUpdated: new Date().toISOString(),
       currentMoveIndex: -1
     });
-  };
-
-  // Go back one move
-  const goBack = () => {
-    if (currentNode.parent) {
-      setCurrentNode(currentNode.parent);
-      setGame(new Chess(currentNode.parent.fen));
-      setFen(currentNode.parent.fen);
-      startAnalysis(currentNode.parent.fen);
-    }
   };
 
   // Navigate to a specific move in history

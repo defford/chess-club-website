@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentState } from '../../shared-state';
 
+export const dynamic = 'force-dynamic';
+
 // Get current state
 export async function GET() {
   try {
-    const state = getCurrentState();
+    const state = await getCurrentState();
     
     return NextResponse.json({
       success: true,

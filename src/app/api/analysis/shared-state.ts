@@ -1,3 +1,4 @@
+import { Redis } from '@upstash/redis';
 import { GameHistory } from '@/lib/types';
 
 // Global state for analysis board
@@ -10,6 +11,8 @@ export interface AnalysisState {
 // Store active connections for SSE
 export const connections = new Set<ReadableStreamDefaultController>();
 
+const ANALYSIS_STATE_KEY = 'analysis:state';
+
 // Initialize with default state
 let globalState: AnalysisState = {
   currentMoveIndex: -1,
@@ -17,18 +20,70 @@ let globalState: AnalysisState = {
   lastUpdated: new Date().toISOString(),
 };
 
+const redis = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN
+  ? new Redis({
+      url: process.env.KV_REST_API_URL,
+      token: process.env.KV_REST_API_TOKEN,
+    })
+  : null;
+
+let initialized = false;
+let initPromise: Promise<void> | null = null;
+
+async function hydrateFromStore() {
+  if (!redis) {
+    initialized = true;
+    return;
+  }
+
+  try {
+    const stored = await redis.get<AnalysisState>(ANALYSIS_STATE_KEY);
+    if (stored && typeof stored === 'object') {
+      globalState = {
+        currentMoveIndex: typeof stored.currentMoveIndex === 'number' ? stored.currentMoveIndex : -1,
+        gameHistory: stored.gameHistory ?? null,
+        lastUpdated: typeof stored.lastUpdated === 'string' ? stored.lastUpdated : new Date().toISOString(),
+      };
+    }
+  } catch (error) {
+    console.error('[Shared State] Failed to hydrate from Redis:', error);
+  } finally {
+    initialized = true;
+  }
+}
+
+async function ensureInitialized() {
+  if (initialized) return;
+  if (!initPromise) {
+    initPromise = hydrateFromStore();
+  }
+  await initPromise;
+}
+
+async function persistState(state: AnalysisState) {
+  if (!redis) return;
+  try {
+    await redis.set(ANALYSIS_STATE_KEY, state);
+  } catch (error) {
+    console.error('[Shared State] Failed to persist state to Redis:', error);
+  }
+}
+
 // Get current state
-export function getCurrentState(): AnalysisState {
+export async function getCurrentState(): Promise<AnalysisState> {
+  await ensureInitialized();
   return globalState;
 }
 
 // Update state
-export function updateState(updates: Partial<AnalysisState>): AnalysisState {
+export async function updateState(updates: Partial<AnalysisState>): Promise<AnalysisState> {
+  await ensureInitialized();
   globalState = {
     ...globalState,
     ...updates,
     lastUpdated: new Date().toISOString(),
   };
+  await persistState(globalState);
   return globalState;
 }
 
