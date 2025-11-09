@@ -651,13 +651,22 @@ export class SupabaseService {
 
       // Fetch ELO ratings for all players from students table
       const playerIds = players.map(p => p.id).filter((id): id is string => !!id);
+      console.log(`[calculateRankingsFromGames] Fetching ELO ratings for ${playerIds.length} players`);
+      
       if (playerIds.length > 0) {
-        const { data: studentsData } = await this.supabase
+        const { data: studentsData, error: eloError } = await this.supabase
           .from('students')
           .select('id, elo_rating')
           .in('id', playerIds);
 
-        if (studentsData) {
+        if (eloError) {
+          console.error('[calculateRankingsFromGames] Error fetching ELO ratings:', eloError);
+          // Set default ratings if query fails
+          players.forEach(player => {
+            player.eloRating = 1000;
+          });
+        } else if (studentsData) {
+          console.log(`[calculateRankingsFromGames] Retrieved ELO ratings for ${studentsData.length} students`);
           const eloMap = new Map<string, number>();
           studentsData.forEach(student => {
             if (student.elo_rating !== null && student.elo_rating !== undefined) {
@@ -666,16 +675,25 @@ export class SupabaseService {
           });
 
           // Update players with ELO ratings
+          let foundCount = 0;
           players.forEach(player => {
             if (player.id && eloMap.has(player.id)) {
-              player.eloRating = eloMap.get(player.id);
+              player.eloRating = eloMap.get(player.id)!;
+              foundCount++;
             } else {
               player.eloRating = 1000; // Default rating
             }
           });
+          console.log(`[calculateRankingsFromGames] Matched ELO ratings for ${foundCount} out of ${players.length} players`);
+        } else {
+          console.warn('[calculateRankingsFromGames] No ELO data returned from query');
+          players.forEach(player => {
+            player.eloRating = 1000;
+          });
         }
       } else {
         // No valid player IDs, set default ELO
+        console.warn('[calculateRankingsFromGames] No valid player IDs found for ELO lookup');
         players.forEach(player => {
           player.eloRating = 1000;
         });

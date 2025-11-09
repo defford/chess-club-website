@@ -25,6 +25,19 @@ export async function GET(request: NextRequest) {
     const allPlayers = await dataService.calculateRankingsFromGames();
     console.log(`[Ladder API] Retrieved ${allPlayers.length} players from fresh rankings calculation`);
     
+    // Debug: Check ELO ratings in returned players
+    const playersWithElo = allPlayers.filter(p => p.eloRating !== undefined && p.eloRating !== 1000);
+    console.log(`[Ladder API] Players with non-default ELO ratings: ${playersWithElo.length}`);
+    if (playersWithElo.length > 0) {
+      console.log(`[Ladder API] Sample players with ELO:`, playersWithElo.slice(0, 3).map(p => ({
+        id: p.id,
+        name: p.name,
+        eloRating: p.eloRating
+      })));
+    } else {
+      console.warn(`[Ladder API] No players have non-default ELO ratings - all showing 1000`);
+    }
+    
     // Debug: Check if any players have points
     const playersWithPoints = allPlayers.filter(p => p.points > 0);
     console.log(`[Ladder API] Players with points > 0: ${playersWithPoints.length}`);
