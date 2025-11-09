@@ -650,46 +650,61 @@ export class SupabaseService {
       });
 
       // Fetch ELO ratings for all players from students table
-      const playerIds = players.map(p => p.id).filter((id): id is string => !!id);
-      console.log(`[calculateRankingsFromGames] Fetching ELO ratings for ${playerIds.length} players`);
+      // Collect ALL unique player IDs from both members and games
+      const allPlayerIds = new Set<string>();
+      players.forEach(p => {
+        if (p.id) allPlayerIds.add(p.id);
+      });
+      // Also collect player IDs directly from games (in case they differ from member IDs)
+      games.forEach(game => {
+        if (game.player1_id) allPlayerIds.add(game.player1_id);
+        if (game.player2_id) allPlayerIds.add(game.player2_id);
+      });
+      
+      const playerIds = Array.from(allPlayerIds);
+      console.log(`[calculateRankingsFromGames] Fetching ELO ratings for ${playerIds.length} unique player IDs (${players.length} players)`);
+      console.log(`[calculateRankingsFromGames] Sample player IDs:`, playerIds.slice(0, 5));
       
       if (playerIds.length > 0) {
-        const { data: studentsData, error: eloError } = await this.supabase
-          .from('students')
-          .select('id, elo_rating')
-          .in('id', playerIds);
+        // Split into chunks of 100 to avoid query size limits
+        const chunkSize = 100;
+        const eloMap = new Map<string, number>();
+        
+        for (let i = 0; i < playerIds.length; i += chunkSize) {
+          const chunk = playerIds.slice(i, i + chunkSize);
+          const { data: studentsData, error: eloError } = await this.supabase
+            .from('students')
+            .select('id, elo_rating')
+            .in('id', chunk);
 
-        if (eloError) {
-          console.error('[calculateRankingsFromGames] Error fetching ELO ratings:', eloError);
-          // Set default ratings if query fails
-          players.forEach(player => {
-            player.eloRating = 1000;
-          });
-        } else if (studentsData) {
-          console.log(`[calculateRankingsFromGames] Retrieved ELO ratings for ${studentsData.length} students`);
-          const eloMap = new Map<string, number>();
-          studentsData.forEach(student => {
-            if (student.elo_rating !== null && student.elo_rating !== undefined) {
-              eloMap.set(student.id, student.elo_rating);
-            }
-          });
+          if (eloError) {
+            console.error(`[calculateRankingsFromGames] Error fetching ELO ratings for chunk ${i}-${i + chunk.length}:`, eloError);
+          } else if (studentsData) {
+            studentsData.forEach(student => {
+              if (student.elo_rating !== null && student.elo_rating !== undefined) {
+                eloMap.set(student.id, student.elo_rating);
+              }
+            });
+          }
+        }
 
-          // Update players with ELO ratings
-          let foundCount = 0;
-          players.forEach(player => {
-            if (player.id && eloMap.has(player.id)) {
-              player.eloRating = eloMap.get(player.id)!;
-              foundCount++;
-            } else {
-              player.eloRating = 1000; // Default rating
-            }
-          });
-          console.log(`[calculateRankingsFromGames] Matched ELO ratings for ${foundCount} out of ${players.length} players`);
-        } else {
-          console.warn('[calculateRankingsFromGames] No ELO data returned from query');
-          players.forEach(player => {
-            player.eloRating = 1000;
-          });
+        console.log(`[calculateRankingsFromGames] Retrieved ELO ratings for ${eloMap.size} students from database`);
+
+        // Update players with ELO ratings
+        let foundCount = 0;
+        players.forEach(player => {
+          if (player.id && eloMap.has(player.id)) {
+            player.eloRating = eloMap.get(player.id)!;
+            foundCount++;
+          } else {
+            player.eloRating = 1000; // Default rating
+          }
+        });
+        console.log(`[calculateRankingsFromGames] Matched ELO ratings for ${foundCount} out of ${players.length} players`);
+        
+        if (foundCount === 0) {
+          console.error(`[calculateRankingsFromGames] WARNING: No ELO ratings matched! Player IDs in games:`, 
+            Array.from(new Set(games.flatMap(g => [g.player1_id, g.player2_id]).filter(Boolean))).slice(0, 10));
         }
       } else {
         // No valid player IDs, set default ELO
