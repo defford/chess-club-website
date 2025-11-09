@@ -17,8 +17,9 @@ class DataService {
     // Defaults to true in production, false in development
     const useSupabaseEnv = process.env.USE_SUPABASE;
     if (useSupabaseEnv !== undefined) {
-      // Explicitly set - use the value
-      this.useSupabase = useSupabaseEnv === 'true';
+      // Explicitly set - use the value (case-insensitive, trim whitespace)
+      const normalized = String(useSupabaseEnv).trim().toLowerCase();
+      this.useSupabase = normalized === 'true' || normalized === '1';
     } else {
       // Not set - default to true in production, false in development
       this.useSupabase = process.env.NODE_ENV === 'production';
@@ -26,9 +27,12 @@ class DataService {
     
     // Dual-write mode: Write to both backends during migration
     // Set DUAL_WRITE=true to enable dual-write mode
-    this.dualWrite = process.env.DUAL_WRITE === 'true';
+    const dualWriteEnv = process.env.DUAL_WRITE;
+    this.dualWrite = dualWriteEnv !== undefined 
+      ? (String(dualWriteEnv).trim().toLowerCase() === 'true' || String(dualWriteEnv).trim().toLowerCase() === '1')
+      : false;
 
-    console.log(`[DataService] Initialized - useSupabase: ${this.useSupabase}, dualWrite: ${this.dualWrite}, NODE_ENV: ${process.env.NODE_ENV}`);
+    console.log(`[DataService] Initialized - useSupabase: ${this.useSupabase}, dualWrite: ${this.dualWrite}, NODE_ENV: ${process.env.NODE_ENV}, USE_SUPABASE env: ${useSupabaseEnv}`);
   }
 
   /**
