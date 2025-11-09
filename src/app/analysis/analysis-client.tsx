@@ -62,6 +62,7 @@ export function AnalysisBoardClient() {
   const isUpdatingFromServer = useRef(false);
   const lastSyncedMoveIndex = useRef(-1);
   const lastServerUpdateRef = useRef<string | null>(null);
+  const isUserInitiatedChange = useRef(false);
 
   const applyServerState = useCallback((serverState: ServerAnalysisState | null | undefined) => {
     console.log('[Analysis Board] applyServerState called:', {
@@ -136,9 +137,13 @@ export function AnalysisBoardClient() {
 
     if (historyChanged) {
       isUpdatingFromServer.current = true;
+      isUserInitiatedChange.current = false; // Server update, not user-initiated
     }
 
     if (typeof currentMoveIndex === 'number' && currentMoveIndex !== lastSyncedMoveIndex.current) {
+      // This is a server-initiated navigation, not user-initiated
+      isUpdatingFromServer.current = true;
+      isUserInitiatedChange.current = false;
       console.log('[Analysis Board] applyServerState: Move index changed, updating board:', {
         oldIndex: lastSyncedMoveIndex.current,
         newIndex: currentMoveIndex,
@@ -329,14 +334,22 @@ export function AnalysisBoardClient() {
     
     console.log('[Analysis Board] Server sync effect triggered:', {
       isUpdatingFromServer: isUpdatingFromServer.current,
+      isUserInitiatedChange: isUserInitiatedChange.current,
       movesLength: gameHistory.moves.length,
       currentMoveIndex: gameHistory.currentMoveIndex,
       lastSyncedMoveIndex: lastSyncedMoveIndex.current,
       shouldSync: gameHistory.moves.length > 0 || gameHistory.currentMoveIndex !== lastSyncedMoveIndex.current,
     });
     
-    if (isUpdatingFromServer.current) {
-      console.log('[Analysis Board] Skipping server sync (updating from server)');
+    // Only sync if this is a user-initiated change, not a server update
+    if (isUpdatingFromServer.current || !isUserInitiatedChange.current) {
+      console.log('[Analysis Board] Skipping server sync (updating from server or not user-initiated)', {
+        isUpdatingFromServer: isUpdatingFromServer.current,
+        isUserInitiatedChange: isUserInitiatedChange.current,
+      });
+      // Reset flags after skipping
+      isUpdatingFromServer.current = false;
+      isUserInitiatedChange.current = false;
       return;
     }
     
@@ -367,8 +380,12 @@ export function AnalysisBoardClient() {
           
           lastSyncedMoveIndex.current = gameHistory.currentMoveIndex;
           console.log('[Analysis Board] Updated lastSyncedMoveIndex to:', lastSyncedMoveIndex.current);
+          // Reset flag after successful sync
+          isUserInitiatedChange.current = false;
         } catch (error) {
           console.error('[Analysis Board] Failed to sync game history to server:', error);
+          // Reset flag even on error
+          isUserInitiatedChange.current = false;
         }
       };
 
@@ -447,6 +464,10 @@ export function AnalysisBoardClient() {
 
   // Record move in game history
   const recordMove = (move: any, fen: string, evaluation?: Evaluation) => {
+    console.log('[Analysis Board] recordMove: User made a move on the board, marking as user-initiated');
+    isUserInitiatedChange.current = true;
+    isUpdatingFromServer.current = false;
+    
     const moveNumber = Math.floor(gameHistory.moves.length / 2) + 1;
     const isWhiteMove = gameHistory.moves.length % 2 === 0;
     
@@ -615,6 +636,11 @@ export function AnalysisBoardClient() {
 
   // Navigate to a specific move in history
   const navigateToMove = async (moveIndex: number) => {
+    console.log('[Analysis Board] navigateToMove: User clicked on move in history');
+    // Mark as NOT user-initiated for sync effect (we'll sync directly)
+    isUserInitiatedChange.current = false;
+    isUpdatingFromServer.current = false;
+    
     if (moveIndex < 0 || moveIndex >= gameHistory.moves.length) return;
     
     const targetMove = gameHistory.moves[moveIndex];
@@ -624,24 +650,29 @@ export function AnalysisBoardClient() {
     setEvaluation(targetMove.evaluation || null);
     setIsAnalyzing(false);
     
+    // Update lastSyncedMoveIndex BEFORE updating gameHistory to prevent effect from syncing
+    lastSyncedMoveIndex.current = moveIndex;
+    
     // Update current move index
     setGameHistory(prev => ({
       ...prev,
       currentMoveIndex: moveIndex
     }));
     
-    // Sync to server
+    // Sync to server directly (bypassing the effect to avoid double sync)
     try {
-      await fetch('/api/analysis/state', {
+      console.log('[Analysis Board] navigateToMove: Syncing to server directly');
+      const response = await fetch('/api/analysis/state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           currentMoveIndex: moveIndex,
         }),
       });
-      lastSyncedMoveIndex.current = moveIndex;
+      const result = await response.json();
+      console.log('[Analysis Board] navigateToMove: Server sync result:', result);
     } catch (error) {
-      console.error('Failed to sync move navigation to server:', error);
+      console.error('[Analysis Board] navigateToMove: Failed to sync move navigation to server:', error);
     }
     
     // Start analysis for the position
