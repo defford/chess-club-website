@@ -58,10 +58,16 @@ export default function MemberManagement() {
     checkAuth()
   }, [router])
 
-  const loadMembers = async () => {
+  const loadMembers = async (bypassCache = false) => {
     try {
       setLoading(true)
-      const response = await fetch('/api/members')
+      // Add cache-busting parameter to bypass HTTP cache when needed
+      const url = bypassCache 
+        ? `/api/members?nocache=${Date.now()}`
+        : '/api/members'
+      const response = await fetch(url, {
+        cache: bypassCache ? 'no-store' : 'default'
+      })
       if (!response.ok) {
         throw new Error('Failed to fetch members')
       }
@@ -603,7 +609,8 @@ export default function MemberManagement() {
         <QuickAddStudentForm
           onSuccess={() => {
             setShowQuickAddForm(false);
-            loadMembers(); // Refresh the members list
+            // Bypass cache to ensure we get the newly added student
+            loadMembers(true); // Refresh the members list with cache bypass
           }}
           onCancel={() => setShowQuickAddForm(false)}
         />
@@ -615,7 +622,8 @@ export default function MemberManagement() {
           member={editingMember}
           onSuccess={() => {
             setEditingMember(null);
-            loadMembers(); // Refresh the members list
+            // Bypass cache to ensure we get the updated member data
+            loadMembers(true); // Refresh the members list with cache bypass
           }}
           onCancel={() => setEditingMember(null)}
         />

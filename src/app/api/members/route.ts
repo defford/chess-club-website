@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
 import type { RegistrationData } from '@/lib/googleSheets';
@@ -12,10 +12,16 @@ export interface MemberData extends RegistrationData {
   isSystemPlayer?: boolean; // Flag to identify system players (like Unknown Opponent)
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    // Use the cached version for better performance
-    const registrations = await KVCacheService.getMembers();
+    // Check if cache should be bypassed (e.g., after adding a new member)
+    const searchParams = request.nextUrl.searchParams;
+    const bypassCache = searchParams.has('nocache');
+    
+    // Use the cached version for better performance, unless bypass is requested
+    const registrations = bypassCache 
+      ? await dataService.getMembersFromParentsAndStudents()
+      : await KVCacheService.getMembers();
     
     // Convert registrations to member format
     const members: MemberData[] = registrations.map((registration, index) => {
@@ -83,7 +89,9 @@ export async function GET() {
     return NextResponse.json(allMembers, { 
       status: 200,
       headers: {
-        'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=7200'
+        'Cache-Control': bypassCache 
+          ? 'no-store, no-cache, must-revalidate, max-age=0'
+          : 'public, s-maxage=600, stale-while-revalidate=7200'
       }
     });
   } catch (error) {
