@@ -335,7 +335,7 @@ export default function MemberManagement() {
               Error loading members
             </h3>
             <p className="text-[--color-text-secondary] mb-4">{error}</p>
-            <Button onClick={loadMembers} variant="outline">Try Again</Button>
+            <Button onClick={() => loadMembers(true)} variant="outline">Try Again</Button>
           </Card>
         )}
 
