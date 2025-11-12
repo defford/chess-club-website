@@ -746,40 +746,60 @@ export class SupabaseService {
   // ==================== Parent Account Methods ====================
 
   async getParentAccount(email: string): Promise<ParentAccount | null> {
-    // Use case-insensitive email lookup to match Google Sheets behavior
-    // First try exact match (most common case)
-    let { data, error } = await this.supabase
+    // Normalize email for consistent lookup
+    const normalizedEmail = email.toLowerCase().trim();
+    console.log(`[SupabaseService.getParentAccount] Looking up email: "${email}" (normalized: "${normalizedEmail}")`);
+
+    // Try to get all matching accounts (handles duplicates)
+    // Prefer admin accounts, then most recent
+    let { data: accounts, error } = await this.supabase
       .from('parents')
       .select('*')
-      .eq('email', email)
-      .single();
+      .eq('email', normalizedEmail)
+      .order('is_admin', { ascending: false }) // Admin accounts first
+      .order('created_at', { ascending: false }); // Most recent first
 
-    // If not found, try case-insensitive search
-    if (error && error.code === 'PGRST116') {
-      const normalizedEmail = email.toLowerCase().trim();
-      const { data: caseInsensitiveData, error: caseInsensitiveError } = await this.supabase
+    // If no exact match, try case-insensitive search
+    if ((!accounts || accounts.length === 0) && (error?.code === 'PGRST116' || !error)) {
+      console.log(`[SupabaseService.getParentAccount] Exact match not found, trying case-insensitive search`);
+      const { data: caseInsensitiveAccounts, error: caseInsensitiveError } = await this.supabase
         .from('parents')
         .select('*')
         .filter('email', 'ilike', normalizedEmail)
-        .maybeSingle();
+        .order('is_admin', { ascending: false }) // Admin accounts first
+        .order('created_at', { ascending: false }); // Most recent first
       
-      if (caseInsensitiveData) {
-        data = caseInsensitiveData;
+      if (caseInsensitiveAccounts && caseInsensitiveAccounts.length > 0) {
+        accounts = caseInsensitiveAccounts;
         error = null;
+        console.log(`[SupabaseService.getParentAccount] Found ${accounts.length} account(s) with case-insensitive search`);
       } else {
         error = caseInsensitiveError;
       }
     }
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return null; // Not found
-      }
-      console.error('Error reading parent account from Supabase:', error);
+    if (error && error.code !== 'PGRST116') {
+      console.error('[SupabaseService.getParentAccount] Error reading parent account from Supabase:', error);
       throw new Error('Failed to retrieve parent account from Supabase');
     }
 
-    if (!data) return null;
+    if (!accounts || accounts.length === 0) {
+      console.log(`[SupabaseService.getParentAccount] No account found for email: "${email}"`);
+      return null;
+    }
+
+    // If multiple accounts found, prefer admin account, then most recent
+    if (accounts.length > 1) {
+      console.warn(`[SupabaseService.getParentAccount] Found ${accounts.length} duplicate accounts for email: "${email}"`);
+      console.warn(`   Using account: ${accounts[0].id} (is_admin: ${accounts[0].is_admin})`);
+      // Log all duplicates for debugging
+      accounts.forEach((acc, idx) => {
+        console.warn(`   Duplicate ${idx + 1}: ${acc.id} (is_admin: ${acc.is_admin}, created: ${acc.created_at})`);
+      });
+    }
+
+    const data = accounts[0]; // Use first account (admin preferred due to ordering)
+    console.log(`[SupabaseService.getParentAccount] Found account: id=${data.id}, email=${data.email}, is_admin=${data.is_admin}`);
 
     return {
       id: data.id,
@@ -2181,4 +2201,5 @@ export class SupabaseService {
 
 // Export singleton instance
 export const supabaseService = new SupabaseService();
+
 

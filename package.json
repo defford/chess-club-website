@@ -8,6 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "migrate:to-supabase": "tsx scripts/migrate-to-supabase.ts",
+    "add-admin": "tsx scripts/add-admin-account.ts",
+    "test-admin": "tsx scripts/test-admin-account.ts",
     "test:analysis": "playwright test tests/analysis-controller.spec.ts",
     "test:analysis:vercel": "playwright test tests/analysis-controller.spec.ts"
   },
