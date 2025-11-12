@@ -63,7 +63,15 @@ export default function AdminRankingsPage() {
     setInitializingElo(true)
     try {
       const session = clientAuthService.getCurrentParentSession()
-      const userEmail = session?.email || 'dev@example.com'
+      
+      if (!session || !session.email) {
+        console.error('No valid session found:', session)
+        alert('Error: You must be logged in to initialize ELO ratings. Please log out and log back in.')
+        return
+      }
+
+      const userEmail = session.email
+      console.log(`[Initialize ELO] Using email: ${userEmail}`)
       
       const response = await fetch('/api/admin/initialize-elo', {
         method: 'POST',
@@ -75,7 +83,9 @@ export default function AdminRankingsPage() {
 
       if (!response.ok) {
         const error = await response.json()
-        throw new Error(error.error || 'Failed to initialize ELO ratings')
+        const errorMessage = error.error || 'Failed to initialize ELO ratings'
+        console.error(`[Initialize ELO] API error (${response.status}):`, errorMessage)
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -85,7 +95,8 @@ export default function AdminRankingsPage() {
       await loadPlayers()
     } catch (error) {
       console.error('Error initializing ELO:', error)
-      alert(`Error: ${error instanceof Error ? error.message : 'Failed to initialize ELO ratings'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to initialize ELO ratings'
+      alert(`Error: ${errorMessage}`)
     } finally {
       setInitializingElo(false)
     }

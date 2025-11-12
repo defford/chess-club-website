@@ -40,6 +40,11 @@ export async function GET(request: NextRequest) {
       const studentIds = new Set(students?.map(s => s.id) || [])
       const playerMap = new Map<string, { name: string; gameCount: number }>()
 
+      // First, add all students to the map (even if they have no games)
+      students?.forEach((student) => {
+        playerMap.set(student.id, { name: student.name, gameCount: 0 })
+      })
+
       // Count games for each player
       games?.forEach((game) => {
         // Player 1

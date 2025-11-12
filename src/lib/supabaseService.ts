@@ -746,11 +746,30 @@ export class SupabaseService {
   // ==================== Parent Account Methods ====================
 
   async getParentAccount(email: string): Promise<ParentAccount | null> {
-    const { data, error } = await this.supabase
+    // Use case-insensitive email lookup to match Google Sheets behavior
+    // First try exact match (most common case)
+    let { data, error } = await this.supabase
       .from('parents')
       .select('*')
       .eq('email', email)
       .single();
+
+    // If not found, try case-insensitive search
+    if (error && error.code === 'PGRST116') {
+      const normalizedEmail = email.toLowerCase().trim();
+      const { data: caseInsensitiveData, error: caseInsensitiveError } = await this.supabase
+        .from('parents')
+        .select('*')
+        .filter('email', 'ilike', normalizedEmail)
+        .maybeSingle();
+      
+      if (caseInsensitiveData) {
+        data = caseInsensitiveData;
+        error = null;
+      } else {
+        error = caseInsensitiveError;
+      }
+    }
 
     if (error) {
       if (error.code === 'PGRST116') {

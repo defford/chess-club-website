@@ -64,6 +64,7 @@ interface MigrationStats {
 
 class MigrationService {
   private supabase = supabase; // Use the client created above
+  private readonly PLACEHOLDER_PARENT_ID = 'placeholder_parent_pending_registration';
   private stats: MigrationStats = {
     parents: { total: 0, migrated: 0, errors: 0 },
     students: { total: 0, migrated: 0, errors: 0 },
@@ -75,6 +76,46 @@ class MigrationService {
     playerOwnership: { total: 0, migrated: 0, errors: 0 },
     registrations: { total: 0, migrated: 0, errors: 0 },
   };
+
+  /**
+   * Ensure placeholder parent exists for students with missing parent references
+   */
+  private async ensurePlaceholderParent(): Promise<void> {
+    try {
+      const { data: existing } = await this.supabase
+        .from('parents')
+        .select('id')
+        .eq('id', this.PLACEHOLDER_PARENT_ID)
+        .single();
+
+      if (!existing) {
+        const { error } = await this.supabase.from('parents').insert({
+          id: this.PLACEHOLDER_PARENT_ID,
+          name: 'Placeholder Parent (Pending Registration)',
+          email: 'placeholder@chessclub.local',
+          phone: null,
+          hear_about_us: null,
+          provincial_interest: null,
+          volunteer_interest: null,
+          consent: false,
+          photo_consent: false,
+          values_acknowledgment: false,
+          newsletter: false,
+          create_account: false,
+          timestamp: new Date().toISOString(),
+          registration_type: 'parent',
+        });
+
+        if (error && error.code !== '23505') {
+          console.warn(`  ⚠️  Could not create placeholder parent: ${error.message}`);
+        } else {
+          console.log(`  ✅ Placeholder parent created/verified`);
+        }
+      }
+    } catch (error: any) {
+      console.warn(`  ⚠️  Error checking/creating placeholder parent: ${error.message}`);
+    }
+  }
 
   async migrateParents(): Promise<void> {
     console.log('\n📋 Migrating parents...');
@@ -165,6 +206,9 @@ class MigrationService {
     console.log('\n📋 Migrating students...');
     
     try {
+      // Ensure placeholder parent exists before migrating students
+      await this.ensurePlaceholderParent();
+
       const students = await googleSheetsService.getAllStudents();
       this.stats.students.total = students.length;
       console.log(`Found ${students.length} students`);
@@ -196,17 +240,18 @@ class MigrationService {
               .eq('id', student.parentId)
               .single();
 
+            // Use placeholder parent if parent doesn't exist
+            const parentIdToUse = parentCheck.data ? student.parentId : this.PLACEHOLDER_PARENT_ID;
+
             if (!parentCheck.data) {
               console.warn(`  ⚠️  Student ${student.name} (${student.id}) has invalid parent_id: ${student.parentId}`);
-              console.warn(`      Skipping - parent not found in parents table`);
-              this.stats.students.errors++;
-              continue;
+              console.warn(`      Using placeholder parent: ${this.PLACEHOLDER_PARENT_ID}`);
             }
 
             // Insert student
             const { error } = await this.supabase.from('students').insert({
               id: student.id,
-              parent_id: student.parentId,
+              parent_id: parentIdToUse,
               name: student.name,
               age: student.age || null,
               grade: student.grade || null,
@@ -225,7 +270,8 @@ class MigrationService {
               }
             } else {
               this.stats.students.migrated++;
-              console.log(`  ✅ Migrated student: ${student.name} (${student.id})`);
+              const placeholderNote = !parentCheck.data ? ' (using placeholder parent)' : '';
+              console.log(`  ✅ Migrated student: ${student.name} (${student.id})${placeholderNote}`);
             }
           } catch (error: any) {
             this.stats.students.errors++;
