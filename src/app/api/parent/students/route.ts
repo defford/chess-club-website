@@ -6,15 +6,17 @@ export async function GET(request: NextRequest) {
   try {
     // Get parent email from query parameters
     const url = new URL(request.url);
-    const parentEmail = url.searchParams.get('email');
+    const parentEmailParam = url.searchParams.get('email');
     
-    if (!parentEmail) {
+    if (!parentEmailParam) {
       return NextResponse.json(
         { error: 'Parent email required in query parameters' },
         { status: 400 }
       );
     }
 
+    // Normalize email (lowercase, trim) for case-insensitive lookup
+    const parentEmail = parentEmailParam.toLowerCase().trim();
     console.log(`[Parent Students API] Fetching students for parent email: ${parentEmail}`);
 
     // Get parent information first - using cache with fallback

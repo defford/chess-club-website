@@ -968,21 +968,47 @@ export class SupabaseService {
   }
 
   async getParentByEmail(email: string): Promise<ParentData | null> {
-    const { data, error } = await this.supabase
+    // Normalize email to lowercase for case-insensitive lookup
+    const normalizedEmail = email.toLowerCase().trim();
+    
+    // Try exact match first
+    let { data, error } = await this.supabase
       .from('parents')
       .select('*')
-      .eq('email', email)
-      .single();
+      .eq('email', normalizedEmail)
+      .maybeSingle();
 
-    if (error) {
-      if (error.code === 'PGRST116') {
-        return null; // Not found
+    // If no exact match, try case-insensitive search
+    if (!data && (!error || error.code === 'PGRST116')) {
+      console.log(`[SupabaseService] Exact match not found, trying case-insensitive search for: ${normalizedEmail}`);
+      const { data: caseInsensitiveData, error: caseInsensitiveError } = await this.supabase
+        .from('parents')
+        .select('*')
+        .filter('email', 'ilike', normalizedEmail)
+        .maybeSingle();
+      
+      if (caseInsensitiveData) {
+        data = caseInsensitiveData;
+        error = null;
+        console.log(`[SupabaseService] Found parent with case-insensitive search`);
+      } else if (caseInsensitiveError && caseInsensitiveError.code !== 'PGRST116') {
+        error = caseInsensitiveError;
       }
-      console.error('Error getting parent by email from Supabase:', error);
-      throw new Error('Failed to get parent by email from Supabase');
     }
 
-    if (!data) return null;
+    if (error && error.code !== 'PGRST116') {
+      console.error('[SupabaseService] Error getting parent by email:', {
+        error: error.message,
+        code: error.code,
+        email: normalizedEmail
+      });
+      throw new Error(`Failed to get parent by email from Supabase: ${error.message}`);
+    }
+
+    if (!data) {
+      console.log(`[SupabaseService] Parent not found for email: ${normalizedEmail}`);
+      return null;
+    }
 
     return {
       id: data.id,
