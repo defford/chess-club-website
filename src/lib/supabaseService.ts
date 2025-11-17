@@ -970,6 +970,7 @@ export class SupabaseService {
   async getParentByEmail(email: string): Promise<ParentData | null> {
     // Normalize email to lowercase for case-insensitive lookup
     const normalizedEmail = email.toLowerCase().trim();
+    console.log(`[SupabaseService.getParentByEmail] Searching for email: "${email}" (normalized: "${normalizedEmail}")`);
     
     // Try exact match first
     let { data, error } = await this.supabase
@@ -978,26 +979,62 @@ export class SupabaseService {
       .eq('email', normalizedEmail)
       .maybeSingle();
 
+    console.log(`[SupabaseService.getParentByEmail] Exact match result:`, {
+      found: !!data,
+      errorCode: error?.code,
+      errorMessage: error?.message
+    });
+
     // If no exact match, try case-insensitive search
     if (!data && (!error || error.code === 'PGRST116')) {
-      console.log(`[SupabaseService] Exact match not found, trying case-insensitive search for: ${normalizedEmail}`);
+      console.log(`[SupabaseService.getParentByEmail] Exact match not found, trying case-insensitive search`);
       const { data: caseInsensitiveData, error: caseInsensitiveError } = await this.supabase
         .from('parents')
         .select('*')
         .filter('email', 'ilike', normalizedEmail)
         .maybeSingle();
       
+      console.log(`[SupabaseService.getParentByEmail] Case-insensitive search result:`, {
+        found: !!caseInsensitiveData,
+        errorCode: caseInsensitiveError?.code,
+        errorMessage: caseInsensitiveError?.message
+      });
+      
       if (caseInsensitiveData) {
         data = caseInsensitiveData;
         error = null;
-        console.log(`[SupabaseService] Found parent with case-insensitive search`);
+        console.log(`[SupabaseService.getParentByEmail] Found parent with case-insensitive search:`, {
+          id: data.id,
+          email: data.email,
+          name: data.name
+        });
       } else if (caseInsensitiveError && caseInsensitiveError.code !== 'PGRST116') {
         error = caseInsensitiveError;
       }
     }
 
+    // If still not found, try to get a sample of emails for debugging (only in production for troubleshooting)
+    if (!data && process.env.NODE_ENV === 'production') {
+      try {
+        const { data: sampleParents } = await this.supabase
+          .from('parents')
+          .select('email, name')
+          .limit(5);
+        
+        if (sampleParents && sampleParents.length > 0) {
+          console.log(`[SupabaseService.getParentByEmail] Sample emails in database:`, 
+            sampleParents.map(p => `"${p.email}"`).join(', '));
+        } else {
+          console.log(`[SupabaseService.getParentByEmail] No parents found in database at all`);
+        }
+      } catch (debugError) {
+        // Silently fail - this is just for debugging
+        console.log(`[SupabaseService.getParentByEmail] Could not fetch sample emails for debugging`);
+      }
+    }
+
     if (error && error.code !== 'PGRST116') {
-      console.error('[SupabaseService] Error getting parent by email:', {
+      console.error('[SupabaseService.getParentByEmail] Error getting parent by email:', {
         error: error.message,
         code: error.code,
         email: normalizedEmail
@@ -1006,7 +1043,7 @@ export class SupabaseService {
     }
 
     if (!data) {
-      console.log(`[SupabaseService] Parent not found for email: ${normalizedEmail}`);
+      console.log(`[SupabaseService.getParentByEmail] Parent not found for email: ${normalizedEmail}`);
       return null;
     }
 

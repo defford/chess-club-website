@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { emailService } from './email';
-import { googleSheetsService } from './googleSheets';
+import { dataService } from './dataService';
 import type {
   ParentAccount,
   MagicLinkToken,
@@ -145,7 +145,7 @@ class ParentAuthService {
 
   // Create or get parent account
   async createOrGetParentAccount(email: string): Promise<ParentAccount> {
-    const existingAccount = await googleSheetsService.getParentAccount(email);
+    const existingAccount = await dataService.getParentAccount(email);
     
     if (existingAccount) {
       return existingAccount;
@@ -164,7 +164,7 @@ class ParentAuthService {
       isAdmin: false // New accounts are not admin by default
     };
 
-    await googleSheetsService.addParentAccount(newAccount);
+    await dataService.addParentAccount(newAccount);
     
     return newAccount;
   }
@@ -174,7 +174,7 @@ class ParentAuthService {
     const account = await this.createOrGetParentAccount(email);
     
     // Update last login
-    await googleSheetsService.updateParentAccount(account.id, {
+    await dataService.updateParentAccount(account.id, {
       lastLogin: new Date().toISOString()
     });
 

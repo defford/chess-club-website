@@ -24,9 +24,19 @@ export async function POST(request: NextRequest) {
 
     switch (decoded.type) {
       case 'login':
-        // Check if email exists in registrations
-        if (decoded.emailExistsInRegistrations === false) {
-          // Email doesn't exist in registrations - redirect to registration
+        // Re-check if email exists in parents table (more reliable than token value)
+        // This handles cases where the email was added after token creation or if there was a lookup error
+        console.log(`[Parent Verify] Checking if email exists: ${decoded.email}`);
+        const parent = await dataService.getParentByEmail(decoded.email);
+        console.log(`[Parent Verify] Email lookup result:`, { 
+          email: decoded.email, 
+          found: !!parent,
+          parentId: parent?.id 
+        });
+        
+        if (!parent) {
+          // Email doesn't exist in parents table - redirect to registration
+          console.log(`[Parent Verify] Email not found, redirecting to registration: ${decoded.email}`);
           return NextResponse.json(
             { 
               message: 'Email not found in registrations',

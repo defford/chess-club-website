@@ -15,8 +15,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if email exists in parents sheet
+    console.log(`[Parent Auth] Checking if email exists: ${email}`);
     const parent = await dataService.getParentByEmail(email);
     const emailExists = parent !== null;
+    console.log(`[Parent Auth] Email lookup result:`, { 
+      email, 
+      found: emailExists,
+      parentId: parent?.id,
+      USE_SUPABASE: process.env.USE_SUPABASE 
+    });
 
     // Determine if this is a self-registered student
     let actualIsSelfRegistered = isSelfRegistered || false;
