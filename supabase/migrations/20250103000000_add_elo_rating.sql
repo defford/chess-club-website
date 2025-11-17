@@ -13,3 +13,4 @@ CREATE INDEX IF NOT EXISTS idx_students_elo_rating ON students(elo_rating);
 
 
 
+

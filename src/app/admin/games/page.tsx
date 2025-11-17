@@ -78,8 +78,15 @@ function AdminGamesPageContent() {
         fetch(`/api/attendance/meets?email=${encodeURIComponent(userEmail)}`).catch(() => null)
       ])
 
-      if (!gamesResponse.ok || !playersResponse.ok) {
-        throw new Error('Failed to fetch data')
+      // Check for errors and extract error messages
+      if (!gamesResponse.ok) {
+        const errorData = await gamesResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `Failed to fetch games: ${gamesResponse.status} ${gamesResponse.statusText}`)
+      }
+      
+      if (!playersResponse.ok) {
+        const errorData = await playersResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `Failed to fetch players: ${playersResponse.status} ${playersResponse.statusText}`)
       }
 
       const [gamesData, membersData, meetsData] = await Promise.all([
@@ -87,6 +94,12 @@ function AdminGamesPageContent() {
         playersResponse.json(),
         meetsResponse?.ok ? meetsResponse.json() : Promise.resolve([])
       ])
+
+      // Validate that membersData is an array
+      if (!Array.isArray(membersData)) {
+        console.error('Invalid members data format:', membersData)
+        throw new Error('Invalid members data format: expected array')
+      }
 
       // Transform members data to PlayerData format for the game form
       const playersData = membersData.map((member: any) => ({
@@ -116,7 +129,8 @@ function AdminGamesPageContent() {
       }
     } catch (err) {
       console.error('Error loading data:', err)
-      setError('Failed to load games and players')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load games and players'
+      setError(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -152,6 +166,14 @@ function AdminGamesPageContent() {
       const playersResponse = await fetch('/api/members')
       if (playersResponse.ok) {
         const membersData = await playersResponse.json()
+        
+        // Validate that membersData is an array
+        if (!Array.isArray(membersData)) {
+          console.error('Invalid members data format:', membersData)
+          setError('Invalid members data format: expected array')
+          return
+        }
+        
         const playersData = membersData.map((member: any) => ({
           id: member.id,
           name: member.playerName,
@@ -171,11 +193,24 @@ function AdminGamesPageContent() {
   }
 
   const loadPlayers = async () => {
-    const session = clientAuthService.getCurrentParentSession()
-    const userEmail = session?.email || 'dev@example.com'
-    const playersResponse = await fetch('/api/members')
-    if (playersResponse.ok) {
+    try {
+      const session = clientAuthService.getCurrentParentSession()
+      const userEmail = session?.email || 'dev@example.com'
+      const playersResponse = await fetch('/api/members')
+      
+      if (!playersResponse.ok) {
+        const errorData = await playersResponse.json().catch(() => ({}))
+        throw new Error(errorData.error || `Failed to fetch players: ${playersResponse.status}`)
+      }
+      
       const membersData = await playersResponse.json()
+      
+      // Validate that membersData is an array
+      if (!Array.isArray(membersData)) {
+        console.error('Invalid members data format:', membersData)
+        throw new Error('Invalid members data format: expected array')
+      }
+      
       const playersData = membersData.map((member: any) => ({
         id: member.id,
         name: member.playerName,
@@ -191,8 +226,12 @@ function AdminGamesPageContent() {
       }))
       setPlayers(playersData)
       return playersData
+    } catch (err) {
+      console.error('Error loading players:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load players'
+      setError(errorMessage)
+      return players
     }
-    return players
   }
 
   const handleQuickStartComplete = async (meetId: string) => {

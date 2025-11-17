@@ -18,10 +18,45 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const bypassCache = searchParams.has('nocache');
     
-    // Use the cached version for better performance, unless bypass is requested
-    const registrations = bypassCache 
-      ? await dataService.getMembersFromParentsAndStudents()
-      : await KVCacheService.getMembers();
+    let registrations: RegistrationData[] = [];
+    
+    try {
+      // Use the cached version for better performance, unless bypass is requested
+      registrations = bypassCache 
+        ? await dataService.getMembersFromParentsAndStudents()
+        : await KVCacheService.getMembers();
+      
+      // Validate that we got an array
+      if (!Array.isArray(registrations)) {
+        console.error('[Members API] Invalid data format received:', typeof registrations);
+        throw new Error('Invalid data format: expected array');
+      }
+      
+      console.log(`[Members API] Successfully fetched ${registrations.length} registrations (bypassCache: ${bypassCache})`);
+    } catch (fetchError: any) {
+      console.error('[Members API] Error fetching members:', {
+        error: fetchError?.message || fetchError,
+        stack: fetchError?.stack,
+        bypassCache
+      });
+      
+      // If cache failed and we weren't bypassing, try direct fetch as fallback
+      if (!bypassCache) {
+        try {
+          console.log('[Members API] Attempting fallback to direct dataService fetch...');
+          registrations = await dataService.getMembersFromParentsAndStudents();
+          console.log(`[Members API] Fallback successful: ${registrations.length} registrations`);
+        } catch (fallbackError: any) {
+          console.error('[Members API] Fallback also failed:', {
+            error: fallbackError?.message || fallbackError,
+            stack: fallbackError?.stack
+          });
+          throw new Error(`Failed to fetch members: ${fallbackError?.message || 'Unknown error'}`);
+        }
+      } else {
+        throw fetchError;
+      }
+    }
     
     // Convert registrations to member format
     const members: MemberData[] = registrations.map((registration, index) => {
@@ -94,10 +129,24 @@ export async function GET(request: NextRequest) {
           : 'public, s-maxage=600, stale-while-revalidate=7200'
       }
     });
-  } catch (error) {
-    console.error('Members API GET error:', error);
+  } catch (error: any) {
+    console.error('[Members API] GET error:', {
+      error: error?.message || error,
+      stack: error?.stack,
+      name: error?.name,
+      code: error?.code
+    });
+    
+    // Return more detailed error in development, generic in production
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Failed to retrieve members: ${error?.message || 'Unknown error'}`
+      : 'Failed to retrieve members';
+    
     return NextResponse.json(
-      { error: 'Failed to retrieve members' },
+      { 
+        error: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { details: error?.stack })
+      },
       { status: 500 }
     );
   }
