@@ -972,36 +972,45 @@ export class SupabaseService {
     const normalizedEmail = email.toLowerCase().trim();
     console.log(`[SupabaseService.getParentByEmail] Searching for email: "${email}" (normalized: "${normalizedEmail}")`);
     
-    // Try exact match first
-    let { data, error } = await this.supabase
+    // Try exact match first - use limit(1) with ordering to handle duplicates
+    // Prefer admin accounts, then most recent
+    let { data: accounts, error } = await this.supabase
       .from('parents')
       .select('*')
       .eq('email', normalizedEmail)
-      .maybeSingle();
+      .order('is_admin', { ascending: false }) // Admin accounts first
+      .order('created_at', { ascending: false }) // Most recent first
+      .limit(1);
 
     console.log(`[SupabaseService.getParentByEmail] Exact match result:`, {
-      found: !!data,
+      found: !!accounts && accounts.length > 0,
+      count: accounts?.length || 0,
       errorCode: error?.code,
       errorMessage: error?.message
     });
 
+    let data = accounts && accounts.length > 0 ? accounts[0] : null;
+
     // If no exact match, try case-insensitive search
     if (!data && (!error || error.code === 'PGRST116')) {
       console.log(`[SupabaseService.getParentByEmail] Exact match not found, trying case-insensitive search`);
-      const { data: caseInsensitiveData, error: caseInsensitiveError } = await this.supabase
+      const { data: caseInsensitiveAccounts, error: caseInsensitiveError } = await this.supabase
         .from('parents')
         .select('*')
         .filter('email', 'ilike', normalizedEmail)
-        .maybeSingle();
+        .order('is_admin', { ascending: false }) // Admin accounts first
+        .order('created_at', { ascending: false }) // Most recent first
+        .limit(1);
       
       console.log(`[SupabaseService.getParentByEmail] Case-insensitive search result:`, {
-        found: !!caseInsensitiveData,
+        found: !!caseInsensitiveAccounts && caseInsensitiveAccounts.length > 0,
+        count: caseInsensitiveAccounts?.length || 0,
         errorCode: caseInsensitiveError?.code,
         errorMessage: caseInsensitiveError?.message
       });
       
-      if (caseInsensitiveData) {
-        data = caseInsensitiveData;
+      if (caseInsensitiveAccounts && caseInsensitiveAccounts.length > 0) {
+        data = caseInsensitiveAccounts[0];
         error = null;
         console.log(`[SupabaseService.getParentByEmail] Found parent with case-insensitive search:`, {
           id: data.id,
@@ -1013,23 +1022,45 @@ export class SupabaseService {
       }
     }
 
-    // If still not found, try to get a sample of emails for debugging (only in production for troubleshooting)
-    if (!data && process.env.NODE_ENV === 'production') {
+    // If still not found, try to get a sample of emails for debugging and check for similar emails
+    if (!data) {
       try {
+        // Get sample emails for debugging
         const { data: sampleParents } = await this.supabase
           .from('parents')
           .select('email, name')
-          .limit(5);
+          .limit(10);
         
         if (sampleParents && sampleParents.length > 0) {
           console.log(`[SupabaseService.getParentByEmail] Sample emails in database:`, 
             sampleParents.map(p => `"${p.email}"`).join(', '));
+          
+          // Check if there's a similar email (case-insensitive, trimmed)
+          const similarEmail = sampleParents.find(p => 
+            p.email && p.email.toLowerCase().trim() === normalizedEmail
+          );
+          if (similarEmail) {
+            console.log(`[SupabaseService.getParentByEmail] Found similar email in sample: "${similarEmail.email}" (normalized matches "${normalizedEmail}")`);
+            // Try one more time with the exact email from database
+            const { data: exactMatch } = await this.supabase
+              .from('parents')
+              .select('*')
+              .eq('email', similarEmail.email)
+              .order('is_admin', { ascending: false })
+              .order('created_at', { ascending: false })
+              .limit(1);
+            
+            if (exactMatch && exactMatch.length > 0) {
+              console.log(`[SupabaseService.getParentByEmail] Found match using exact email from database: "${similarEmail.email}"`);
+              data = exactMatch[0];
+            }
+          }
         } else {
           console.log(`[SupabaseService.getParentByEmail] No parents found in database at all`);
         }
       } catch (debugError) {
         // Silently fail - this is just for debugging
-        console.log(`[SupabaseService.getParentByEmail] Could not fetch sample emails for debugging`);
+        console.log(`[SupabaseService.getParentByEmail] Could not fetch sample emails for debugging:`, debugError);
       }
     }
 
