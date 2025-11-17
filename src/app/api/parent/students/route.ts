@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { googleSheetsService } from '@/lib/googleSheets';
 import { KVCacheService } from '@/lib/kv';
+import { dataService } from '@/lib/dataService';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,18 +15,62 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get parent information first - using cache
-    const parent = await KVCacheService.getParentByEmail(parentEmail);
+    console.log(`[Parent Students API] Fetching students for parent email: ${parentEmail}`);
+
+    // Get parent information first - using cache with fallback
+    let parent;
+    try {
+      parent = await KVCacheService.getParentByEmail(parentEmail);
+      console.log(`[Parent Students API] Parent lookup result:`, parent ? `Found (ID: ${parent.id})` : 'Not found');
+    } catch (parentError: any) {
+      console.error(`[Parent Students API] Error fetching parent:`, {
+        error: parentError?.message || parentError,
+        stack: parentError?.stack
+      });
+      // Try direct dataService as fallback
+      try {
+        parent = await dataService.getParentByEmail(parentEmail);
+        console.log(`[Parent Students API] Fallback parent lookup:`, parent ? `Found (ID: ${parent.id})` : 'Not found');
+      } catch (fallbackError: any) {
+        console.error(`[Parent Students API] Fallback also failed:`, fallbackError?.message || fallbackError);
+        throw new Error(`Failed to fetch parent: ${fallbackError?.message || 'Unknown error'}`);
+      }
+    }
     
     if (!parent) {
+      console.warn(`[Parent Students API] Parent not found for email: ${parentEmail}`);
       return NextResponse.json(
         { error: 'Parent not found' },
         { status: 404 }
       );
     }
 
-    // Get students from the students sheet by parent ID - using cache
-    const students = await KVCacheService.getStudentsByParentId(parent.id);
+    // Get students from the students sheet by parent ID - using cache with fallback
+    let students;
+    try {
+      students = await KVCacheService.getStudentsByParentId(parent.id);
+      console.log(`[Parent Students API] Found ${students?.length || 0} students for parent ${parent.id}`);
+    } catch (studentsError: any) {
+      console.error(`[Parent Students API] Error fetching students:`, {
+        error: studentsError?.message || studentsError,
+        stack: studentsError?.stack,
+        parentId: parent.id
+      });
+      // Try direct dataService as fallback
+      try {
+        students = await dataService.getStudentsByParentId(parent.id);
+        console.log(`[Parent Students API] Fallback found ${students?.length || 0} students`);
+      } catch (fallbackError: any) {
+        console.error(`[Parent Students API] Fallback also failed:`, fallbackError?.message || fallbackError);
+        throw new Error(`Failed to fetch students: ${fallbackError?.message || 'Unknown error'}`);
+      }
+    }
+
+    // Ensure students is an array
+    if (!Array.isArray(students)) {
+      console.error(`[Parent Students API] Invalid students data format:`, typeof students);
+      students = [];
+    }
 
     // For each student, get their ranking information if available
     const studentsWithRankings = await Promise.all(
@@ -79,13 +123,24 @@ export async function GET(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error) {
-    console.error('Students API error:', error);
+  } catch (error: any) {
+    console.error('[Parent Students API] Error:', {
+      error: error?.message || error,
+      stack: error?.stack,
+      name: error?.name,
+      code: error?.code
+    });
+    
+    // Return more detailed error in development, generic in production
+    const errorMessage = process.env.NODE_ENV === 'development' 
+      ? `Failed to retrieve students: ${error?.message || 'Unknown error'}`
+      : 'Failed to retrieve students';
+    
     return NextResponse.json(
       { 
         success: false,
-        error: 'Failed to retrieve students',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        error: errorMessage,
+        ...(process.env.NODE_ENV === 'development' && { details: error?.stack })
       },
       { status: 500 }
     );
