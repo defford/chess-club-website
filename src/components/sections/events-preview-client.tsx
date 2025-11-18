@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Calendar, MapPin, Users } from "lucide-react"
 import { useState, useEffect } from "react"
-import type { EventData } from "@/lib/googleSheets"
+import type { EventData } from "@/lib/types"
 
 interface EventsPreviewClientProps {
   initialEvents?: EventData[];

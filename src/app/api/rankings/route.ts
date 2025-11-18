@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
-import type { PlayerData } from '@/lib/googleSheets';
+import type { PlayerData } from '@/lib/types';
 
 export async function GET() {
   try {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { KVCacheService } from '@/lib/kv';
 import { dataService } from '@/lib/dataService';
+import type { StudentData } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,10 +49,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get students from the students sheet by parent ID - using cache with fallback
-    let students;
+    let students: StudentData[] = [];
     try {
-      students = await KVCacheService.getStudentsByParentId(parent.id);
-      console.log(`[Parent Students API] Found ${students?.length || 0} students for parent ${parent.id}`);
+      const cachedStudents = await KVCacheService.getStudentsByParentId(parent.id);
+      students = Array.isArray(cachedStudents) ? cachedStudents : [];
+      console.log(`[Parent Students API] Found ${students.length} students for parent ${parent.id}`);
     } catch (studentsError: any) {
       console.error(`[Parent Students API] Error fetching students:`, {
         error: studentsError?.message || studentsError,
@@ -60,18 +62,13 @@ export async function GET(request: NextRequest) {
       });
       // Try direct dataService as fallback
       try {
-        students = await dataService.getStudentsByParentId(parent.id);
-        console.log(`[Parent Students API] Fallback found ${students?.length || 0} students`);
+        const fallbackStudents = await dataService.getStudentsByParentId(parent.id);
+        students = Array.isArray(fallbackStudents) ? fallbackStudents : [];
+        console.log(`[Parent Students API] Fallback found ${students.length} students`);
       } catch (fallbackError: any) {
         console.error(`[Parent Students API] Fallback also failed:`, fallbackError?.message || fallbackError);
         throw new Error(`Failed to fetch students: ${fallbackError?.message || 'Unknown error'}`);
       }
-    }
-
-    // Ensure students is an array
-    if (!Array.isArray(students)) {
-      console.error(`[Parent Students API] Invalid students data format:`, typeof students);
-      students = [];
     }
 
     // For each student, get their ranking information if available

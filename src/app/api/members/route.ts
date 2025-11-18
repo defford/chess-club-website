@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { KVCacheService } from '@/lib/kv';
-import type { RegistrationData } from '@/lib/googleSheets';
+import type { RegistrationData } from '@/lib/types';
 
 // Interface for Member data that combines registration info with member-specific fields
 export interface MemberData extends RegistrationData {
@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Cache-Control': bypassCache 
           ? 'no-store, no-cache, must-revalidate, max-age=0'
-          : 'public, s-maxage=600, stale-while-revalidate=7200'
+          : 'public, max-age=0, s-maxage=0, must-revalidate' // Force revalidation against server (KV)
       }
     });
   } catch (error: any) {

@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
 import { clientAuthService } from "@/lib/clientAuth"
 import { Trophy, Gamepad2, Users, Plus, LogOut, TrendingUp } from "lucide-react"
-import type { PlayerData } from "@/lib/googleSheets"
+import type { PlayerData } from "@/lib/types"
 
 export default function AdminRankingsPage() {
   const [isLoading, setIsLoading] = useState(true)

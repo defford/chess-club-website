@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { requireAdminAuth } from '@/lib/apiAuth';
+import { KVCacheService } from '@/lib/kv';
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,6 +72,9 @@ export async function POST(request: NextRequest) {
     };
 
     const studentId = await dataService.addStudentRegistration(studentData);
+
+    // Invalidate members cache to ensure the new player appears immediately
+    await KVCacheService.invalidateByTags(['members']);
 
     return NextResponse.json(
       { 

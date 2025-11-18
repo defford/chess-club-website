@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Calendar, MapPin, Users, Clock, User } from "lucide-react"
 import { useState, useEffect } from "react"
-import type { EventData } from "@/lib/googleSheets"
+import type { EventData } from "@/lib/types"
 import { clientAuthService } from "@/lib/clientAuth"
 import type { ParentSession } from "@/lib/types"
 

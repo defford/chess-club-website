@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Trophy, ChevronUp, ChevronDown } from "lucide-react"
 import { useState, useEffect } from "react"
-import type { PlayerData } from "@/lib/googleSheets"
+import type { PlayerData } from "@/lib/types"
 
 type SortField = "rank" | "name" | "grade" | "wins" | "losses" | "points"
 type SortDirection = "asc" | "desc"

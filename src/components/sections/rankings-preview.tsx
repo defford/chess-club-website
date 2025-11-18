@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Trophy } from "lucide-react"
 import { useState, useEffect } from "react"
-import type { PlayerData } from "@/lib/googleSheets"
+import type { PlayerData } from "@/lib/types"
 
 export function RankingsPreview() {
   const [players, setPlayers] = useState<PlayerData[]>([])

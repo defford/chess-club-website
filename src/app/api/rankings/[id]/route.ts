@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
-import type { PlayerData } from '@/lib/googleSheets';
+import type { PlayerData } from '@/lib/types';
 
 export async function PUT(
   request: NextRequest, 

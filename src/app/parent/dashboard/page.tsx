@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Plus, User, Trophy, Calendar, Settings, LogOut, ChevronRight, MapPin, Clock, Users } from "lucide-react"
 import Link from "next/link"
-import type { EventData } from "@/lib/googleSheets"
+import type { EventData } from "@/lib/types"
 import { clientAuthService } from "@/lib/clientAuth"
 
 interface PlayerWithRanking {
