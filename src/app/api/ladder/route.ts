@@ -332,13 +332,12 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Convert to array and filter players with overall points > 0 and exclude system players
-    // Sort by overall points first, then by daily points for the selected date
+    // Convert to array and filter players with ladder games, exclude system players
     const allPlayerStats = Array.from(playerStats.values());
     console.log(`[Ladder API] Total player stats calculated: ${allPlayerStats.length}`);
     
     const ladderPlayers = allPlayerStats
-      .filter(player => (player.overallPoints > 0 || player.overallGamesPlayed > 0) && !player.isSystemPlayer) // Show players with points OR games played, exclude system players
+      .filter(player => (player.overallPoints > 0 || player.overallGamesPlayed > 0) && !player.isSystemPlayer) // Show players with ladder games, exclude system players
       .sort((a, b) => {
         // Primary sort: by overall points
         if (b.overallPoints !== a.overallPoints) {

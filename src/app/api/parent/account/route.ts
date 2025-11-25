@@ -17,13 +17,11 @@ export async function GET(request: NextRequest) {
 
     // Normalize email (lowercase, trim)
     const normalizedEmail = email.toLowerCase().trim();
-    console.log(`[Parent Account API] Fetching account for email: ${normalizedEmail}`);
 
     // Get parent data (includes all needed fields) - single optimized call with fallback
     let parentData;
     try {
       parentData = await KVCacheService.getParentByEmail(normalizedEmail);
-      console.log(`[Parent Account API] Cache lookup result:`, parentData ? `Found (ID: ${parentData.id})` : 'Not found');
     } catch (cacheError: any) {
       console.error(`[Parent Account API] Cache lookup failed:`, {
         error: cacheError?.message || cacheError,
@@ -32,7 +30,6 @@ export async function GET(request: NextRequest) {
       // Try direct dataService as fallback
       try {
         parentData = await dataService.getParentByEmail(normalizedEmail);
-        console.log(`[Parent Account API] Fallback lookup:`, parentData ? `Found (ID: ${parentData.id})` : 'Not found');
       } catch (fallbackError: any) {
         console.error(`[Parent Account API] Fallback also failed:`, fallbackError?.message || fallbackError);
         throw new Error(`Failed to fetch parent account: ${fallbackError?.message || 'Unknown error'}`);

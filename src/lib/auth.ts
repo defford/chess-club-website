@@ -1,6 +1,5 @@
 "use client"
 
-const ADMIN_PASSWORD = "password"
 const AUTH_KEY = "chess-club-admin-auth"
 
 export interface AuthState {
@@ -13,7 +12,7 @@ function isDevelopmentMode(): boolean {
   return process.env.NODE_ENV === 'development'
 }
 
-export function authenticate(password: string): boolean {
+export async function authenticate(password: string): Promise<boolean> {
   // In development, bypass authentication
   if (isDevelopmentMode()) {
     const authState: AuthState = {
@@ -24,16 +23,32 @@ export function authenticate(password: string): boolean {
     return true
   }
   
-  // Production authentication
-  if (password === ADMIN_PASSWORD) {
-    const authState: AuthState = {
-      isAuthenticated: true,
-      timestamp: Date.now()
+  // Production authentication - call server-side API
+  try {
+    const response = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password }),
+    })
+
+    const data = await response.json()
+
+    if (data.success) {
+      const authState: AuthState = {
+        isAuthenticated: true,
+        timestamp: Date.now()
+      }
+      localStorage.setItem(AUTH_KEY, JSON.stringify(authState))
+      return true
     }
-    localStorage.setItem(AUTH_KEY, JSON.stringify(authState))
-    return true
+
+    return false
+  } catch (error) {
+    console.error('[Auth] Error authenticating:', error)
+    return false
   }
-  return false
 }
 
 export function isAuthenticated(): boolean {

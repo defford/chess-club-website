@@ -9,6 +9,8 @@
     "lint": "eslint",
     "migrate:to-supabase": "tsx scripts/migrate-to-supabase.ts",
     "add-admin": "tsx scripts/add-admin-account.ts",
+    "add-dev-parent": "tsx scripts/add-dev-parent.ts",
+    "verify-ladder-games": "tsx scripts/verify-all-ladder-games.ts",
     "test-admin": "tsx scripts/test-admin-account.ts",
     "test:analysis": "playwright test tests/analysis-controller.spec.ts",
     "test:analysis:vercel": "playwright test tests/analysis-controller.spec.ts"

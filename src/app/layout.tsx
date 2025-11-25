@@ -5,6 +5,7 @@ import { Footer } from "@/components/layout/footer";
 import { AchievementNotificationManager } from "@/components/ui/achievement-popup";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: "Central NL Scholastic Chess Club",
   description: "Building skills and confidence for students K–12 through chess. Join our community of young chess players in Central Newfoundland.",
   keywords: ["chess", "scholastic", "club", "central newfoundland", "students", "K-12", "chess lessons"],

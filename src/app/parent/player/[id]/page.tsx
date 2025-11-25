@@ -6,20 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronLeft, Trophy, Calendar, TrendingUp, User, Mail, Phone, AlertCircle } from "lucide-react"
 import Link from "next/link"
-
-// Client-safe session management
-const getParentSession = () => {
-  if (typeof window === 'undefined') return null
-  
-  try {
-    const stored = localStorage.getItem('chess-club-parent-auth')
-    if (!stored) return null
-    
-    return JSON.parse(stored)
-  } catch {
-    return null
-  }
-}
+import { clientAuthService } from "@/lib/clientAuth"
 
 interface PlayerDetails {
   playerId: string
@@ -75,8 +62,13 @@ export default function PlayerDetailPage() {
   const [isSelfRegistered, setIsSelfRegistered] = useState(false)
 
   useEffect(() => {
-    // Check authentication
-    const session = getParentSession()
+    // Check authentication using the same service as dashboard
+    if (!clientAuthService.isParentAuthenticated()) {
+      router.push('/parent/login')
+      return
+    }
+
+    const session = clientAuthService.getCurrentParentSession()
     if (!session) {
       router.push('/parent/login')
       return

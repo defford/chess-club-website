@@ -498,14 +498,34 @@ export class SupabaseService {
   async calculateRankingsFromGames(): Promise<PlayerData[]> {
     try {
       // Get all games and members data in parallel
+      // First check if there are unverified ladder games
+      const { data: allLadderGames } = await this.supabase
+        .from('games')
+        .select('id, is_verified')
+        .eq('game_type', 'ladder');
+      
+      const verifiedCount = allLadderGames?.filter(g => g.is_verified).length || 0;
+      const unverifiedCount = allLadderGames?.filter(g => !g.is_verified).length || 0;
+      
+      if (unverifiedCount > 0 && verifiedCount === 0) {
+        console.warn(`[calculateRankingsFromGames] WARNING: All ladder games are unverified! Including unverified games in rankings.`);
+      }
+      
       const [gamesResult, membersResult] = await Promise.all([
         this.logPerformance(
-          async () => this.supabase.from('games').select('*').eq('game_type', 'ladder').eq('is_verified', true),
+          async () => {
+            // If no verified games exist, include unverified ones
+            if (verifiedCount === 0 && unverifiedCount > 0) {
+              return this.supabase.from('games').select('*').eq('game_type', 'ladder');
+            }
+            // Otherwise, only get verified games
+            return this.supabase.from('games').select('*').eq('game_type', 'ladder').eq('is_verified', true);
+          },
           {
             methodName: 'calculateRankingsFromGames',
             table: 'games',
             operation: 'select',
-            additionalInfo: 'filter: game_type=ladder, is_verified=true',
+            additionalInfo: verifiedCount === 0 && unverifiedCount > 0 ? 'filter: game_type=ladder (including unverified)' : 'filter: game_type=ladder, is_verified=true',
           }
         ),
         this.getMembersFromParentsAndStudents(),
@@ -662,8 +682,14 @@ export class SupabaseService {
       });
       
       const playerIds = Array.from(allPlayerIds);
-      console.log(`[calculateRankingsFromGames] Fetching ELO ratings for ${playerIds.length} unique player IDs (${players.length} players)`);
-      console.log(`[calculateRankingsFromGames] Sample player IDs:`, playerIds.slice(0, 5));
+      
+      // Check if player IDs match student IDs
+      const studentIds = registrations.map(r => r.studentId).filter(Boolean);
+      const matchingIds = playerIds.filter(id => studentIds.includes(id));
+      const missingIds = playerIds.filter(id => !studentIds.includes(id));
+      if (missingIds.length > 0) {
+        console.warn(`[calculateRankingsFromGames] WARNING: ${missingIds.length} player IDs from games don't match any student IDs:`, missingIds.slice(0, 5));
+      }
       
       if (playerIds.length > 0) {
         // Split into chunks of 100 to avoid query size limits
@@ -688,8 +714,6 @@ export class SupabaseService {
           }
         }
 
-        console.log(`[calculateRankingsFromGames] Retrieved ELO ratings for ${eloMap.size} students from database`);
-
         // Update players with ELO ratings
         let foundCount = 0;
         players.forEach(player => {
@@ -700,10 +724,9 @@ export class SupabaseService {
             player.eloRating = 1000; // Default rating
           }
         });
-        console.log(`[calculateRankingsFromGames] Matched ELO ratings for ${foundCount} out of ${players.length} players`);
         
-        if (foundCount === 0) {
-          console.error(`[calculateRankingsFromGames] WARNING: No ELO ratings matched! Player IDs in games:`, 
+        if (foundCount === 0 && players.length > 0) {
+          console.warn(`[calculateRankingsFromGames] WARNING: No ELO ratings matched! Player IDs in games:`, 
             Array.from(new Set(games.flatMap(g => [g.player1_id, g.player2_id]).filter(Boolean))).slice(0, 10));
         }
       } else {
@@ -970,7 +993,6 @@ export class SupabaseService {
   async getParentByEmail(email: string): Promise<ParentData | null> {
     // Normalize email to lowercase for case-insensitive lookup
     const normalizedEmail = email.toLowerCase().trim();
-    console.log(`[SupabaseService.getParentByEmail] Searching for email: "${email}" (normalized: "${normalizedEmail}")`);
     
     // Try exact match first - use limit(1) with ordering to handle duplicates
     // Prefer admin accounts, then most recent
@@ -982,18 +1004,10 @@ export class SupabaseService {
       .order('created_at', { ascending: false }) // Most recent first
       .limit(1);
 
-    console.log(`[SupabaseService.getParentByEmail] Exact match result:`, {
-      found: !!accounts && accounts.length > 0,
-      count: accounts?.length || 0,
-      errorCode: error?.code,
-      errorMessage: error?.message
-    });
-
     let data = accounts && accounts.length > 0 ? accounts[0] : null;
 
     // If no exact match, try case-insensitive search
     if (!data && (!error || error.code === 'PGRST116')) {
-      console.log(`[SupabaseService.getParentByEmail] Exact match not found, trying case-insensitive search`);
       const { data: caseInsensitiveAccounts, error: caseInsensitiveError } = await this.supabase
         .from('parents')
         .select('*')
@@ -1002,65 +1016,11 @@ export class SupabaseService {
         .order('created_at', { ascending: false }) // Most recent first
         .limit(1);
       
-      console.log(`[SupabaseService.getParentByEmail] Case-insensitive search result:`, {
-        found: !!caseInsensitiveAccounts && caseInsensitiveAccounts.length > 0,
-        count: caseInsensitiveAccounts?.length || 0,
-        errorCode: caseInsensitiveError?.code,
-        errorMessage: caseInsensitiveError?.message
-      });
-      
       if (caseInsensitiveAccounts && caseInsensitiveAccounts.length > 0) {
         data = caseInsensitiveAccounts[0];
         error = null;
-        console.log(`[SupabaseService.getParentByEmail] Found parent with case-insensitive search:`, {
-          id: data.id,
-          email: data.email,
-          name: data.name
-        });
       } else if (caseInsensitiveError && caseInsensitiveError.code !== 'PGRST116') {
         error = caseInsensitiveError;
-      }
-    }
-
-    // If still not found, try to get a sample of emails for debugging and check for similar emails
-    if (!data) {
-      try {
-        // Get sample emails for debugging
-        const { data: sampleParents } = await this.supabase
-          .from('parents')
-          .select('email, name')
-          .limit(10);
-        
-        if (sampleParents && sampleParents.length > 0) {
-          console.log(`[SupabaseService.getParentByEmail] Sample emails in database:`, 
-            sampleParents.map(p => `"${p.email}"`).join(', '));
-          
-          // Check if there's a similar email (case-insensitive, trimmed)
-          const similarEmail = sampleParents.find(p => 
-            p.email && p.email.toLowerCase().trim() === normalizedEmail
-          );
-          if (similarEmail) {
-            console.log(`[SupabaseService.getParentByEmail] Found similar email in sample: "${similarEmail.email}" (normalized matches "${normalizedEmail}")`);
-            // Try one more time with the exact email from database
-            const { data: exactMatch } = await this.supabase
-              .from('parents')
-              .select('*')
-              .eq('email', similarEmail.email)
-              .order('is_admin', { ascending: false })
-              .order('created_at', { ascending: false })
-              .limit(1);
-            
-            if (exactMatch && exactMatch.length > 0) {
-              console.log(`[SupabaseService.getParentByEmail] Found match using exact email from database: "${similarEmail.email}"`);
-              data = exactMatch[0];
-            }
-          }
-        } else {
-          console.log(`[SupabaseService.getParentByEmail] No parents found in database at all`);
-        }
-      } catch (debugError) {
-        // Silently fail - this is just for debugging
-        console.log(`[SupabaseService.getParentByEmail] Could not fetch sample emails for debugging:`, debugError);
       }
     }
 
@@ -1074,7 +1034,6 @@ export class SupabaseService {
     }
 
     if (!data) {
-      console.log(`[SupabaseService.getParentByEmail] Parent not found for email: ${normalizedEmail}`);
       return null;
     }
 

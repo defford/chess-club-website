@@ -28,7 +28,7 @@ export default function AdminLogin() {
     // Simulate a brief loading state for better UX
     await new Promise(resolve => setTimeout(resolve, 300))
 
-    if (authenticate(password)) {
+    if (await authenticate(password)) {
       router.push("/admin")
     } else {
       setError("Incorrect password. Please try again.")

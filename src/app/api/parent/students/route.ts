@@ -18,13 +18,11 @@ export async function GET(request: NextRequest) {
 
     // Normalize email (lowercase, trim) for case-insensitive lookup
     const parentEmail = parentEmailParam.toLowerCase().trim();
-    console.log(`[Parent Students API] Fetching students for parent email: ${parentEmail}`);
 
     // Get parent information first - using cache with fallback
     let parent;
     try {
       parent = await KVCacheService.getParentByEmail(parentEmail);
-      console.log(`[Parent Students API] Parent lookup result:`, parent ? `Found (ID: ${parent.id})` : 'Not found');
     } catch (parentError: any) {
       console.error(`[Parent Students API] Error fetching parent:`, {
         error: parentError?.message || parentError,
@@ -33,7 +31,6 @@ export async function GET(request: NextRequest) {
       // Try direct dataService as fallback
       try {
         parent = await dataService.getParentByEmail(parentEmail);
-        console.log(`[Parent Students API] Fallback parent lookup:`, parent ? `Found (ID: ${parent.id})` : 'Not found');
       } catch (fallbackError: any) {
         console.error(`[Parent Students API] Fallback also failed:`, fallbackError?.message || fallbackError);
         throw new Error(`Failed to fetch parent: ${fallbackError?.message || 'Unknown error'}`);
@@ -53,7 +50,6 @@ export async function GET(request: NextRequest) {
     try {
       const cachedStudents = await KVCacheService.getStudentsByParentId(parent.id);
       students = Array.isArray(cachedStudents) ? cachedStudents : [];
-      console.log(`[Parent Students API] Found ${students.length} students for parent ${parent.id}`);
     } catch (studentsError: any) {
       console.error(`[Parent Students API] Error fetching students:`, {
         error: studentsError?.message || studentsError,
@@ -64,7 +60,6 @@ export async function GET(request: NextRequest) {
       try {
         const fallbackStudents = await dataService.getStudentsByParentId(parent.id);
         students = Array.isArray(fallbackStudents) ? fallbackStudents : [];
-        console.log(`[Parent Students API] Fallback found ${students.length} students`);
       } catch (fallbackError: any) {
         console.error(`[Parent Students API] Fallback also failed:`, fallbackError?.message || fallbackError);
         throw new Error(`Failed to fetch students: ${fallbackError?.message || 'Unknown error'}`);

@@ -125,6 +125,7 @@ export function Header() {
               src="/Logo-NoBorder.png"
               alt="Central NL Scholastic Chess Club Logo"
               fill
+              sizes="(max-width: 768px) 152px, 152px"
               className="object-contain"
               priority
             />
