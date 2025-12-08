@@ -94,7 +94,11 @@ export function LadderPageClient() {
       }
       // Note: Admin users don't need headers as the ladder API doesn't require authentication
       
-      const response = await fetch(url, { headers })
+      const response = await fetch(url, { 
+        headers,
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      })
       if (!response.ok) {
         if (response.status === 401) {
           router.push('/parent/login?redirect=/ladder')
@@ -145,7 +149,11 @@ export function LadderPageClient() {
       }
       
       // Get games from the last 30 days to find additional dates with games
-      const response = await fetch(`/api/games?dateFrom=${thirtyDaysAgo.toISOString().split('T')[0]}&dateTo=${today}&gameType=ladder`, { headers })
+      const response = await fetch(`/api/games?dateFrom=${thirtyDaysAgo.toISOString().split('T')[0]}&dateTo=${today}&gameType=ladder`, { 
+        headers,
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      })
       if (!response.ok) {
         throw new Error('Failed to fetch games')
       }
@@ -235,7 +243,11 @@ export function LadderPageClient() {
       // Fetch all games for the player (no date filtering)
       const url = `/api/games/player/${encodeURIComponent(searchTerm)}`
       
-      const response = await fetch(url, { headers })
+      const response = await fetch(url, { 
+        headers,
+        cache: 'no-store',
+        next: { revalidate: 0 }
+      })
       if (!response.ok) {
         throw new Error('Failed to fetch player games')
       }

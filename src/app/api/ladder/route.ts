@@ -3,6 +3,9 @@ import { KVCacheService } from '@/lib/kv';
 import { dataService } from '@/lib/dataService';
 import { supabaseService } from '@/lib/supabaseService';
 
+// Force dynamic behavior
+export const dynamic = 'force-dynamic';
+
 // GET /api/ladder - Get ladder data for a specific date or current date
 export async function GET(request: NextRequest) {
   try {
@@ -382,11 +385,18 @@ export async function GET(request: NextRequest) {
       console.warn('[Ladder API] Failed to invalidate rankings cache:', cacheError);
     }
 
+    // Return with no-store headers to prevent browser caching
     return NextResponse.json({
       date: targetDate,
       games: games,
       players: ladderPlayers
-    }, { status: 200 });
+    }, { 
+      status: 200,
+      headers: {
+        'Cache-Control': 'no-store, max-age=0, must-revalidate',
+        'Pragma': 'no-cache'
+      }
+    });
   } catch (error) {
     console.error('Ladder API error:', error);
     return NextResponse.json(
@@ -395,4 +405,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
