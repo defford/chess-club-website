@@ -1,5 +1,6 @@
 import { getSupabaseClient } from './supabaseClient';
 import { EloService } from './eloService';
+import { LADDER_CONFIG } from './config';
 import type {
   RegistrationData,
   EventData,
@@ -502,7 +503,8 @@ export class SupabaseService {
       const { data: allLadderGames } = await this.supabase
         .from('games')
         .select('id, is_verified')
-        .eq('game_type', 'ladder');
+        .eq('game_type', 'ladder')
+        .gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE);
       
       const verifiedCount = allLadderGames?.filter(g => g.is_verified).length || 0;
       const unverifiedCount = allLadderGames?.filter(g => !g.is_verified).length || 0;
@@ -514,12 +516,17 @@ export class SupabaseService {
       const [gamesResult, membersResult] = await Promise.all([
         this.logPerformance(
           async () => {
+            let query = this.supabase.from('games').select('*').eq('game_type', 'ladder');
+            
+            // Apply Season Filter
+            query = query.gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE);
+
             // If no verified games exist, include unverified ones
             if (verifiedCount === 0 && unverifiedCount > 0) {
-              return this.supabase.from('games').select('*').eq('game_type', 'ladder');
+              return query;
             }
             // Otherwise, only get verified games
-            return this.supabase.from('games').select('*').eq('game_type', 'ladder').eq('is_verified', true);
+            return query.eq('is_verified', true);
           },
           {
             methodName: 'calculateRankingsFromGames',
