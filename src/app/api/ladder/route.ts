@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { KVCacheService } from '@/lib/kv';
 import { dataService } from '@/lib/dataService';
 import { supabaseService } from '@/lib/supabaseService';
+import { LADDER_CONFIG } from '@/lib/config';
 
 // Force dynamic behavior
 export const dynamic = 'force-dynamic';
@@ -104,10 +105,13 @@ export async function GET(request: NextRequest) {
         console.warn('[Ladder API] Failed to fetch ELO ratings in fallback calculation:', error);
       }
       
-      // Process all games to calculate stats
-      const allGames = await dataService.getGames();
-      const allLadderGames = allGames.filter(game => game.gameType === 'ladder');
-      console.log(`[Ladder API] Processing ${allLadderGames.length} total ladder games for stats calculation`);
+      // Process all games to calculate stats (filtered by season start date)
+      const allGames = await dataService.getGames({
+        dateFrom: LADDER_CONFIG.CURRENT_SEASON_START_DATE,
+        gameType: 'ladder'
+      });
+      const allLadderGames = allGames;
+      console.log(`[Ladder API] Processing ${allLadderGames.length} ladder games from season ${LADDER_CONFIG.CURRENT_SEASON_START_DATE} for stats calculation`);
       
       allLadderGames.forEach(game => {
         // Get or create player1 stats
