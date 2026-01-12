@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, X, ArrowLeft, ArrowRight, Minus, RefreshCw, Clock } from "lucide-react"
+import { Search, X, RefreshCw, Clock } from "lucide-react"
 import type { GameFormData, PlayerData, GameData } from "@/lib/types"
 
 interface SimpleGameFormProps {
@@ -146,13 +146,6 @@ export default function SimpleGameForm({
   // Get recent player IDs
   const recentPlayerIds = getRecentPlayerIds()
 
-  // Get recent players as separate array for quick buttons
-  const getRecentPlayers = (excludeId: string) => {
-    return players
-      .filter(player => recentPlayerIds.includes(player.id || '') && player.id !== excludeId)
-      .slice(0, 6) // Show top 6 recent players
-  }
-
   // Filter and sort players: recent first, then by search
   const filterAndSortPlayers = (search: string, excludeId: string, isWhite: boolean) => {
     const filtered = players.filter(player => 
@@ -172,9 +165,6 @@ export default function SimpleGameForm({
 
   const filteredWhitePlayers = filterAndSortPlayers(whiteSearch, blackPlayerId, true)
   const filteredBlackPlayers = filterAndSortPlayers(blackSearch, whitePlayerId, false)
-
-  const recentWhitePlayers = getRecentPlayers(blackPlayerId)
-  const recentBlackPlayers = getRecentPlayers(whitePlayerId)
 
   // Swap players
   const swapPlayers = () => {
@@ -241,14 +231,6 @@ export default function SimpleGameForm({
     } catch (error) {
       console.error('Error submitting game:', error)
     }
-  }
-
-  // Set date shortcuts
-  const setDateToday = () => setGameDate(new Date().toISOString().split('T')[0])
-  const setDateYesterday = () => {
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    setGameDate(yesterday.toISOString().split('T')[0])
   }
 
   const selectPlayer = (playerId: string, playerName: string, isWhite: boolean) => {
@@ -376,32 +358,6 @@ export default function SimpleGameForm({
                   White Player *
                 </label>
               </div>
-              
-              {/* Quick Recent Players - Mobile Optimized */}
-              {recentWhitePlayers.length > 0 && !whitePlayerId && (
-                <div className="mb-3">
-                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Quick Select
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {recentWhitePlayers.map(player => (
-                      <button
-                        key={player.id}
-                        type="button"
-                        onClick={() => selectPlayer(player.id || '', player.name, true)}
-                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md font-medium transition-colors touch-manipulation min-h-[44px] flex items-center"
-                        disabled={isLoading}
-                      >
-                        {player.name}
-                        {player.eloRating !== undefined && (
-                          <span className="ml-1 text-xs text-gray-500">({player.eloRating})</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
               
               <div className="relative" ref={whiteDropdownRef}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -558,32 +514,6 @@ export default function SimpleGameForm({
                 </label>
               </div>
               
-              {/* Quick Recent Players - Mobile Optimized */}
-              {recentBlackPlayers.length > 0 && !blackPlayerId && (
-                <div className="mb-3">
-                  <div className="text-xs text-gray-500 mb-2 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    Quick Select
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {recentBlackPlayers.map(player => (
-                      <button
-                        key={player.id}
-                        type="button"
-                        onClick={() => selectPlayer(player.id || '', player.name, false)}
-                        className="px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-md font-medium transition-colors touch-manipulation min-h-[44px] flex items-center"
-                        disabled={isLoading}
-                      >
-                        {player.name}
-                        {player.eloRating !== undefined && (
-                          <span className="ml-1 text-xs text-gray-500">({player.eloRating})</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
               <div className="relative" ref={blackDropdownRef}>
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
                 <input
@@ -665,39 +595,13 @@ export default function SimpleGameForm({
                 <label className="block text-sm font-medium text-[--color-text-primary] mb-2 text-center">
                   Game Date
                 </label>
-                <div className="flex flex-col sm:flex-row gap-2 items-center">
-                  <input
-                    type="date"
-                    value={gameDate}
-                    onChange={(e) => setGameDate(e.target.value)}
-                    className="w-full sm:flex-1 px-3 py-3 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] text-center text-base sm:text-sm min-h-[44px]"
-                    disabled={isLoading}
-                  />
-                  <div className="flex gap-2 w-full sm:w-auto">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={setDateToday}
-                      disabled={isLoading}
-                      title="Set to today"
-                      className="flex-1 sm:flex-none text-sm px-4 py-2 min-h-[44px] touch-manipulation"
-                    >
-                      Today
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={setDateYesterday}
-                      disabled={isLoading}
-                      title="Set to yesterday"
-                      className="flex-1 sm:flex-none text-sm px-4 py-2 min-h-[44px] touch-manipulation"
-                    >
-                      Yesterday
-                    </Button>
-                  </div>
-                </div>
+                <input
+                  type="date"
+                  value={gameDate}
+                  onChange={(e) => setGameDate(e.target.value)}
+                  className="w-full px-3 py-3 sm:py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-primary] text-center text-base sm:text-sm min-h-[44px]"
+                  disabled={isLoading}
+                />
               </div>
             </div>
           )}
