@@ -417,6 +417,7 @@ export class SupabaseService {
       event_id: data.eventId,
       player_name: data.playerName,
       player_grade: data.playerGrade,
+      player_school: data.playerSchool,
       additional_notes: data.additionalNotes,
       timestamp: data.timestamp || new Date().toISOString(),
     });

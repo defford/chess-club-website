@@ -71,7 +71,7 @@ export default function AdminEventsPage() {
       setLoading(true)
       setError(null)
 
-      const response = await fetch("/api/events")
+      const response = await fetch(`/api/events?t=${Date.now()}`)
       if (!response.ok) throw new Error("Failed to fetch events")
 
       const data = await response.json()

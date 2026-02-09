@@ -27,6 +27,7 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
     playerName: '',
     playerAge: '',
     playerGrade: '',
+    playerSchool: '',
     emergencyContact: '',
     emergencyPhone: '',
     medicalInfo: '',
@@ -156,6 +157,7 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
             eventName: selectedEvent.name,
             playerName: selectedStudent.name,
             playerGrade: selectedStudent.grade,
+            playerSchool: registrationData.playerSchool,
             parentEmail: parentSession?.email,
             additionalNotes: registrationData.medicalInfo || ''
           }
@@ -205,6 +207,7 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
         playerName: '',
         playerAge: '',
         playerGrade: '',
+        playerSchool: '',
         emergencyContact: '',
         emergencyPhone: '',
         medicalInfo: '',
@@ -443,6 +446,23 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
                       
                       <div>
                         <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                          School *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                          value={registrationData.playerSchool}
+                          onChange={(e) => handleInputChange('playerSchool', e.target.value)}
+                          placeholder="e.g. Gander Elementary"
+                        />
+                        <p className="text-xs text-[--color-text-secondary] mt-1">
+                          This is needed to record your player's performance for the Chess and Math Association
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
                           Additional Notes (Optional)
                         </label>
                         <textarea
@@ -534,6 +554,23 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
                             value={registrationData.playerGrade}
                             onChange={(e) => handleInputChange('playerGrade', e.target.value)}
                           />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-[--color-text-primary] mb-1">
+                            School *
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[--color-secondary]"
+                            value={registrationData.playerSchool}
+                            onChange={(e) => handleInputChange('playerSchool', e.target.value)}
+                            placeholder="e.g. Gander Elementary"
+                          />
+                          <p className="text-xs text-[--color-text-secondary] mt-1">
+                            This is needed to record your player's performance for the Chess and Math Association
+                          </p>
                         </div>
                         
                         <div>

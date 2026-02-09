@@ -191,6 +191,7 @@ export interface EventRegistrationData {
   eventId: string;
   playerName: string;
   playerGrade: string;
+  playerSchool?: string;
   additionalNotes: string;
   timestamp?: string;
 }

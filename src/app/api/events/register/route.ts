@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
     const requiredFields = [
       'eventId',
       'playerName',
-      'playerGrade'
+      'playerGrade',
+      'playerSchool'
     ];
     
     for (const field of requiredFields) {
