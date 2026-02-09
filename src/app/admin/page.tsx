@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { isAuthenticated, logout, refreshSession } from "@/lib/auth"
-import { Users, LogOut, Gamepad2, ClipboardList, ShieldCheck } from "lucide-react"
+import { Users, LogOut, Gamepad2, ClipboardList, ShieldCheck, CalendarDays } from "lucide-react"
 import Link from "next/link"
 
 export default function AdminDashboard() {
@@ -89,6 +89,13 @@ export default function AdminDashboard() {
       icon: ClipboardList,
       href: "/admin/attendance",
       count: "Active",
+    },
+    {
+      title: "Event Management",
+      description: "Create and manage chess club events",
+      icon: CalendarDays,
+      href: "/admin/events",
+      count: "Schedule events",
     },
     {
       title: "Admin Users",
