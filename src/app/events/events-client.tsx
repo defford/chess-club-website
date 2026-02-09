@@ -121,9 +121,10 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
     }
   }
 
-  const filteredEvents = selectedCategory === "all" 
+  const filteredEvents = (selectedCategory === "all" 
     ? allEvents 
     : allEvents.filter(event => event.category === selectedCategory)
+  ).filter(event => !event.status || event.status === 'active')
 
   const categories = [
     { value: "all", label: "All Events" },

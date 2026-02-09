@@ -7,7 +7,7 @@ export async function EventsPreview() {
   
   // Filter for upcoming/active events and take top 3
   const upcomingEvents = allEvents
-    .filter(event => event.status === 'active')
+    .filter(event => !event.status || event.status === 'active')
     .slice(0, 3);
   
   return <EventsPreviewClient initialEvents={upcomingEvents} />;

@@ -29,7 +29,7 @@ export function EventsPreviewClient({ initialEvents = [] }: EventsPreviewClientP
           const eventsData = await response.json()
           // Filter for upcoming/active events and take top 3
           const upcomingEvents = eventsData
-            .filter((event: EventData) => event.status === 'active')
+            .filter((event: EventData) => !event.status || event.status === 'active')
             .slice(0, 3)
           setEvents(upcomingEvents)
         }
