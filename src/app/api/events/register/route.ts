@@ -23,11 +23,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Add the registration to the "event registrations" sheet
+    // Add the registration (this also increments participants internally)
     await dataService.addEventRegistration(registrationData);
-    
-    // Update the event participant count
-    await dataService.incrementEventParticipants(registrationData.eventId);
     
     return NextResponse.json(
       { message: 'Event registration successful' },

@@ -413,14 +413,17 @@ export class SupabaseService {
   }
 
   async addEventRegistration(data: EventRegistrationData): Promise<void> {
-    const { error } = await this.supabase.from('event_registrations').insert({
+    const insertData: Record<string, string> = {
       event_id: data.eventId,
       player_name: data.playerName,
       player_grade: data.playerGrade,
-      player_school: data.playerSchool,
       additional_notes: data.additionalNotes,
       timestamp: data.timestamp || new Date().toISOString(),
-    });
+    };
+    if (data.playerSchool) {
+      insertData.player_school = data.playerSchool;
+    }
+    const { error } = await this.supabase.from('event_registrations').insert(insertData);
 
     if (error) {
       console.error('Error writing event registration to Supabase:', error);

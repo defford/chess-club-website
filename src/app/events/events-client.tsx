@@ -165,7 +165,11 @@ export function EventsPageClient({ initialEvents = [] }: EventsPageClientProps) 
         : {
             eventId: selectedEvent.id,
             eventName: selectedEvent.name,
-            ...registrationData
+            playerName: registrationData.playerName,
+            playerGrade: registrationData.playerGrade,
+            playerSchool: registrationData.playerSchool,
+            parentEmail: registrationData.parentEmail,
+            additionalNotes: registrationData.medicalInfo || ''
           }
 
       const response = await fetch('/api/events/register', {
