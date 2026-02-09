@@ -4,15 +4,13 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronLeft, Mail, MessageSquare, Loader2 } from "lucide-react"
+import { ChevronLeft, Mail, Loader2 } from "lucide-react"
 import Link from "next/link"
 import { clientAuthService } from "@/lib/clientAuth"
 
 export default function ParentLogin() {
   const router = useRouter()
   const [email, setEmail] = useState("")
-  const [smsNumber, setSmsNumber] = useState("")
-  const [preferSms, setPreferSms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
@@ -38,8 +36,7 @@ export default function ParentLogin() {
         },
         body: JSON.stringify({
           email,
-          smsNumber: preferSms ? smsNumber : undefined,
-          preferSms
+          preferSms: false
         }),
       })
 
@@ -113,43 +110,12 @@ export default function ParentLogin() {
                 />
               </div>
 
-              {/* SMS Option - Future feature
-              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    id="preferSms"
-                    checked={preferSms}
-                    onChange={(e) => setPreferSms(e.target.checked)}
-                    className="h-4 w-4 text-[--color-primary] focus:ring-[--color-primary] border-gray-300 rounded"
-                  />
-                  <label htmlFor="preferSms" className="ml-2 block text-sm text-gray-700">
-                    Send via SMS instead of email (Coming Soon)
-                  </label>
-                </div>
-                
-                {preferSms && (
-                  <div className="mt-3">
-                    <input
-                      type="tel"
-                      value={smsNumber}
-                      onChange={(e) => setSmsNumber(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[--color-primary] focus:border-transparent"
-                      placeholder="(555) 123-4567"
-                    />
-                  </div>
-                )}
-                
-                <p className="text-xs text-gray-500 mt-2">
-                  SMS authentication will be available soon. Currently using email only.
-                </p>
-              </div> */}
+              {/* SMS Option - Future feature */}
 
               <Button 
                 type="submit" 
-                className="w-full bg-black" 
+                className="w-full" 
                 size="lg"
-                variant="outline"
                 disabled={loading || !email}
               >
                 {loading ? (

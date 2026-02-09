@@ -2155,15 +2155,42 @@ export class SupabaseService {
   }
 
   async addAttendance(meetId: string, playerIds: string[]): Promise<void> {
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/36d9b09b-e135-4089-a4a2-9019797328ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabaseService.ts:addAttendance:entry',message:'addAttendance called',data:{meetId,playerIds,playerIdsLength:playerIds?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H5'})}).catch(()=>{});
+    // #endregion
+    
+    // System players that are synthetically added in /api/members but not in the database
+    const systemPlayers: Record<string, string> = {
+      'unknown_opponent': 'Unknown Opponent',
+    };
+    
     // Get player names for each playerId
     const members = await this.getMembersFromParentsAndStudents();
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/36d9b09b-e135-4089-a4a2-9019797328ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabaseService.ts:addAttendance:members',message:'Members fetched',data:{membersCount:members?.length,sampleMemberIds:members?.slice(0,5).map((m:any)=>({studentId:m.studentId,rowIndex:m.rowIndex,playerName:m.playerName}))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H4'})}).catch(()=>{});
+    // #endregion
     
     const attendanceRecords = playerIds
       .map((playerId) => {
+        // Check if this is a system player first
+        if (systemPlayers[playerId]) {
+          // #region agent log
+          fetch('http://127.0.0.1:7243/ingest/36d9b09b-e135-4089-a4a2-9019797328ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabaseService.ts:addAttendance:systemPlayer',message:'System player matched',data:{playerId,playerName:systemPlayers[playerId]},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1'})}).catch(()=>{});
+          // #endregion
+          return {
+            meet_id: meetId,
+            player_id: playerId,
+            player_name: systemPlayers[playerId],
+          };
+        }
+        
         const member = members.find((m) => {
           const memberId = m.studentId || (m.rowIndex ? `reg_row_${m.rowIndex}` : null);
           return memberId === playerId;
         });
+        // #region agent log
+        fetch('http://127.0.0.1:7243/ingest/36d9b09b-e135-4089-a4a2-9019797328ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabaseService.ts:addAttendance:lookup',message:'Player lookup result',data:{playerId,found:!!member,memberName:member?.playerName,lookupIdsChecked:members?.slice(0,3).map((m:any)=>m.studentId||(m.rowIndex?`reg_row_${m.rowIndex}`:null))},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+        // #endregion
 
         if (!member) {
           console.warn(`Player with ID ${playerId} not found`);
@@ -2177,8 +2204,14 @@ export class SupabaseService {
         };
       })
       .filter((record): record is { meet_id: string; player_id: string; player_name: string } => record !== null);
+    // #region agent log
+    fetch('http://127.0.0.1:7243/ingest/36d9b09b-e135-4089-a4a2-9019797328ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabaseService.ts:addAttendance:records',message:'Attendance records built',data:{recordsCount:attendanceRecords.length,records:attendanceRecords},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H3'})}).catch(()=>{});
+    // #endregion
 
     if (attendanceRecords.length === 0) {
+      // #region agent log
+      fetch('http://127.0.0.1:7243/ingest/36d9b09b-e135-4089-a4a2-9019797328ab',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'supabaseService.ts:addAttendance:noRecords',message:'No valid players - throwing error',data:{playerIdsAttempted:playerIds},timestamp:Date.now(),sessionId:'debug-session',runId:'post-fix',hypothesisId:'H1,H2,H3'})}).catch(()=>{});
+      // #endregion
       throw new Error('No valid players found to add to attendance');
     }
 
