@@ -1,6 +1,6 @@
 import { SupabaseService } from './supabaseService';
 import { KVCacheService } from './kv';
-import type { EventData, PlayerData, EventRegistrationData, ParentRegistrationData, StudentRegistrationData, SelfRegistrationData } from './types';
+import type { EventData, PlayerData, EventRegistrationData, ParentRegistrationData, StudentRegistrationData, SelfRegistrationData, TournamentData } from './types';
 
 /**
  * EnhancedSupabaseService - Extends SupabaseService with cache invalidation
@@ -213,6 +213,67 @@ export class EnhancedSupabaseService extends SupabaseService {
   // Batch method to get all data efficiently
   async getAllDataBatch() {
     return await super.getAllDataBatch();
+  }
+
+  // Override tournament methods to sync with events
+  async updateTournament(tournamentId: string, updates: Partial<TournamentData>): Promise<void> {
+    // 1. Get the tournament before update to know its name (if name not in updates)
+    let tournamentName = updates.name;
+    
+    if (!tournamentName && updates.status) {
+      try {
+        const currentTournament = await this.getTournamentById(tournamentId);
+        if (currentTournament) {
+          tournamentName = currentTournament.name;
+        }
+      } catch (error) {
+        console.error('Error fetching tournament for sync:', error);
+      }
+    }
+
+    // 2. Perform the update
+    await super.updateTournament(tournamentId, updates);
+    
+    // 3. Sync status with Event if status changed
+    if (updates.status && tournamentName) {
+      console.log(`Syncing tournament status '${updates.status}' for '${tournamentName}' to events...`);
+      
+      try {
+        // Find matching event by name
+        const events = await this.getEvents();
+        const matchingEvent = events.find(e => e.name === tournamentName);
+        
+        if (matchingEvent && matchingEvent.id && matchingEvent.status !== updates.status) {
+          console.log(`Found matching event ${matchingEvent.id} (${matchingEvent.name}). Updating status to ${updates.status}`);
+          
+          // Map tournament status to event status
+          // Tournament: 'upcoming' | 'active' | 'completed' | 'cancelled'
+          // Event: 'active' | 'cancelled' | 'completed'
+          let eventStatus: 'active' | 'cancelled' | 'completed' | undefined;
+          
+          switch (updates.status) {
+            case 'completed':
+              eventStatus = 'completed';
+              break;
+            case 'cancelled':
+              eventStatus = 'cancelled';
+              break;
+            case 'active':
+            case 'upcoming':
+              eventStatus = 'active';
+              break;
+          }
+          
+          if (eventStatus && matchingEvent.status !== eventStatus) {
+            await this.updateEvent(matchingEvent.id, { status: eventStatus });
+          }
+        } else {
+          console.log(`No matching event found for tournament '${tournamentName}' or status already synced.`);
+        }
+      } catch (error) {
+        console.error('Error syncing tournament status to event:', error);
+      }
+    }
   }
 }
 
