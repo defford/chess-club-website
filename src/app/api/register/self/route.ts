@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
+import { enrollStudentForCurrentSeason } from '@/lib/seasonEnrollmentService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,6 +46,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedEmail = String(data.playerEmail).toLowerCase().trim();
+    const existingParent = await dataService.getParentByEmail(normalizedEmail);
+    if (existingParent) {
+      return NextResponse.json(
+        {
+          error: 'This email is already registered. Please sign in to renew your registration for the new season.',
+          code: 'RETURNING_MEMBER'
+        },
+        { status: 409 }
+      );
+    }
+    data.playerEmail = normalizedEmail;
+
     // For self-registration, save to both parent and student sheets
     // 1. First, save as parent (since they're registering themselves)
     const parentData = {
@@ -76,6 +90,15 @@ export async function POST(request: NextRequest) {
     };
 
     const studentId = await dataService.addStudentRegistration(studentData);
+
+    await enrollStudentForCurrentSeason({
+      parentId,
+      studentId,
+      participationConsent: Boolean(data.consent),
+      photoConsent: Boolean(data.photoConsent),
+      valuesAcknowledgment: Boolean(data.valuesAcknowledgment),
+      newsletter: Boolean(data.newsletter),
+    });
 
     // Send confirmation email
     try {
