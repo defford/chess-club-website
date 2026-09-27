@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
+import { requireLinkedFamily } from '@/lib/serverAuth';
+import { enrollStudentForCurrentSeason } from '@/lib/seasonEnrollmentService';
 
 interface ChildRegistrationData {
   playerName: string;
@@ -9,7 +11,6 @@ interface ChildRegistrationData {
   emergencyContact: string;
   emergencyPhone: string;
   medicalInfo?: string;
-  parentEmail: string; // From session
 }
 
 export async function POST(request: NextRequest) {
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     const requiredFields = [
       'playerName', 'playerAge', 'playerGrade',
-      'emergencyContact', 'emergencyPhone', 'parentEmail'
+      'emergencyContact', 'emergencyPhone'
     ];
     
     for (const field of requiredFields) {
@@ -40,8 +41,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get parent information from parents sheet
-    const parent = await dataService.getParentByEmail(data.parentEmail);
+    const family = await requireLinkedFamily(request);
+    const parent = await dataService.getParentRegistration(family.primaryParentId);
     if (!parent) {
       return NextResponse.json(
         { error: 'Parent account not found. Please contact support.' },
@@ -51,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     // Add student registration to students sheet
     const studentData = {
-      parentId: parent.id,
+      parentId: family.primaryParentId,
       playerName: data.playerName,
       playerAge: data.playerAge,
       playerGrade: data.playerGrade,
@@ -61,6 +62,15 @@ export async function POST(request: NextRequest) {
     };
 
     const studentId = await dataService.addStudentRegistration(studentData);
+
+    await enrollStudentForCurrentSeason({
+      parentId: family.primaryParentId,
+      studentId,
+      participationConsent: Boolean(parent.consent),
+      photoConsent: Boolean(parent.photoConsent),
+      valuesAcknowledgment: Boolean(parent.valuesAcknowledgment),
+      newsletter: Boolean(parent.newsletter),
+    });
 
     // Prepare email data 
     const emailRegistrationData = {
@@ -99,6 +109,16 @@ export async function POST(request: NextRequest) {
       { status: 200 }
     );
   } catch (error) {
+    if (error instanceof Error && error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === 'EMAIL_NOT_VERIFIED') {
+      return NextResponse.json({ error: 'Please verify your email address first' }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === 'FAMILY_NOT_FOUND') {
+      return NextResponse.json({ error: 'Family not found' }, { status: 404 });
+    }
+
     console.error('Child registration API error:', error);
     return NextResponse.json(
       { error: 'Failed to register child. Please try again.' },
