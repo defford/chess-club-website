@@ -35,7 +35,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Save parent registration to Google Sheets
+    const normalizedEmail = String(data.parentEmail).toLowerCase().trim();
+    const existingParent = await dataService.getParentByEmail(normalizedEmail);
+    if (existingParent) {
+      return NextResponse.json(
+        {
+          error: 'This email is already registered. Please sign in as a returning family to register for the new season.',
+          code: 'RETURNING_FAMILY'
+        },
+        { status: 409 }
+      );
+    }
+
+    data.parentEmail = normalizedEmail;
+
+    // Save the new parent profile
     const parentData = {
       ...data,
       registrationType: 'parent' as const
