@@ -233,6 +233,32 @@ export default function ParentDashboard() {
       </div>
 
       <div className="max-w-6xl mx-auto px-4 py-8">
+        {!isSelfRegistered && (
+          <Card className="mb-6 border-[#2D5BE3]">
+            <CardContent className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">2026–27 Registration</h2>
+                <p className="text-gray-600 mt-1">Confirm which of your existing players are returning this season without creating duplicate profiles.</p>
+              </div>
+              <Link href="/parent/renew">
+                <Button variant="outline">Register for 2026–27</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
+        {isSelfRegistered && (
+          <Card className="mb-6 border-[#2D5BE3]">
+            <CardContent className="p-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">2026–27 Registration</h2>
+                <p className="text-gray-600 mt-1">Renew your existing player profile for the new season.</p>
+              </div>
+              <Link href="/parent/renew">
+                <Button variant="outline">Renew for 2026–27</Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
             <p className="text-red-800">{error}</p>

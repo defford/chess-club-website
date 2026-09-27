@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { emailService } from '@/lib/email';
+import { enrollStudentForCurrentSeason } from '@/lib/seasonEnrollmentService';
 
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +23,29 @@ export async function POST(request: NextRequest) {
     }
 
     // Add student registration to Supabase/Google Sheets
+    const existingStudents = await dataService.getStudentsByParentId(data.parentId);
+    const duplicateStudent = existingStudents.find((student) =>
+      student.name.trim().toLowerCase() === String(data.playerName).trim().toLowerCase()
+    );
+
+    if (duplicateStudent) {
+      return NextResponse.json(
+        { error: 'This student already exists on the family account.', code: 'STUDENT_EXISTS' },
+        { status: 409 }
+      );
+    }
+
     const studentId = await dataService.addStudentRegistration(data);
+    const parent = await dataService.getParentRegistration(data.parentId);
+
+    await enrollStudentForCurrentSeason({
+      parentId: data.parentId,
+      studentId,
+      participationConsent: Boolean(parent?.consent),
+      photoConsent: Boolean(parent?.photoConsent),
+      valuesAcknowledgment: Boolean(parent?.valuesAcknowledgment),
+      newsletter: Boolean(parent?.newsletter),
+    });
 
     // Send confirmation email (optional - could be batched)
     try {
