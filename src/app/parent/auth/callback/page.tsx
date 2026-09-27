@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { Loader2 } from "lucide-react"
 import { getBrowserAuthClient } from "@/lib/browserAuth"
 import { clientAuthService } from "@/lib/clientAuth"
@@ -14,7 +14,7 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const finish = async () => {
       try {
-        const requested = searchParams.get('redirect')
+        const requested = new URLSearchParams(window.location.search).get('redirect')
         const redirectPath = requested?.startsWith('/') && !requested.startsWith('//')
           ? requested
           : '/parent/dashboard'
@@ -53,7 +53,7 @@ export default function AuthCallbackPage() {
     }
 
     void finish()
-  }, [router, searchParams])
+  }, [router])
 
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
