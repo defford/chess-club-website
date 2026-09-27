@@ -27,3 +27,18 @@ ALTER TABLE season_enrollments ENABLE ROW LEVEL SECURITY;
 CREATE TRIGGER update_season_enrollments_updated_at
   BEFORE UPDATE ON season_enrollments
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+
+-- Link verified Supabase Auth users to one or more legacy parent records.
+CREATE TABLE IF NOT EXISTS parent_auth_links (
+  auth_user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  parent_id TEXT NOT NULL REFERENCES parents(id) ON DELETE CASCADE,
+  linked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (auth_user_id, parent_id),
+  UNIQUE (parent_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_parent_auth_links_user
+  ON parent_auth_links(auth_user_id);
+
+ALTER TABLE parent_auth_links ENABLE ROW LEVEL SECURITY;
