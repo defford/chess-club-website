@@ -20,7 +20,7 @@ export default function ParentLogin() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const requestedRedirect = params.get('redirect')
-    const safeRedirect = requestedRedirect?.startsWith('/') ? requestedRedirect : '/parent/dashboard'
+    const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//') ? requestedRedirect : '/parent/dashboard'
     setRedirectPath(safeRedirect)
 
     if (clientAuthService.isParentAuthenticated()) {
