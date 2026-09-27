@@ -6,6 +6,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { CheckCircle, Users, Calendar, Trophy, DollarSign, Plus, X } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 
 interface Student {
   id: string;
@@ -458,12 +459,28 @@ function RegisterPageContent() {
               <CardHeader>
                 <CardTitle>Step 1: Registration Type</CardTitle>
                 <CardDescription>
-                  Please select how you would like to register for the chess club.
+                  Returning members should sign in to renew for 2026–27. New families can create a registration below.
                 </CardDescription>
               </CardHeader>
               
               <CardContent>
                 <div className="space-y-4">
+                  <Link href="/parent/login">
+                    <div className="border-2 border-[#2D5BE3] rounded-lg p-6 cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-6 h-6 rounded-full border-2 border-[#2D5BE3] flex items-center justify-center">
+                          <div className="w-3 h-3 rounded-full bg-[#2D5BE3]"></div>
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-lg text-[--color-text-primary]">Returning family or player</h3>
+                          <p className="text-sm text-[--color-text-secondary]">
+                            Sign in with the email you used before, then confirm who is returning for the 2026–27 season. Your existing player history will be kept.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+
                   <div 
                     className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-[--color-primary] hover:bg-blue-50 transition-colors"
                     onClick={() => handleRegistrationTypeSelect('parent')}
