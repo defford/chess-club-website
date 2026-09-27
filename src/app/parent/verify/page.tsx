@@ -84,7 +84,7 @@ function ParentVerifyContent() {
         
         setMessage('Successfully signed in! Redirecting to your dashboard...')
         setTimeout(() => {
-          router.push('/parent/dashboard')
+          router.push(result.redirectPath || '/parent/dashboard')
         }, 2000)
       } else if (result.action) {
         // Approval action completed
