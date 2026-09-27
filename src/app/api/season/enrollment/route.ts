@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { CURRENT_SEASON } from '@/lib/config';
+import { parentAuthService } from '@/lib/parentAuth';
 import {
   enrollStudentForCurrentSeason,
   getSeasonEnrollmentsForParent,
@@ -9,12 +10,13 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const email = new URL(request.url).searchParams.get('email')?.toLowerCase().trim();
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    const sessionToken = request.cookies.get('cnlscc-session')?.value;
+    const session = sessionToken ? parentAuthService.verifySessionToken(sessionToken) : null;
+    if (!session) {
+      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
     }
 
-    const parent = await dataService.getParentByEmail(email);
+    const parent = await dataService.getParentByEmail(session.email);
     if (!parent) {
       return NextResponse.json({ error: 'Family not found' }, { status: 404 });
     }
@@ -50,12 +52,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const email = String(body.email || '').toLowerCase().trim();
+    const sessionToken = request.cookies.get('cnlscc-session')?.value;
+    const session = sessionToken ? parentAuthService.verifySessionToken(sessionToken) : null;
+    if (!session) {
+      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
+    }
+
     const studentIds = Array.isArray(body.studentIds) ? body.studentIds.map(String) : [];
     const studentUpdates = Array.isArray(body.students) ? body.students : [];
     const parentPhone = String(body.parentPhone || '').trim();
 
-    if (!email || studentIds.length === 0) {
+    if (studentIds.length === 0) {
       return NextResponse.json(
         { error: 'Choose at least one student to register' },
         { status: 400 }
@@ -69,7 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parent = await dataService.getParentByEmail(email);
+    const parent = await dataService.getParentByEmail(session.email);
     if (!parent) {
       return NextResponse.json({ error: 'Family not found' }, { status: 404 });
     }
