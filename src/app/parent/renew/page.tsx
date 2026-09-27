@@ -46,32 +46,34 @@ export default function RenewMembershipPage() {
   useEffect(() => {
     let cancelled = false
 
-    getBrowserAuthClient()
-      .then((supabase) => supabase.auth.getSession())
-      .then(({ data }) => {
+    const load = async () => {
+      try {
+        const supabase = await getBrowserAuthClient()
+        const { data } = await supabase.auth.getSession()
+
         if (!data.session) {
           router.push('/parent/login?redirect=/parent/renew')
-          return null
+          return
         }
 
-        if (!cancelled) setEmail(data.session.user.email || "")
-        return authFetch('/api/season/enrollment', { cache: 'no-store' })
-      })
-      .then((response) => {
-        if (!response) return null
-        return response
-      .then(async (response) => {
-        if (!response) return null
+        if (!cancelled) {
+          setEmail(data.session.user.email || "")
+        }
+
+        const response = await authFetch('/api/season/enrollment', { cache: 'no-store' })
         const result = await response.json()
+
         if (response.status === 401) {
           router.push('/parent/login?redirect=/parent/renew')
           throw new Error('Please sign in again to continue.')
         }
-        if (!response.ok) throw new Error(result.error || 'Failed to load registration')
-        return result
-      })
-      .then((result) => {
-        if (!result || cancelled) return
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to load registration')
+        }
+
+        if (cancelled) return
+
         setSeasonLabel(result.season.label)
         setStudents(result.students)
         setSelected(
@@ -82,11 +84,16 @@ export default function RenewMembershipPage() {
         setParentPhone(result.parent.phone || "")
         setPhotoConsent(Boolean(result.parent.photoConsent))
         setNewsletter(Boolean(result.parent.newsletter))
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load registration'))
-      .finally(() => {
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load registration')
+        }
+      } finally {
         if (!cancelled) setLoading(false)
-      })
+      }
+    }
+
+    void load()
 
     return () => {
       cancelled = true
