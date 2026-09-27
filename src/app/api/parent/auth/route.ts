@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       preferSms,
       emailExistsInRegistrations: emailExists,
       isSelfRegistered: actualIsSelfRegistered,
-      redirectPath: typeof redirectPath === 'string' && redirectPath.startsWith('/') ? redirectPath : undefined
+      redirectPath: typeof redirectPath === 'string' && redirectPath.startsWith('/') && !redirectPath.startsWith('//') ? redirectPath : undefined
     });
 
     return NextResponse.json(
