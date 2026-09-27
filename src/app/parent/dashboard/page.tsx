@@ -53,6 +53,8 @@ export default function ParentDashboard() {
       }
 
       setParentEmail(data.session.user.email || '')
+      const legacySession = clientAuthService.getCurrentParentSession()
+      setIsSelfRegistered(Boolean(legacySession?.isSelfRegistered))
       loadPlayers()
       loadEvents()
     }
