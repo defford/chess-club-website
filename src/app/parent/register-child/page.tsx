@@ -22,7 +22,6 @@ export default function RegisterChildPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const [parentEmail, setParentEmail] = useState("")
   const [formData, setFormData] = useState<ChildRegistrationForm>({
     playerName: "",
     playerAge: "",
