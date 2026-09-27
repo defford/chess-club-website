@@ -55,6 +55,9 @@ export class ClientAuthService {
   logoutParent(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(this.AUTH_KEY);
+      void fetch('/api/parent/logout', { method: 'POST' }).catch(() => {
+        // Local session is still cleared even if the server logout request fails.
+      });
       // Dispatch custom event for same-tab authentication changes
       window.dispatchEvent(new CustomEvent('authStateChanged', { 
         detail: { authenticated: false } 
