@@ -67,7 +67,8 @@ export async function POST(request: NextRequest) {
               isSelfRegistered: session.isSelfRegistered,
               registrationType: session.registrationType,
               isAdmin: session.isAdmin
-            }
+            },
+            redirectPath: decoded.redirectPath && decoded.redirectPath.startsWith('/') ? decoded.redirectPath : '/parent/dashboard'
           },
           { status: 200 }
         );
