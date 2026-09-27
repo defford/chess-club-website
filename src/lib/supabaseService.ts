@@ -171,6 +171,32 @@ export class SupabaseService {
     return parentId;
   }
 
+  async updateParentRegistration(parentId: string, updates: Partial<ParentRegistrationData>): Promise<void> {
+    const updateData: any = {};
+
+    if (updates.parentName !== undefined) updateData.name = updates.parentName;
+    if (updates.parentEmail !== undefined) updateData.email = updates.parentEmail.toLowerCase().trim();
+    if (updates.parentPhone !== undefined) updateData.phone = updates.parentPhone;
+    if (updates.hearAboutUs !== undefined) updateData.hear_about_us = updates.hearAboutUs;
+    if (updates.provincialInterest !== undefined) updateData.provincial_interest = updates.provincialInterest;
+    if (updates.volunteerInterest !== undefined) updateData.volunteer_interest = updates.volunteerInterest;
+    if (updates.consent !== undefined) updateData.consent = updates.consent;
+    if (updates.photoConsent !== undefined) updateData.photo_consent = updates.photoConsent;
+    if (updates.valuesAcknowledgment !== undefined) updateData.values_acknowledgment = updates.valuesAcknowledgment;
+    if (updates.newsletter !== undefined) updateData.newsletter = updates.newsletter;
+    updateData.updated_at = new Date().toISOString();
+
+    const { error } = await this.supabase
+      .from('parents')
+      .update(updateData)
+      .eq('id', parentId);
+
+    if (error) {
+      console.error('Error updating parent registration in Supabase:', error);
+      throw new Error('Failed to update parent registration in Supabase');
+    }
+  }
+
   async addStudentRegistration(data: StudentRegistrationData): Promise<string> {
     const studentId = `student_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const timestamp = new Date().toISOString();
