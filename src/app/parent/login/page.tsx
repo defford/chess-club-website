@@ -38,8 +38,25 @@ export default function ParentLogin() {
 
     getBrowserAuthClient()
       .then((supabase) => supabase.auth.getSession())
-      .then(({ data }) => {
-        if (data.session) router.push(safeRedirect)
+      .then(async ({ data }) => {
+        if (!data.session) return
+
+        const response = await fetch('/api/auth/family', {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+          cache: 'no-store',
+        })
+        const result = await response.json()
+        if (!response.ok) return
+
+        clientAuthService.setParentSession({
+          parentId: result.family.primaryParentId,
+          email: result.family.email,
+          loginTime: Date.now(),
+          isSelfRegistered: result.family.isSelfRegistered,
+          registrationType: result.family.isSelfRegistered ? 'self' : 'parent',
+        })
+
+        router.push(safeRedirect)
       })
       .catch(() => {
         // The form will surface configuration errors if the user submits.
