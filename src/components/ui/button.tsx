@@ -7,10 +7,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-[--color-primary] text-white hover:bg-[--color-primary]/90 focus-visible:ring-[--color-primary]",
-        secondary: "bg-[--color-secondary] text-[--color-accent] hover:bg-[--color-secondary]/90 focus-visible:ring-[--color-secondary]",
-        outline: "border-2 border-[--color-primary] text-[--color-primary] bg-transparent hover:bg-[#1C1F33] hover:text-white",
-        ghost: "hover:bg-[--color-neutral-light] hover:text-[--color-accent]",
+        primary: "bg-[#2D5BE3] text-white hover:bg-[#2450c9] focus-visible:ring-[#2D5BE3]",
+        secondary: "bg-[#FFD93D] text-[#1C1F33] hover:bg-[#f0c929] focus-visible:ring-[#FFD93D]",
+        outline: "border-2 border-[#2D5BE3] text-[#2D5BE3] bg-white hover:bg-[#1C1F33] hover:text-white",
+        ghost: "hover:bg-[#F8F9FA] hover:text-[#1C1F33]",
       },
       size: {
         default: "h-10 px-4 py-2",

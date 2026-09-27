@@ -53,12 +53,7 @@ export async function authenticate(password: string): Promise<boolean> {
 
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false
-  
-  // In development, always return true (bypass authentication)
-  if (isDevelopmentMode()) {
-    return true
-  }
-  
+
   try {
     const stored = localStorage.getItem(AUTH_KEY)
     if (!stored) return false

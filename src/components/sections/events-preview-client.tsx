@@ -69,7 +69,7 @@ export function EventsPreviewClient({ initialEvents = [] }: EventsPreviewClientP
               <h3 className="font-heading font-semibold text-xl text-white mb-2">
                 No upcoming events
               </h3>
-              <p className="text-[--color-text-secondary]">
+              <p className="text-white">
                 Check back soon for new events and tournaments!
               </p>
             </div>
@@ -120,7 +120,7 @@ export function EventsPreviewClient({ initialEvents = [] }: EventsPreviewClientP
 
         <div className="text-center">
           <Link href="/events">
-            <Button variant="outline" size="lg" className="text-white hover:bg-white hover:text-[#1C1F33]">
+            <Button variant="outline" size="lg" className="border-white bg-transparent text-white hover:bg-white hover:text-[#1C1F33]">
               View All Events
             </Button>
           </Link>
