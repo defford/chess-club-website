@@ -56,9 +56,14 @@ export default function RenewMembershipPage() {
     }
 
     setEmail(session.email)
-    fetch(`/api/season/enrollment?email=${encodeURIComponent(session.email)}`)
+    fetch('/api/season/enrollment')
       .then(async (response) => {
         const result = await response.json()
+        if (response.status === 401) {
+          clientAuthService.logoutParent()
+          router.push('/parent/login?redirect=/parent/renew')
+          throw new Error('Please sign in again to continue.')
+        }
         if (!response.ok) throw new Error(result.error || 'Failed to load registration')
         return result
       })
@@ -100,7 +105,6 @@ export default function RenewMembershipPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email,
           parentPhone,
           studentIds: selected,
           students: students.filter((student) => selected.includes(student.id)),
