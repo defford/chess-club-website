@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const email = String(body.email || '').toLowerCase().trim();
     const studentIds = Array.isArray(body.studentIds) ? body.studentIds.map(String) : [];
+    const studentUpdates = Array.isArray(body.students) ? body.students : [];
+    const parentPhone = String(body.parentPhone || '').trim();
 
     if (!email || studentIds.length === 0) {
       return NextResponse.json(
@@ -78,6 +80,47 @@ export async function POST(request: NextRequest) {
     if (studentIds.some((id: string) => !validIds.has(id))) {
       return NextResponse.json({ error: 'Invalid student selection' }, { status: 400 });
     }
+
+    if (!parentPhone) {
+      return NextResponse.json({ error: 'Parent/guardian phone number is required' }, { status: 400 });
+    }
+
+    const updatesById = new Map(studentUpdates.map((student: any) => [String(student.id), student]));
+
+    for (const studentId of studentIds) {
+      const update: any = updatesById.get(studentId);
+      if (!update) {
+        return NextResponse.json({ error: 'Updated player information is required for each returning player' }, { status: 400 });
+      }
+
+      const playerName = String(update.name || '').trim();
+      const playerAge = String(update.age || '').trim();
+      const playerGrade = String(update.grade || '').trim();
+      const emergencyContact = String(update.emergencyContact || '').trim();
+      const emergencyPhone = String(update.emergencyPhone || '').trim();
+
+      if (!playerName || !playerAge || !playerGrade || !emergencyContact || !emergencyPhone) {
+        return NextResponse.json({ error: 'Please complete all required player and emergency contact fields' }, { status: 400 });
+      }
+
+      await dataService.updateStudentRegistration(studentId, {
+        parentId: parent.id,
+        playerName,
+        playerAge,
+        playerGrade,
+        emergencyContact,
+        emergencyPhone,
+        medicalInfo: String(update.medicalInfo || '').trim(),
+      });
+    }
+
+    await dataService.updateParentRegistration(parent.id, {
+      parentPhone,
+      consent: true,
+      photoConsent: Boolean(body.photoConsent),
+      valuesAcknowledgment: true,
+      newsletter: Boolean(body.newsletter),
+    });
 
     const currentlyEnrolled = await getSeasonEnrollmentsForParent(parent.id);
     const selected = new Set(studentIds);
