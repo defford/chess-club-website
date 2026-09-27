@@ -317,6 +317,7 @@ export interface MagicLinkToken {
   action?: 'approve' | 'deny';
   emailExistsInRegistrations?: boolean;
   isSelfRegistered?: boolean;
+  redirectPath?: string;
   exp: number;
 }
 
