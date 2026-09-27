@@ -6,7 +6,7 @@ import Link from "next/link"
 import { CheckCircle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { clientAuthService } from "@/lib/clientAuth"
+import { authFetch, getBrowserAuthClient } from "@/lib/browserAuth"
 
 type Student = {
   id: string
@@ -44,23 +44,26 @@ export default function RenewMembershipPage() {
   const [newsletter, setNewsletter] = useState(true)
 
   useEffect(() => {
-    if (!clientAuthService.isParentAuthenticated()) {
-      router.push('/parent/login?redirect=/parent/renew')
-      return
-    }
+    let cancelled = false
 
-    const session = clientAuthService.getCurrentParentSession()
-    if (!session) {
-      router.push('/parent/login?redirect=/parent/renew')
-      return
-    }
+    getBrowserAuthClient()
+      .then((supabase) => supabase.auth.getSession())
+      .then(({ data }) => {
+        if (!data.session) {
+          router.push('/parent/login?redirect=/parent/renew')
+          return null
+        }
 
-    setEmail(session.email)
-    fetch('/api/season/enrollment')
+        if (!cancelled) setEmail(data.session.user.email || "")
+        return authFetch('/api/season/enrollment', { cache: 'no-store' })
+      })
+      .then((response) => {
+        if (!response) return null
+        return response
       .then(async (response) => {
+        if (!response) return null
         const result = await response.json()
         if (response.status === 401) {
-          clientAuthService.logoutParent()
           router.push('/parent/login?redirect=/parent/renew')
           throw new Error('Please sign in again to continue.')
         }
@@ -68,6 +71,7 @@ export default function RenewMembershipPage() {
         return result
       })
       .then((result) => {
+        if (!result || cancelled) return
         setSeasonLabel(result.season.label)
         setStudents(result.students)
         setSelected(
@@ -80,7 +84,13 @@ export default function RenewMembershipPage() {
         setNewsletter(Boolean(result.parent.newsletter))
       })
       .catch((err) => setError(err instanceof Error ? err.message : 'Failed to load registration'))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [router])
 
   const toggleStudent = (id: string) => {
@@ -101,7 +111,7 @@ export default function RenewMembershipPage() {
     setError("")
 
     try {
-      const response = await fetch('/api/season/enrollment', {
+      const response = await authFetch('/api/season/enrollment', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
