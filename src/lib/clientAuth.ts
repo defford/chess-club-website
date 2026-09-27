@@ -55,9 +55,12 @@ export class ClientAuthService {
   logoutParent(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(this.AUTH_KEY);
-      void fetch('/api/parent/logout', { method: 'POST' }).catch(() => {
-        // Local session is still cleared even if the server logout request fails.
-      });
+      void import('./browserAuth')
+        .then(({ getBrowserAuthClient }) => getBrowserAuthClient())
+        .then((supabase) => supabase.auth.signOut())
+        .catch(() => {
+          // Local session is still cleared if Supabase sign-out cannot complete.
+        });
       // Dispatch custom event for same-tab authentication changes
       window.dispatchEvent(new CustomEvent('authStateChanged', { 
         detail: { authenticated: false } 
