@@ -22,6 +22,7 @@ class ParentAuthService {
       action?: 'approve' | 'deny';
       emailExistsInRegistrations?: boolean;
       isSelfRegistered?: boolean;
+      redirectPath?: string;
     }
   ): string {
     const payload: MagicLinkToken = {
@@ -65,6 +66,7 @@ class ParentAuthService {
       preferSms?: boolean; // Whether to prefer SMS over email
       emailExistsInRegistrations?: boolean;
       isSelfRegistered?: boolean; // Whether this is for a self-registered student
+      redirectPath?: string;
     }
   ): Promise<void> {
     const token = this.generateMagicToken(email, type, options);
