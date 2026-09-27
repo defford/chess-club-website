@@ -4,7 +4,7 @@ import { dataService } from '@/lib/dataService';
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, smsNumber, preferSms, isSelfRegistered } = await request.json();
+    const { email, smsNumber, preferSms, isSelfRegistered, redirectPath } = await request.json();
     
     // Validate email
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
       smsNumber,
       preferSms,
       emailExistsInRegistrations: emailExists,
-      isSelfRegistered: actualIsSelfRegistered
+      isSelfRegistered: actualIsSelfRegistered,
+      redirectPath: typeof redirectPath === 'string' && redirectPath.startsWith('/') ? redirectPath : undefined
     });
 
     return NextResponse.json(
