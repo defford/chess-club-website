@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { CURRENT_SEASON } from '@/lib/config';
+import { parentAuthService } from '@/lib/parentAuth';
 import {
   enrollStudentForCurrentSeason,
   getSeasonEnrollmentsForParent,
@@ -9,12 +10,13 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const email = new URL(request.url).searchParams.get('email')?.toLowerCase().trim();
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    const sessionToken = request.cookies.get('cnlscc-session')?.value;
+    const session = sessionToken ? parentAuthService.verifySessionToken(sessionToken) : null;
+    if (!session) {
+      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
     }
 
-    const parent = await dataService.getParentByEmail(email);
+    const parent = await dataService.getParentByEmail(session.email);
     if (!parent) {
       return NextResponse.json({ error: 'Family not found' }, { status: 404 });
     }
@@ -50,10 +52,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const email = String(body.email || '').toLowerCase().trim();
-    const studentIds = Array.isArray(body.studentIds) ? body.studentIds.map(String) : [];
+    const sessionToken = request.cookies.get('cnlscc-session')?.value;
+    const session = sessionToken ? parentAuthService.verifySessionToken(sessionToken) : null;
+    if (!session) {
+      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
+    }
 
-    if (!email || studentIds.length === 0) {
+    const studentIds = Array.isArray(body.studentIds) ? body.studentIds.map(String) : [];
+    const studentUpdates = Array.isArray(body.students) ? body.students : [];
+    const parentPhone = String(body.parentPhone || '').trim();
+
+    if (studentIds.length === 0) {
       return NextResponse.json(
         { error: 'Choose at least one student to register' },
         { status: 400 }
@@ -67,7 +76,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parent = await dataService.getParentByEmail(email);
+    const parent = await dataService.getParentByEmail(session.email);
     if (!parent) {
       return NextResponse.json({ error: 'Family not found' }, { status: 404 });
     }
@@ -78,6 +87,47 @@ export async function POST(request: NextRequest) {
     if (studentIds.some((id: string) => !validIds.has(id))) {
       return NextResponse.json({ error: 'Invalid student selection' }, { status: 400 });
     }
+
+    if (!parentPhone) {
+      return NextResponse.json({ error: 'Parent/guardian phone number is required' }, { status: 400 });
+    }
+
+    const updatesById = new Map(studentUpdates.map((student: any) => [String(student.id), student]));
+
+    for (const studentId of studentIds) {
+      const update: any = updatesById.get(studentId);
+      if (!update) {
+        return NextResponse.json({ error: 'Updated player information is required for each returning player' }, { status: 400 });
+      }
+
+      const playerName = String(update.name || '').trim();
+      const playerAge = String(update.age || '').trim();
+      const playerGrade = String(update.grade || '').trim();
+      const emergencyContact = String(update.emergencyContact || '').trim();
+      const emergencyPhone = String(update.emergencyPhone || '').trim();
+
+      if (!playerName || !playerAge || !playerGrade || !emergencyContact || !emergencyPhone) {
+        return NextResponse.json({ error: 'Please complete all required player and emergency contact fields' }, { status: 400 });
+      }
+
+      await dataService.updateStudentRegistration(studentId, {
+        parentId: parent.id,
+        playerName,
+        playerAge,
+        playerGrade,
+        emergencyContact,
+        emergencyPhone,
+        medicalInfo: String(update.medicalInfo || '').trim(),
+      });
+    }
+
+    await dataService.updateParentRegistration(parent.id, {
+      parentPhone,
+      consent: true,
+      photoConsent: Boolean(body.photoConsent),
+      valuesAcknowledgment: true,
+      newsletter: Boolean(body.newsletter),
+    });
 
     const currentlyEnrolled = await getSeasonEnrollmentsForParent(parent.id);
     const selected = new Set(studentIds);

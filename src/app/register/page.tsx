@@ -22,6 +22,7 @@ function RegisterPageContent() {
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
   const [registrationType, setRegistrationType] = useState<'parent' | 'self' | null>(null)
+  const [showNewMemberOptions, setShowNewMemberOptions] = useState(false)
   const [parentData, setParentData] = useState({
     parentName: "",
     parentEmail: "",
@@ -355,6 +356,7 @@ function RegisterPageContent() {
                     setSubmitted(false)
                     setCurrentStep(1)
                     setRegistrationType(null)
+                    setShowNewMemberOptions(false)
                     setStudents([])
                     setParentId("")
                     setShowAddChildForm(true)
@@ -404,7 +406,7 @@ function RegisterPageContent() {
               />
             </div>
             <h1 className="font-heading font-bold text-4xl md:text-5xl text-[--color-accent]">
-              Join Our Chess Club
+              2026–27 Chess Club Registration
             </h1>
             <div className="relative h-16 w-16">
               <Image
@@ -417,7 +419,7 @@ function RegisterPageContent() {
             </div>
           </div>
           <p className="text-lg text-[--color-text-secondary] max-w-2xl mx-auto">
-            Register today for an exciting journey into the world of chess. All skill levels welcome!
+            Returning members can renew their existing profile. New members can create a registration for the 2026–27 season.
           </p>
         </div>
 
@@ -454,69 +456,85 @@ function RegisterPageContent() {
         </div>
 
         <div className="max-w-2xl mx-auto">
-          {currentStep === 1 && !registrationType && (
+          {currentStep === 1 && !registrationType && !showNewMemberOptions && (
             <Card>
               <CardHeader>
-                <CardTitle>Step 1: Registration Type</CardTitle>
+                <CardTitle>Are you returning or new to CNLSCC?</CardTitle>
                 <CardDescription>
-                  Returning members should sign in to renew for 2026–27. New families can create a registration below.
+                  Choose the option that applies to you for the 2026–27 season.
                 </CardDescription>
               </CardHeader>
-              
+
               <CardContent>
                 <div className="space-y-4">
-                  <Link href="/parent/login">
+                  <Link href="/parent/login?redirect=/parent/renew">
                     <div className="border-2 border-[#2D5BE3] rounded-lg p-6 cursor-pointer bg-blue-50 hover:bg-blue-100 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-6 h-6 rounded-full border-2 border-[#2D5BE3] flex items-center justify-center">
-                          <div className="w-3 h-3 rounded-full bg-[#2D5BE3]"></div>
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-lg text-[--color-text-primary]">Returning family or player</h3>
-                          <p className="text-sm text-[--color-text-secondary]">
-                            Sign in with the email you used before, then confirm who is returning for the 2026–27 season. Your existing player history will be kept.
-                          </p>
-                        </div>
-                      </div>
+                      <h3 className="font-semibold text-xl text-[--color-text-primary]">Returning Member</h3>
+                      <p className="text-sm text-[--color-text-secondary] mt-2">
+                        I registered before. Sign in with the email already on file, review the existing player information, and confirm who is returning this season.
+                      </p>
+                      <p className="text-xs text-blue-800 mt-2">
+                        Existing game history, ladder records, and player profiles will be kept.
+                      </p>
                     </div>
                   </Link>
 
-                  <div 
-                    className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-[--color-primary] hover:bg-blue-50 transition-colors"
+                  <button
+                    type="button"
+                    onClick={() => setShowNewMemberOptions(true)}
+                    className="w-full text-left border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-[--color-primary] hover:bg-blue-50 transition-colors"
+                  >
+                    <h3 className="font-semibold text-xl text-[--color-text-primary]">New Member</h3>
+                    <p className="text-sm text-[--color-text-secondary] mt-2">
+                      I have not registered with CNLSCC before and need to create a new player or family profile.
+                    </p>
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {currentStep === 1 && !registrationType && showNewMemberOptions && (
+            <Card>
+              <CardHeader>
+                <CardTitle>New Member Registration</CardTitle>
+                <CardDescription>
+                  Tell us who is completing the registration.
+                </CardDescription>
+              </CardHeader>
+
+              <CardContent>
+                <div className="space-y-4">
+                  <button
+                    type="button"
+                    className="w-full text-left border-2 border-gray-200 rounded-lg p-6 hover:border-[--color-primary] hover:bg-blue-50 transition-colors"
                     onClick={() => handleRegistrationTypeSelect('parent')}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 rounded-full border-2 border-[--color-primary] flex items-center justify-center">
-                        <div className="w-3 h-3 rounded-full bg-[--color-primary]"></div>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg text-[--color-text-primary]">Registering for my child</h3>
-                        <p className="text-sm text-[--color-text-secondary]">
-                          I am a parent or guardian registering my child for the chess club.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div 
-                    className="border-2 border-gray-200 rounded-lg p-6 cursor-pointer hover:border-[--color-primary] hover:bg-blue-50 transition-colors"
+                    <h3 className="font-semibold text-lg text-[--color-text-primary]">Parent or guardian registering a child</h3>
+                    <p className="text-sm text-[--color-text-secondary] mt-1">
+                      Use this option for children and youth being registered by a parent or guardian.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="w-full text-left border-2 border-gray-200 rounded-lg p-6 hover:border-[--color-primary] hover:bg-blue-50 transition-colors"
                     onClick={() => handleRegistrationTypeSelect('self')}
                   >
-                    <div className="flex items-center space-x-3">
-                      <div className="w-6 h-6 rounded-full border-2 border-[--color-primary] flex items-center justify-center">
-                        <div className="w-3 h-3 rounded-full bg-[--color-primary]"></div>
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-lg text-[--color-text-primary]">Registering for myself</h3>
-                        <p className="text-sm text-[--color-text-secondary]">
-                          I am 13 or older and want to register myself for the chess club.
-                        </p>
-                        <p className="text-xs text-amber-900 mt-1">
-                          ⚠️ You must be 13 or older to register yourself. Students 12 and under must be registered by a parent or guardian.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
+                    <h3 className="font-semibold text-lg text-[--color-text-primary]">Player registering themselves</h3>
+                    <p className="text-sm text-[--color-text-secondary] mt-1">
+                      For players age 13 or older who are completing their own registration.
+                    </p>
+                  </button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => setShowNewMemberOptions(false)}
+                  >
+                    Back
+                  </Button>
                 </div>
               </CardContent>
             </Card>

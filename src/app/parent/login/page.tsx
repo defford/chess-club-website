@@ -14,11 +14,17 @@ export default function ParentLogin() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
+  const [redirectPath, setRedirectPath] = useState("/parent/dashboard")
 
   // Check for existing session on component mount
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const requestedRedirect = params.get('redirect')
+    const safeRedirect = requestedRedirect?.startsWith('/') && !requestedRedirect.startsWith('//') ? requestedRedirect : '/parent/dashboard'
+    setRedirectPath(safeRedirect)
+
     if (clientAuthService.isParentAuthenticated()) {
-      router.push('/parent/dashboard')
+      router.push(safeRedirect)
     }
   }, [router])
 
@@ -36,7 +42,8 @@ export default function ParentLogin() {
         },
         body: JSON.stringify({
           email,
-          preferSms: false
+          preferSms: false,
+          redirectPath
         }),
       })
 

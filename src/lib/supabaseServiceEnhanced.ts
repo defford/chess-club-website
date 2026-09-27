@@ -120,6 +120,13 @@ export class EnhancedSupabaseService extends SupabaseService {
     return parentId;
   }
 
+  async updateParentRegistration(parentId: string, updates: Partial<ParentRegistrationData>): Promise<void> {
+    await super.updateParentRegistration(parentId, updates);
+    await KVCacheService.invalidateKey('members:all');
+    await KVCacheService.invalidateByTags(['members', 'parent-data']);
+    console.log(`Parent registration updated: ${parentId}, cache invalidated`);
+  }
+
   async addStudentRegistration(data: StudentRegistrationData): Promise<string> {
     const studentId = await super.addStudentRegistration(data);
     

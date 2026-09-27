@@ -58,8 +58,11 @@ export async function POST(request: NextRequest) {
           // Don't fail the login if auto-linking fails
         }
         
-        return NextResponse.json(
-          { 
+        const safeRedirect = decoded.redirectPath && decoded.redirectPath.startsWith('/') && !decoded.redirectPath.startsWith('//')
+          ? decoded.redirectPath
+          : '/parent/dashboard';
+        const response = NextResponse.json(
+          {
             message: 'Login successful',
             session: {
               parentId: session.parentId,
@@ -67,10 +70,21 @@ export async function POST(request: NextRequest) {
               isSelfRegistered: session.isSelfRegistered,
               registrationType: session.registrationType,
               isAdmin: session.isAdmin
-            }
+            },
+            redirectPath: safeRedirect
           },
           { status: 200 }
         );
+
+        response.cookies.set('cnlscc-session', parentAuthService.generateSessionToken(session), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          path: '/',
+          maxAge: 30 * 24 * 60 * 60,
+        });
+
+        return response;
 
       case 'approval_request':
         // If no action provided, return that this is an approval request
