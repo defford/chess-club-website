@@ -52,6 +52,33 @@ class ParentAuthService {
     }
   }
 
+  generateSessionToken(session: ParentSession): string {
+    return jwt.sign({
+      ...session,
+      tokenType: 'session',
+      exp: Math.floor((Date.now() + 30 * 24 * 60 * 60 * 1000) / 1000),
+    }, JWT_SECRET);
+  }
+
+  verifySessionToken(token: string): ParentSession | null {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as ParentSession & { tokenType?: string; exp?: number };
+      if (decoded.tokenType !== 'session') return null;
+      if (decoded.exp && decoded.exp * 1000 < Date.now()) return null;
+
+      return {
+        parentId: decoded.parentId,
+        email: decoded.email,
+        loginTime: decoded.loginTime,
+        isSelfRegistered: decoded.isSelfRegistered,
+        registrationType: decoded.registrationType,
+        isAdmin: decoded.isAdmin,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   // Send magic link via email (with SMS integration layer)
   async sendMagicLink(
     email: string, 
