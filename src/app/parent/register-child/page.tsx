@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ArrowLeft, User, AlertCircle, CheckCircle } from "lucide-react"
 import Link from "next/link"
-import { clientAuthService } from "@/lib/clientAuth"
+import { authFetch, getBrowserAuthClient } from "@/lib/browserAuth"
 
 interface ChildRegistrationForm {
   playerName: string;
@@ -22,7 +22,6 @@ export default function RegisterChildPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [success, setSuccess] = useState(false)
-  const [parentEmail, setParentEmail] = useState("")
   const [formData, setFormData] = useState<ChildRegistrationForm>({
     playerName: "",
     playerAge: "",
@@ -33,19 +32,14 @@ export default function RegisterChildPage() {
   })
 
   useEffect(() => {
-    // Check authentication using the same service as dashboard
-    if (!clientAuthService.isParentAuthenticated()) {
-      router.push('/parent/login')
-      return
-    }
-
-    const session = clientAuthService.getCurrentParentSession()
-    if (!session) {
-      router.push('/parent/login')
-      return
-    }
-
-    setParentEmail(session.email)
+    getBrowserAuthClient()
+      .then((supabase) => supabase.auth.getSession())
+      .then(({ data }) => {
+        if (!data.session) {
+          router.push('/parent/login')
+        }
+      })
+      .catch(() => router.push('/parent/login'))
   }, [router])
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -62,15 +56,12 @@ export default function RegisterChildPage() {
     setError("")
 
     try {
-      const response = await fetch('/api/parent/register-child', {
+      const response = await authFetch('/api/parent/register-child', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          ...formData,
-          parentEmail: parentEmail
-        }),
+        body: JSON.stringify(formData),
       })
 
       const result = await response.json()
