@@ -44,6 +44,7 @@ export default function MemberManagement() {
   const [members, setMembers] = useState<MemberData[]>([])
   const [filteredMembers, setFilteredMembers] = useState<MemberData[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [sortBy, setSortBy] = useState("name-asc")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set())
@@ -55,6 +56,50 @@ export default function MemberManagement() {
     () => members.filter((member) => !isSystemPlayer(member)).length,
     [members]
   )
+
+  const sortedMembers = useMemo(() => {
+    const sorted = [...filteredMembers]
+
+    const compareText = (left: unknown, right: unknown) =>
+      safeText(left).localeCompare(safeText(right), undefined, {
+        numeric: true,
+        sensitivity: "base",
+      })
+
+    const compareAge = (left: MemberData, right: MemberData) => {
+      const leftAge = Number.parseInt(safeText(left.playerAge), 10)
+      const rightAge = Number.parseInt(safeText(right.playerAge), 10)
+      const safeLeftAge = Number.isNaN(leftAge) ? Number.POSITIVE_INFINITY : leftAge
+      const safeRightAge = Number.isNaN(rightAge) ? Number.POSITIVE_INFINITY : rightAge
+      return safeLeftAge - safeRightAge
+    }
+
+    const compareJoinDate = (left: MemberData, right: MemberData) => {
+      const leftTime = left.joinDate ? new Date(left.joinDate).getTime() : 0
+      const rightTime = right.joinDate ? new Date(right.joinDate).getTime() : 0
+      return leftTime - rightTime
+    }
+
+    switch (sortBy) {
+      case "name-desc":
+        return sorted.sort((a, b) => compareText(b.playerName, a.playerName))
+      case "age-asc":
+        return sorted.sort((a, b) => compareAge(a, b) || compareText(a.playerName, b.playerName))
+      case "age-desc":
+        return sorted.sort((a, b) => compareAge(b, a) || compareText(a.playerName, b.playerName))
+      case "grade-asc":
+        return sorted.sort((a, b) => compareText(a.playerGrade, b.playerGrade) || compareText(a.playerName, b.playerName))
+      case "grade-desc":
+        return sorted.sort((a, b) => compareText(b.playerGrade, a.playerGrade) || compareText(a.playerName, b.playerName))
+      case "newest":
+        return sorted.sort((a, b) => compareJoinDate(b, a) || compareText(a.playerName, b.playerName))
+      case "oldest":
+        return sorted.sort((a, b) => compareJoinDate(a, b) || compareText(a.playerName, b.playerName))
+      case "name-asc":
+      default:
+        return sorted.sort((a, b) => compareText(a.playerName, b.playerName))
+    }
+  }, [filteredMembers, sortBy])
 
   useEffect(() => {
     const checkAuth = () => {
@@ -217,17 +262,41 @@ export default function MemberManagement() {
         </div>
 
         <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              inputMode="search"
-              placeholder="Search by student, parent, email, age, or grade"
-              value={searchQuery}
-              onChange={(event) => handleSearch(event.target.value)}
-              className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
-            />
+          <div className="flex flex-col gap-2.5 sm:flex-row">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                inputMode="search"
+                placeholder="Search by student, parent, email, age, or grade"
+                value={searchQuery}
+                onChange={(event) => handleSearch(event.target.value)}
+                className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 sm:w-56">
+              <label htmlFor="member-sort" className="shrink-0 text-sm font-semibold text-slate-600 sm:sr-only">
+                Sort
+              </label>
+              <select
+                id="member-sort"
+                value={sortBy}
+                onChange={(event) => setSortBy(event.target.value)}
+                className="h-12 min-w-0 flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm font-medium text-slate-800 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
+              >
+                <option value="name-asc">Name: A–Z</option>
+                <option value="name-desc">Name: Z–A</option>
+                <option value="age-asc">Age: youngest first</option>
+                <option value="age-desc">Age: oldest first</option>
+                <option value="grade-asc">Grade: low to high</option>
+                <option value="grade-desc">Grade: high to low</option>
+                <option value="newest">Recently added</option>
+                <option value="oldest">Oldest registrations</option>
+              </select>
+            </div>
           </div>
+
           <div className="mt-2.5 flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
             <span>
               {searchQuery
@@ -275,7 +344,7 @@ export default function MemberManagement() {
           </div>
         ) : (
           <section className="space-y-3">
-            {filteredMembers.map((member) => {
+            {sortedMembers.map((member) => {
               const memberId = member.id || ""
               const isExpanded = expandedMembers.has(memberId)
               const hasEmergencyInfo = Boolean(member.emergencyContact && member.emergencyPhone)
