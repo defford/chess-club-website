@@ -1,32 +1,45 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
-import { isAuthenticated, refreshSession } from "@/lib/auth"
-import type { MemberData } from "@/app/api/members/route"
-import QuickAddStudentForm from "@/components/admin/QuickAddStudentForm"
-import EditMemberForm from "@/components/admin/EditMemberForm"
-import { 
-  Search, 
-  ArrowLeft, 
-  Users,
-  Mail,
-  Phone,
-  Shield,
-  Heart,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Trophy,
-  Plus,
-  Info,
-  BarChart3,
-  Edit,
-  Merge
-} from "lucide-react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  AlertTriangle,
+  ArrowLeft,
+  BarChart3,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Edit,
+  Heart,
+  Info,
+  Mail,
+  Merge,
+  Phone,
+  Plus,
+  Search,
+  Shield,
+  UserRound,
+  Users,
+  XCircle,
+} from "lucide-react"
+
+import type { MemberData } from "@/app/api/members/route"
+import EditMemberForm from "@/components/admin/EditMemberForm"
+import QuickAddStudentForm from "@/components/admin/QuickAddStudentForm"
+import { Button } from "@/components/ui/button"
+import { isAuthenticated, refreshSession } from "@/lib/auth"
+
+const isSystemPlayer = (member: MemberData) =>
+  Boolean((member as MemberData & { isSystemPlayer?: boolean }).isSystemPlayer)
+
+const safeText = (value: unknown) => String(value ?? "").trim()
+
+const initialsFor = (name: string) => {
+  const parts = safeText(name).split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "?"
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("")
+}
 
 export default function MemberManagement() {
   const [isLoading, setIsLoading] = useState(true)
@@ -41,18 +54,24 @@ export default function MemberManagement() {
   const [editingMember, setEditingMember] = useState<MemberData | null>(null)
   const router = useRouter()
 
+  const visibleMemberCount = useMemo(
+    () => members.filter((member) => !isSystemPlayer(member)).length,
+    [members]
+  )
+
   useEffect(() => {
     const checkAuth = () => {
       const authenticated = isAuthenticated()
       setIsAuth(authenticated)
       setIsLoading(false)
-      
+
       if (!authenticated) {
         router.push("/admin/login")
-      } else {
-        refreshSession()
-        loadMembers()
+        return
       }
+
+      refreshSession()
+      loadMembers()
     }
 
     checkAuth()
@@ -61,23 +80,28 @@ export default function MemberManagement() {
   const loadMembers = async (bypassCache = false) => {
     try {
       setLoading(true)
-      // Add cache-busting parameter to bypass HTTP cache when needed
-      const url = bypassCache 
+      const url = bypassCache
         ? `/api/members?nocache=${Date.now()}`
-        : '/api/members'
+        : "/api/members"
+
       const response = await fetch(url, {
-        cache: bypassCache ? 'no-store' : 'default'
+        cache: bypassCache ? "no-store" : "default",
       })
+
       if (!response.ok) {
-        throw new Error('Failed to fetch members')
+        throw new Error("Failed to fetch members")
       }
-      const membersList = await response.json()
+
+      const membersList: MemberData[] = await response.json()
+      const visibleMembers = membersList.filter((member) => !isSystemPlayer(member))
+
       setMembers(membersList)
-      setFilteredMembers(membersList.filter((member: any) => !member.isSystemPlayer)) // Filter out system players
+      setFilteredMembers(visibleMembers)
+      setSearchQuery("")
       setError(null)
     } catch (err) {
-      console.error('Error fetching members:', err)
-      setError('Failed to load members')
+      console.error("Error fetching members:", err)
+      setError("Failed to load members")
     } finally {
       setLoading(false)
     }
@@ -85,71 +109,45 @@ export default function MemberManagement() {
 
   const handleSearch = (query: string) => {
     setSearchQuery(query)
-    if (query.trim()) {
-      const lowercaseQuery = query.toLowerCase()
-      const filtered = members
-        .filter((member: any) => !member.isSystemPlayer) // Filter out system players
-        .filter((member: any) =>
-          member.playerName.toLowerCase().includes(lowercaseQuery) ||
-          member.parentName.toLowerCase().includes(lowercaseQuery) ||
-          member.parentEmail.toLowerCase().includes(lowercaseQuery) ||
-          member.playerGrade.toLowerCase().includes(lowercaseQuery)
-        )
-      setFilteredMembers(filtered)
-    } else {
-      setFilteredMembers(members.filter((member: any) => !member.isSystemPlayer)) // Filter out system players
+    const normalizedQuery = query.trim().toLowerCase()
+    const visibleMembers = members.filter((member) => !isSystemPlayer(member))
+
+    if (!normalizedQuery) {
+      setFilteredMembers(visibleMembers)
+      return
     }
+
+    setFilteredMembers(
+      visibleMembers.filter((member) =>
+        [
+          member.playerName,
+          member.playerAge,
+          member.playerGrade,
+          member.parentName,
+          member.parentEmail,
+        ].some((value) => safeText(value).toLowerCase().includes(normalizedQuery))
+      )
+    )
   }
 
   const toggleMemberExpansion = (memberId: string) => {
-    setExpandedMembers(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(memberId)) {
-        newSet.delete(memberId)
+    setExpandedMembers((previous) => {
+      const next = new Set(previous)
+      if (next.has(memberId)) {
+        next.delete(memberId)
       } else {
-        newSet.add(memberId)
+        next.add(memberId)
       }
-      return newSet
+      return next
     })
-  }
-
-  // Calculate enhanced stats from loaded members
-  const getMemberStats = () => {
-    const fullyConsented = members.filter(m => m.consent && m.valuesAcknowledgment)
-    const hasEmergencyInfo = members.filter(m => m.emergencyContact && m.emergencyPhone)
-    const interestedInProvincial = members.filter(m => m.provincialInterest?.toLowerCase() === 'yes')
-    const willingToVolunteer = members.filter(m => m.volunteerInterest?.toLowerCase() === 'yes')
-    const photoConsent = members.filter(m => m.photoConsent)
-    const subscribedToNewsletter = members.filter(m => m.newsletter)
-    const hasMedicalInfo = members.filter(m => m.medicalInfo && m.medicalInfo.trim() !== '')
-    
-    const gradeDistribution = members.reduce((acc, member) => {
-      const grade = member.playerGrade || 'Unknown'
-      acc[grade] = (acc[grade] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
-    
-    return {
-      total: members.length,
-      fullyConsented: fullyConsented.length,
-      hasEmergencyInfo: hasEmergencyInfo.length,
-      interestedInProvincial: interestedInProvincial.length,
-      willingToVolunteer: willingToVolunteer.length,
-      subscribedToNewsletter: subscribedToNewsletter.length,
-      hasMedicalInfo: hasMedicalInfo.length,
-      photoConsent: photoConsent.length,
-      gradeDistribution,
-      // Calculate completion percentage
-      completionRate: Math.round((fullyConsented.length / members.length) * 100) || 0,
-    }
   }
 
   if (isLoading || loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[--color-primary] mx-auto"></div>
-          <p className="mt-2 text-[--color-text-primary]">Loading members...</p>
+          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-[--color-primary]" />
+          <p className="mt-3 text-sm font-medium text-slate-600">Loading members...</p>
         </div>
       </div>
     )
@@ -159,471 +157,377 @@ export default function MemberManagement() {
     return null
   }
 
-  // Get current stats
-  const stats = getMemberStats()
-
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        {/* Header */}
-        <div className="flex flex-col gap-4 mb-8">
-          {/* Back button and title */}
-          <div className="flex flex-col gap-4">
-            <Link href="/admin">
-              <Button variant="outline" size="sm" className="flex items-center gap-2 w-fit hover:bg-black hover:text-white">
-                <ArrowLeft className="h-4 w-4" />
-                Back to Dashboard
-              </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-[--color-accent]">
-                Member Management
-              </h1>
-              <p className="text-[--color-text-primary] mt-1">
-                View registered members from the registration system
+    <div className="min-h-screen bg-slate-50">
+      <main className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <Link href="/admin" className="inline-flex">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="-ml-2 mb-3 gap-2 rounded-xl px-2 text-slate-600 hover:bg-white hover:text-slate-950"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Dashboard
+            </Button>
+          </Link>
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div className="min-w-0">
+              <div className="mb-1 flex flex-wrap items-center gap-2">
+                <h1 className="heading text-2xl font-bold tracking-tight text-[--color-accent] sm:text-3xl">
+                  Member Management
+                </h1>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
+                  {visibleMemberCount} {visibleMemberCount === 1 ? "member" : "members"}
+                </span>
+              </div>
+              <p className="max-w-2xl text-sm text-slate-600 sm:text-base">
+                Find students, review registration details, and manage member records.
               </p>
             </div>
-          </div>
-          
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-3">
-            <Link href="/admin/members/missing-players">
+
+            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:justify-end">
               <Button
-                className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
-                variant="outline"
+                onClick={() => setShowQuickAddForm(true)}
+                className="col-span-2 h-11 gap-2 rounded-xl bg-[--color-primary] px-4 text-white hover:bg-blue-700 sm:order-3 sm:col-auto sm:w-auto"
               >
-                <AlertTriangle className="h-4 w-4" />
-                Missing Players
+                <Plus className="h-4 w-4" />
+                Add Student
               </Button>
-            </Link>
-            <Link href="/admin/members/merge">
-              <Button
-                className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
-                variant="outline"
-              >
-                <Merge className="h-4 w-4" />
-                Merge Players
-              </Button>
-            </Link>
-            <Button
-              onClick={() => setShowQuickAddForm(true)}
-              className="flex items-center gap-2 bg-[--color-primary] text-black hover:bg-black hover:text-white"
-              variant="outline"
-            >
-              <Plus className="h-4 w-4" />
-              Quick Add Student
-            </Button>
+
+              <Link href="/admin/members/missing-players" className="min-w-0">
+                <Button
+                  variant="outline"
+                  className="h-11 w-full gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-100 sm:w-auto"
+                >
+                  <AlertTriangle className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Missing</span>
+                </Button>
+              </Link>
+
+              <Link href="/admin/members/merge" className="min-w-0">
+                <Button
+                  variant="outline"
+                  className="h-11 w-full gap-2 rounded-xl border-slate-200 bg-white px-3 text-slate-700 hover:bg-slate-100 sm:w-auto"
+                >
+                  <Merge className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Merge Players</span>
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Enhanced Stats Cards
-        {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Total Registrations</p>
-                  <p className="text-2xl font-bold text-[--color-accent]">{stats.total}</p>
-                </div>
-                <Users className="h-8 w-8 text-[--color-primary]" />
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Fully Consented</p>
-                  <p className="text-2xl font-bold text-green-600">{stats.fullyConsented}</p>
-                  <p className="text-xs text-gray-500">{stats.completionRate}% complete</p>
-                </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Emergency Info</p>
-                  <p className="text-2xl font-bold text-blue-600">{stats.hasEmergencyInfo}</p>
-                  <p className="text-xs text-gray-500">
-                    {Math.round((stats.hasEmergencyInfo / stats.total) * 100)}% provided
-                  </p>
-                </div>
-                <Shield className="h-8 w-8 text-blue-600" />
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Medical Alerts</p>
-                  <p className="text-2xl font-bold text-yellow-600">{stats.hasMedicalInfo}</p>
-                  <p className="text-xs text-gray-500">require attention</p>
-                </div>
-                <AlertTriangle className="h-8 w-8 text-yellow-600" />
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Provincial Interest</p>
-                  <p className="text-2xl font-bold text-purple-600">{stats.interestedInProvincial}</p>
-                  <p className="text-xs text-gray-500">want to compete</p>
-                </div>
-                <Trophy className="h-8 w-8 text-purple-600" />
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Volunteers</p>
-                  <p className="text-2xl font-bold text-indigo-600">{stats.willingToVolunteer}</p>
-                  <p className="text-xs text-gray-500">willing to help</p>
-                </div>
-                <Heart className="h-8 w-8 text-indigo-600" />
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Newsletter</p>
-                  <p className="text-2xl font-bold text-teal-600">{stats.subscribedToNewsletter}</p>
-                  <p className="text-xs text-gray-500">subscribed</p>
-                </div>
-                <Mail className="h-8 w-8 text-teal-600" />
-              </div>
-            </Card>
-            
-            <Card className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[--color-text-primary]">Updated</p>
-                  <p className="text-lg font-bold text-[--color-accent]">
-                    {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  </p>
-                  <p className="text-xs text-gray-500">last refresh</p>
-                </div>
-                <Clock className="h-8 w-8 text-[--color-primary]" />
-              </div>
-            </Card>
-          </div>
-        )} */}
-
-        {/* Search */}
-        <Card className="p-4 mb-6">
+        <section className="mb-5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
             <input
-              type="text"
-              placeholder="Search members by name, parent, email, or grade..."
+              type="search"
+              inputMode="search"
+              placeholder="Search by student, parent, email, age, or grade"
               value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[--color-primary] focus:border-[--color-primary]"
+              onChange={(event) => handleSearch(event.target.value)}
+              className="h-12 w-full rounded-xl border border-slate-200 bg-slate-50 pl-11 pr-4 text-base text-slate-900 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-100"
             />
           </div>
-        </Card>
+          <div className="mt-2.5 flex items-center justify-between gap-3 px-1 text-xs text-slate-500">
+            <span>
+              {searchQuery
+                ? `${filteredMembers.length} matching ${filteredMembers.length === 1 ? "member" : "members"}`
+                : "All active member records"}
+            </span>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => handleSearch("")}
+                className="font-semibold text-blue-700 hover:text-blue-900"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </section>
 
-        {/* Error State */}
         {error && (
-          <Card className="p-8 text-center mb-6">
-            <div className="text-6xl text-[--color-text-secondary] mb-4">⚠️</div>
-            <h3 className="font-semibold text-xl text-[--color-text-primary] mb-2">
-              Error loading members
-            </h3>
-            <p className="text-[--color-text-secondary] mb-4">{error}</p>
-            <Button onClick={() => loadMembers(true)} variant="outline">Try Again</Button>
-          </Card>
+          <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 p-5 text-center">
+            <AlertTriangle className="mx-auto mb-2 h-6 w-6 text-red-600" />
+            <h2 className="font-semibold text-red-900">Couldn&apos;t load members</h2>
+            <p className="mt-1 text-sm text-red-700">{error}</p>
+            <Button
+              onClick={() => loadMembers(true)}
+              variant="outline"
+              className="mt-4 rounded-xl border-red-200 bg-white"
+            >
+              Try Again
+            </Button>
+          </div>
         )}
 
-        {/* Members List */}
-        <div className="space-y-1">
-          {!error && filteredMembers.length === 0 ? (
-            <div className="p-8 text-center">
-              <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-[--color-accent] mb-2">
-                {searchQuery ? "No members found" : "No members yet"}
-              </h3>
-              <p className="text-[--color-text-primary] mb-4">
-                {searchQuery 
-                  ? "Try adjusting your search terms"
-                  : "No registrations found in the system"
-                }
-              </p>
-            </div>
-          ) : (
-            <div className="bg-white rounded-lg border">
-              {filteredMembers.map((member, index) => {
-                const registrationDate = member.joinDate ? new Date(member.joinDate) : null;
-                const hasConsent = member.consent && member.valuesAcknowledgment;
-                const hasEmergencyInfo = member.emergencyContact && member.emergencyPhone;
-                const isExpanded = expandedMembers.has(member.id || '');
-                
-                return (
-                  <div key={member.id}>
-                    {/* List Item - Always Visible */}
-                    <div 
-                      className={`px-4 py-3 hover:bg-gray-50 transition-colors border-b border-gray-100 ${
-                        index === filteredMembers.length - 1 ? 'border-b-0' : ''
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <span className="font-medium text-[--color-accent]">
-                            {member.playerName}
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            Age {member.playerAge}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              toggleMemberExpansion(member.id || '')
-                            }}
-                            className="flex items-center gap-1 text-xs"
-                          >
-                            <Info className="h-3 w-3" />
-                            Info
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setEditingMember(member)
-                            }}
-                            className="flex items-center gap-1 text-xs hover:bg-blue-50 hover:text-blue-600"
-                          >
-                            <Edit className="h-3 w-3" />
-                            Edit
-                          </Button>
-                          <Link href={`/admin/members/${member.id}`}>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="flex items-center gap-1 text-xs hover:bg-black hover:text-white"
-                            >
-                              <BarChart3 className="h-3 w-3" />
-                              Stats
-                            </Button>
-                          </Link>
+        {!error && filteredMembers.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-12 text-center">
+            <Users className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+            <h2 className="text-lg font-semibold text-slate-900">
+              {searchQuery ? "No members found" : "No members yet"}
+            </h2>
+            <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
+              {searchQuery
+                ? "Try a different name, email, age, or grade."
+                : "Registrations will appear here once they are added."}
+            </p>
+          </div>
+        ) : (
+          <section className="space-y-3">
+            {filteredMembers.map((member) => {
+              const memberId = member.id || ""
+              const isExpanded = expandedMembers.has(memberId)
+              const hasEmergencyInfo = Boolean(member.emergencyContact && member.emergencyPhone)
+              const hasMedicalInfo = Boolean(member.medicalInfo?.trim())
+              const grade = safeText(member.playerGrade)
+              const parentName = safeText(member.parentName)
+              const parentEmail = safeText(member.parentEmail)
+              const parentPhone = safeText(member.parentPhone)
+
+              return (
+                <article
+                  key={memberId || member.playerName}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow hover:shadow-md"
+                >
+                  <div className="p-4 sm:p-5">
+                    <div className="flex items-start gap-3 sm:gap-4">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-sm font-bold text-blue-700 sm:h-12 sm:w-12">
+                        {initialsFor(member.playerName)}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <h2 className="truncate text-lg font-bold leading-tight text-[--color-accent]">
+                          {member.playerName}
+                        </h2>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                          {safeText(member.playerAge) && (
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                              Age {member.playerAge}
+                            </span>
+                          )}
+                          {grade && (
+                            <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                              {grade}
+                            </span>
+                          )}
+                          {!hasEmergencyInfo && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 font-medium text-amber-700">
+                              <AlertTriangle className="h-3 w-3" />
+                              Emergency info missing
+                            </span>
+                          )}
+                          {hasMedicalInfo && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 font-medium text-rose-700">
+                              <Shield className="h-3 w-3" />
+                              Medical note
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Expanded Content - Only visible when expanded */}
-                    {isExpanded && (
-                      <div className="bg-gray-50 border-t border-gray-200">
-                        <div className="p-6">
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            {/* Primary Contact Information */}
-                            <div className="space-y-4">
-                              <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
-                                <Users className="h-4 w-4" />
-                                Parent/Guardian Information
-                              </h4>
-                              <div className="space-y-3 pl-6">
-                                <div className="flex items-center gap-3">
-                                  <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <div>
-                                    <p className="font-medium text-[--color-text-primary]">{member.parentName}</p>
-                                    <p className="text-xs text-[--color-text-secondary]">Parent/Guardian</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <Mail className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <div>
-                                    <p className="text-[--color-text-primary]">{member.parentEmail}</p>
-                                    <p className="text-xs text-[--color-text-secondary]">Primary Email</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <div>
-                                    <p className="text-[--color-text-primary]">{member.parentPhone}</p>
-                                    <p className="text-xs text-[--color-text-secondary]">Primary Phone</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        aria-expanded={isExpanded}
+                        onClick={() => toggleMemberExpansion(memberId)}
+                        className="h-10 min-w-0 gap-1.5 rounded-xl border-slate-200 px-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 sm:text-sm"
+                      >
+                        {isExpanded ? (
+                          <ChevronUp className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <Info className="h-4 w-4 shrink-0" />
+                        )}
+                        <span className="truncate">{isExpanded ? "Hide" : "Details"}</span>
+                      </Button>
 
-                            {/* Emergency Contact Information */}
-                            <div className="space-y-4">
-                              <h4 className={`font-semibold flex items-center gap-2 ${
-                                hasEmergencyInfo ? 'text-[--color-accent]' : 'text-gray-400'
-                              }`}>
-                                <Shield className="h-4 w-4" />
-                                Emergency Contact
-                                {!hasEmergencyInfo && (
-                                  <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
-                                    Missing Info
-                                  </span>
-                                )}
-                              </h4>
-                              <div className="space-y-3 pl-6">
-                                <div className="flex items-center gap-3">
-                                  <Users className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <div>
-                                    <p className={`font-medium ${
-                                      member.emergencyContact ? 'text-[--color-text-primary]' : 'text-gray-400'
-                                    }`}>
-                                      {member.emergencyContact || 'Not provided'}
-                                    </p>
-                                    <p className="text-xs text-[--color-text-secondary]">Emergency Contact</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <Phone className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                                  <div>
-                                    <p className={`${
-                                      member.emergencyPhone ? 'text-[--color-text-primary]' : 'text-gray-400'
-                                    }`}>
-                                      {member.emergencyPhone || 'Not provided'}
-                                    </p>
-                                    <p className="text-xs text-[--color-text-secondary]">Emergency Phone</p>
-                                  </div>
-                                </div>
-                              </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditingMember(member)}
+                        className="h-10 min-w-0 gap-1.5 rounded-xl border-slate-200 px-2 text-xs font-semibold text-slate-700 hover:border-blue-200 hover:bg-blue-50 hover:text-blue-700 sm:text-sm"
+                      >
+                        <Edit className="h-4 w-4 shrink-0" />
+                        <span className="truncate">Edit</span>
+                      </Button>
+
+                      <Link href={`/admin/members/${member.id}`} className="min-w-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-10 w-full min-w-0 gap-1.5 rounded-xl border-slate-200 px-2 text-xs font-semibold text-slate-700 hover:bg-slate-900 hover:text-white sm:text-sm"
+                        >
+                          <BarChart3 className="h-4 w-4 shrink-0" />
+                          <span className="truncate">Stats</span>
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-200 bg-slate-50/80 p-4 sm:p-5">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                            <UserRound className="h-4 w-4 text-blue-600" />
+                            Parent / Guardian
+                          </h3>
+                          <dl className="mt-3 space-y-3">
+                            <div>
+                              <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Name</dt>
+                              <dd className="mt-0.5 break-words text-sm font-medium text-slate-800">
+                                {parentName || "Not provided"}
+                              </dd>
                             </div>
+                            <div>
+                              <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Email</dt>
+                              <dd className="mt-0.5 break-all text-sm text-slate-700">
+                                {parentEmail || "Not provided"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Phone</dt>
+                              <dd className="mt-0.5 text-sm text-slate-700">
+                                {parentPhone || "Not provided"}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <div className="flex items-center justify-between gap-2">
+                            <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                              <Shield className="h-4 w-4 text-blue-600" />
+                              Emergency Contact
+                            </h3>
+                            {!hasEmergencyInfo && (
+                              <span className="rounded-full bg-red-50 px-2 py-1 text-[11px] font-semibold text-red-700">
+                                Incomplete
+                              </span>
+                            )}
                           </div>
+                          <dl className="mt-3 space-y-3">
+                            <div>
+                              <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Contact</dt>
+                              <dd className="mt-0.5 break-words text-sm font-medium text-slate-800">
+                                {safeText(member.emergencyContact) || "Not provided"}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">Phone</dt>
+                              <dd className="mt-0.5 text-sm text-slate-700">
+                                {safeText(member.emergencyPhone) || "Not provided"}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
 
-                          {/* Additional Information */}
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 pt-6 border-t">
-                            {/* Interests & Preferences */}
-                            <div className="space-y-4">
-                              <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
-                                <Heart className="h-4 w-4" />
-                                Interests & Preferences
-                              </h4>
-                              <div className="space-y-2 pl-6">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-[--color-text-secondary]">Provincial Competitions:</span>
-                                  <span className={`text-sm font-medium ${
-                                    member.provincialInterest?.toLowerCase() === 'yes' 
-                                      ? 'text-green-600' 
-                                      : member.provincialInterest?.toLowerCase() === 'no'
-                                      ? 'text-gray-500'
-                                      : 'text-yellow-600'
-                                  }`}>
-                                    {member.provincialInterest || 'Not specified'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-[--color-text-secondary]">Volunteer Interest:</span>
-                                  <span className={`text-sm font-medium ${
-                                    member.volunteerInterest?.toLowerCase() === 'yes' 
-                                      ? 'text-green-600' 
-                                      : member.volunteerInterest?.toLowerCase() === 'no'
-                                      ? 'text-gray-500'
-                                      : 'text-yellow-600'
-                                  }`}>
-                                    {member.volunteerInterest || 'Not specified'}
-                                  </span>
-                                </div>
-                                <div className="flex items-center justify-between">
-                                  <span className="text-sm text-[--color-text-secondary]">Newsletter:</span>
-                                  <span className={`text-sm font-medium ${
-                                    member.newsletter ? 'text-green-600' : 'text-gray-500'
-                                  }`}>
-                                    {member.newsletter ? 'Subscribed' : 'Not subscribed'}
-                                  </span>
-                                </div>
-                                {member.hearAboutUs && (
-                                  <div className="pt-2">
-                                    <p className="text-xs text-[--color-text-secondary] mb-1">How they heard about us:</p>
-                                    <p className="text-sm text-[--color-text-primary]">{member.hearAboutUs}</p>
-                                  </div>
-                                )}
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                            <Heart className="h-4 w-4 text-blue-600" />
+                            Interests & Preferences
+                          </h3>
+                          <dl className="mt-3 space-y-2.5">
+                            <div className="flex items-start justify-between gap-3">
+                              <dt className="text-sm text-slate-500">Provincial competitions</dt>
+                              <dd className="text-right text-sm font-semibold text-slate-800">
+                                {safeText(member.provincialInterest) || "Not specified"}
+                              </dd>
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                              <dt className="text-sm text-slate-500">Volunteer interest</dt>
+                              <dd className="text-right text-sm font-semibold text-slate-800">
+                                {safeText(member.volunteerInterest) || "Not specified"}
+                              </dd>
+                            </div>
+                            <div className="flex items-start justify-between gap-3">
+                              <dt className="text-sm text-slate-500">Newsletter</dt>
+                              <dd className="text-right text-sm font-semibold text-slate-800">
+                                {member.newsletter ? "Subscribed" : "Not subscribed"}
+                              </dd>
+                            </div>
+                            {member.hearAboutUs && (
+                              <div className="border-t border-slate-100 pt-2.5">
+                                <dt className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                                  Heard about us
+                                </dt>
+                                <dd className="mt-1 text-sm text-slate-700">{member.hearAboutUs}</dd>
+                              </div>
+                            )}
+                          </dl>
+                        </div>
+
+                        <div className="rounded-xl border border-slate-200 bg-white p-4">
+                          <h3 className="flex items-center gap-2 text-sm font-bold text-slate-900">
+                            <Shield className="h-4 w-4 text-blue-600" />
+                            Medical & Consent
+                          </h3>
+
+                          {hasMedicalInfo && (
+                            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                              <div className="flex items-start gap-2">
+                                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+                                <p className="text-sm text-amber-900">{member.medicalInfo}</p>
                               </div>
                             </div>
+                          )}
 
-                            {/* Medical & Consent Information */}
-                            <div className="space-y-4">
-                              <h4 className="font-semibold text-[--color-accent] flex items-center gap-2">
-                                <Shield className="h-4 w-4" />
-                                Medical & Consent
-                              </h4>
-                              <div className="space-y-3 pl-6">
-                                {member.medicalInfo && (
-                                  <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                                    <p className="text-xs text-yellow-700 font-medium mb-1 flex items-center gap-1">
-                                      <AlertTriangle className="h-3 w-3" />
-                                      Medical Information:
-                                    </p>
-                                    <p className="text-sm text-yellow-800">{member.medicalInfo}</p>
-                                  </div>
-                                )}
-                                <div className="grid grid-cols-1 gap-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-[--color-text-secondary]">General Consent:</span>
-                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                                      member.consent ? 'text-green-600' : 'text-red-600'
-                                    }`}>
-                                      {member.consent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                                      {member.consent ? 'Yes' : 'No'}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-[--color-text-secondary]">Photo Consent:</span>
-                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                                      member.photoConsent ? 'text-green-600' : 'text-red-600'
-                                    }`}>
-                                      {member.photoConsent ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                                      {member.photoConsent ? 'Yes' : 'No'}
-                                    </span>
-                                  </div>
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-sm text-[--color-text-secondary]">Values Acknowledgment:</span>
-                                    <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                                      member.valuesAcknowledgment ? 'text-green-600' : 'text-red-600'
-                                    }`}>
-                                      {member.valuesAcknowledgment ? <CheckCircle className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                                      {member.valuesAcknowledgment ? 'Yes' : 'No'}
-                                    </span>
-                                  </div>
-                                </div>
+                          <div className="mt-3 space-y-2.5">
+                            {[
+                              ["General consent", member.consent],
+                              ["Photo consent", member.photoConsent],
+                              ["Values acknowledgment", member.valuesAcknowledgment],
+                            ].map(([label, accepted]) => (
+                              <div key={String(label)} className="flex items-center justify-between gap-3">
+                                <span className="text-sm text-slate-500">{String(label)}</span>
+                                <span
+                                  className={`inline-flex items-center gap-1 text-xs font-semibold ${
+                                    accepted ? "text-emerald-700" : "text-red-700"
+                                  }`}
+                                >
+                                  {accepted ? (
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  ) : (
+                                    <XCircle className="h-4 w-4" />
+                                  )}
+                                  {accepted ? "Yes" : "No"}
+                                </span>
                               </div>
-                            </div>
+                            ))}
                           </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
+          </section>
+        )}
+      </main>
 
-      </div>
-
-      {/* Quick Add Student Form Modal */}
       {showQuickAddForm && (
         <QuickAddStudentForm
           onSuccess={() => {
-            setShowQuickAddForm(false);
-            // Bypass cache to ensure we get the newly added student
-            loadMembers(true); // Refresh the members list with cache bypass
+            setShowQuickAddForm(false)
+            loadMembers(true)
           }}
           onCancel={() => setShowQuickAddForm(false)}
         />
       )}
 
-      {/* Edit Member Form Modal */}
       {editingMember && (
         <EditMemberForm
           member={editingMember}
           onSuccess={() => {
-            setEditingMember(null);
-            // Bypass cache to ensure we get the updated member data
-            loadMembers(true); // Refresh the members list with cache bypass
+            setEditingMember(null)
+            loadMembers(true)
           }}
           onCancel={() => setEditingMember(null)}
         />
