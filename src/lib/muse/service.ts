@@ -1,6 +1,6 @@
 import { AchievementService } from '../achievements';
 import {
-  getExistingAchievementMap,
+  ensureHistoricalAchievements,
   persistAchievements,
   replacePlayerAchievements,
 } from '../achievementRepository';
@@ -325,7 +325,12 @@ export class MuseService {
   private static async persistGameAchievements(game: GameData) {
     const allGames = await dataService.getGames();
     const allPlayers = await dataService.calculateRankingsFromGames();
-    const existing = await getExistingAchievementMap([game.player1Id, game.player2Id]);
+    const existing = await ensureHistoricalAchievements(
+      [game.player1Id, game.player2Id],
+      allGames,
+      allPlayers,
+      game.id
+    );
 
     const newAchievements = await AchievementService.checkAchievements(
       game,
