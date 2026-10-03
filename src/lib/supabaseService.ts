@@ -693,17 +693,36 @@ export class SupabaseService {
         }
       });
 
-      // Convert to array and sort by points (descending), then wins (descending)
+      // Rank only players who have actually played a current-season ladder game.
+      // Players with zero season games are unranked; assigning them an index-based
+      // rank leaks Supabase row order into the standings.
       const players = Array.from(playerStats.values()).sort((a, b) => {
+        const aRanked = a.gamesPlayed > 0 ? 1 : 0;
+        const bRanked = b.gamesPlayed > 0 ? 1 : 0;
+
+        if (bRanked !== aRanked) {
+          return bRanked - aRanked;
+        }
         if (b.points !== a.points) {
           return b.points - a.points;
         }
-        return b.wins - a.wins;
+        if (b.wins !== a.wins) {
+          return b.wins - a.wins;
+        }
+
+        // Deterministic final tie-breaker so database return order can never
+        // become a hidden ranking rule.
+        return a.name.localeCompare(b.name);
       });
 
-      // Assign ranks
-      players.forEach((player, index) => {
-        player.rank = index + 1;
+      let nextRank = 1;
+      players.forEach((player) => {
+        if (player.gamesPlayed > 0) {
+          player.rank = nextRank;
+          nextRank += 1;
+        } else {
+          player.rank = undefined;
+        }
       });
 
       // Fetch ELO ratings for all players from students table
