@@ -5,7 +5,7 @@ import { requireAdminAuth } from '@/lib/apiAuth';
 import { KVCacheService } from '@/lib/kv';
 import { QuotaHandler } from '@/lib/quotaHandler';
 import { AchievementService } from '@/lib/achievements';
-import { getExistingAchievementMap, persistAchievements } from '@/lib/achievementRepository';
+import { ensureHistoricalAchievements, persistAchievements } from '@/lib/achievementRepository';
 // import { broadcastAchievement } from '@/app/api/achievements/notifications/route';
 
 // Force dynamic behavior
@@ -257,10 +257,12 @@ export async function POST(request: NextRequest) {
       const allPlayers = await dataService.calculateRankingsFromGames();
       
       // Check for new achievements against the durable Supabase record.
-      const existingAchievements = await getExistingAchievementMap([
-        finalGameData.player1Id,
-        finalGameData.player2Id,
-      ]);
+      const existingAchievements = await ensureHistoricalAchievements(
+        [finalGameData.player1Id, finalGameData.player2Id],
+        allGames,
+        allPlayers,
+        finalGameData.id
+      );
       const newAchievements = await AchievementService.checkAchievements(
         finalGameData,
         allGames,
