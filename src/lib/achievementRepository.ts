@@ -1,5 +1,6 @@
 import { supabaseAdmin } from './supabaseClient';
-import type { Achievement, AchievementType } from './types';
+import { AchievementService } from './achievements';
+import type { Achievement, AchievementType, GameData, PlayerData } from './types';
 
 function getClient() {
   if (!supabaseAdmin) {
@@ -92,4 +93,27 @@ export async function getStoredAchievements(playerId: string): Promise<Achieveme
     gameId: row.game_id || undefined,
     metadata: (row.metadata || {}) as Record<string, unknown>,
   }));
+}
+
+
+export async function ensureHistoricalAchievements(
+  playerIds: string[],
+  allGames: GameData[],
+  allPlayers: PlayerData[],
+  excludeGameId?: string
+): Promise<Map<string, Set<AchievementType>>> {
+  const historicalGames = excludeGameId
+    ? allGames.filter((game) => game.id !== excludeGameId)
+    : allGames;
+
+  for (const playerId of playerIds) {
+    const historical = await AchievementService.getPlayerAchievements(
+      playerId,
+      historicalGames,
+      allPlayers
+    );
+    await persistAchievements(historical);
+  }
+
+  return getExistingAchievementMap(playerIds);
 }
