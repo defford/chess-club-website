@@ -4,15 +4,16 @@ This repository exposes a private API specifically so the **real Meta Muse produ
 
 ## What the connector can do
 
-The connector gives Meta Muse four tools:
+The connector gives Meta Muse five tools:
 
 1. **Search players** — read-only; returns student ID, name, and grade.
-2. **Get player summary** — read-only; returns games, W/D/L, ladder rank/points, Elo, attendance count, achievements, and recent chess-development observations.
-3. **Record chess event** — write; records:
+2. **Get ladder standings** — read-only; authoritative current-season leaderboard. Before the season starts or before the first season ladder game, it returns no ranked players rather than inventing ranks.
+3. **Get player summary** — read-only; keeps current-season ladder W/D/L/rank/points separate from all-time verified career stats, plus Elo, attendance count, achievements, and recent chess-development observations.
+4. **Record chess event** — write; records:
    - game results,
    - attendance,
    - player-development observations such as candidate generation, threat detection, calculation, evaluation, decision-making, helping others, and Stockfish survival.
-4. **Undo chess event** — write; reverses a connector-recorded action. Game undo recalculates Elo and affected achievements.
+5. **Undo chess event** — write; reverses a connector-recorded action. Game undo recalculates Elo and affected achievements.
 
 The website does **not** provide its own Muse-like microphone UI. Voice interaction happens in Meta Muse.
 
@@ -64,3 +65,10 @@ The API never silently chooses between ambiguous names. If "Jack" matches more t
 Meta Muse writes facts/events. It does not directly increment wins, overwrite Elo, or edit calculated statistics. The existing chess system derives those values from the canonical game/event records.
 
 The existing `muse_actions`, `player_events`, and persistent `achievements` tables are retained because they are useful for the real Meta Muse integration and for player-development history.
+
+
+## Ladder semantics
+
+The 2026–27 ladder starts on `2026-10-06`. A player has no ladder rank until they have played at least one ladder game on or after the season start date. Historical games and Elo remain available as career context, but they do not create a current-season rank.
+
+For questions such as “Who are the top five?”, “Who is #1?”, or “Show me the ladder”, Meta Muse must use `getLadderStandings`. It must not infer standings from player search order or by sweeping player summaries.
