@@ -6,6 +6,7 @@ import {
   replacePlayerAchievements,
 } from '../achievementRepository';
 import { dataService } from '../dataService';
+import { CURRENT_SEASON, LADDER_CONFIG } from '../config';
 import { supabaseAdmin } from '../supabaseClient';
 import type { Achievement, GameData, PlayerData } from '../types';
 import type {
@@ -83,6 +84,37 @@ function uniqueById(players: MusePlayerMatch[]) {
   return players.filter(
     (player, index, all) => all.findIndex((candidate) => candidate.id === player.id) === index
   );
+}
+
+function summarizeGames(games: GameData[], playerId: string) {
+  let wins = 0;
+  let draws = 0;
+  let losses = 0;
+
+  for (const game of games) {
+    if (game.result === 'draw') {
+      draws += 1;
+    } else if (
+      (game.player1Id === playerId && game.result === 'player1') ||
+      (game.player2Id === playerId && game.result === 'player2')
+    ) {
+      wins += 1;
+    } else {
+      losses += 1;
+    }
+  }
+
+  return {
+    gamesPlayed: games.length,
+    wins,
+    draws,
+    losses,
+    winRate: games.length > 0 ? wins / games.length : 0,
+  };
+}
+
+function currentSeasonStatus() {
+  return dateInNewfoundland() < CURRENT_SEASON.START_DATE ? 'preseason' : 'active';
 }
 
 export class MuseService {
@@ -225,6 +257,50 @@ export class MuseService {
       }));
   }
 
+  static async getLadderStandings(limit = 10) {
+    const safeLimit = Math.min(Math.max(Math.trunc(limit) || 10, 1), 100);
+    const rankings = await dataService.calculateRankingsFromGames();
+    const rankedPlayers = rankings
+      .filter(
+        (player) =>
+          !player.isSystemPlayer &&
+          player.gamesPlayed > 0 &&
+          player.rank !== undefined &&
+          player.rank > 0
+      )
+      .sort((a, b) => (a.rank ?? Number.MAX_SAFE_INTEGER) - (b.rank ?? Number.MAX_SAFE_INTEGER));
+
+    const status = currentSeasonStatus();
+
+    return {
+      season: {
+        key: CURRENT_SEASON.KEY,
+        label: CURRENT_SEASON.LABEL,
+        startDate: CURRENT_SEASON.START_DATE,
+        status,
+      },
+      totalRankedPlayers: rankedPlayers.length,
+      standings: rankedPlayers.slice(0, safeLimit).map((player) => ({
+        rank: player.rank,
+        playerId: player.id,
+        name: player.name,
+        grade: player.grade,
+        gamesPlayed: player.gamesPlayed,
+        wins: player.wins,
+        draws: player.draws,
+        losses: player.losses,
+        points: player.points,
+        eloRating: player.eloRating ?? 1000,
+      })),
+      message:
+        rankedPlayers.length === 0
+          ? status === 'preseason'
+            ? `The ${CURRENT_SEASON.LABEL} ladder has not started yet. Players are unranked until the first ladder games are recorded on or after ${CURRENT_SEASON.START_DATE}.`
+            : `No ladder games have been recorded yet for the ${CURRENT_SEASON.LABEL} season.`
+          : undefined,
+    };
+  }
+
   static async getPlayerSummary(playerId: string) {
     const client = getClient();
     const { data: student, error: studentError } = await client
@@ -237,8 +313,21 @@ export class MuseService {
       throw new Error('Player not found.');
     }
 
-    const [games, allRankings, achievements, developmentResult, attendanceResult] = await Promise.all([
+    const [
+      careerGames,
+      seasonLadderGames,
+      allRankings,
+      achievements,
+      developmentResult,
+      attendanceResult,
+    ] = await Promise.all([
       dataService.getGames({ playerId, isVerified: true }),
+      dataService.getGames({
+        playerId,
+        gameType: 'ladder',
+        dateFrom: LADDER_CONFIG.CURRENT_SEASON_START_DATE,
+        isVerified: true,
+      }),
       dataService.calculateRankingsFromGames(),
       getStoredAchievements(playerId),
       client
@@ -261,23 +350,11 @@ export class MuseService {
       throw new Error(`Failed to load attendance: ${attendanceResult.error.message}`);
     }
 
-    let wins = 0;
-    let draws = 0;
-    let losses = 0;
-    for (const game of games) {
-      if (game.result === 'draw') {
-        draws += 1;
-      } else if (
-        (game.player1Id === playerId && game.result === 'player1') ||
-        (game.player2Id === playerId && game.result === 'player2')
-      ) {
-        wins += 1;
-      } else {
-        losses += 1;
-      }
-    }
-
+    const seasonStats = summarizeGames(seasonLadderGames, playerId);
+    const careerStats = summarizeGames(careerGames, playerId);
     const ranking = allRankings.find((player) => player.id === playerId);
+    const status = currentSeasonStatus();
+    const hasSeasonLadderGames = seasonStats.gamesPlayed > 0;
 
     return {
       player: {
@@ -285,16 +362,26 @@ export class MuseService {
         name: student.name,
         grade: student.grade || undefined,
       },
+      season: {
+        key: CURRENT_SEASON.KEY,
+        label: CURRENT_SEASON.LABEL,
+        startDate: CURRENT_SEASON.START_DATE,
+        status,
+      },
+      // Backward-compatible "stats" now has one clear meaning:
+      // current-season ladder performance only.
       stats: {
-        gamesPlayed: games.length,
-        wins,
-        draws,
-        losses,
-        winRate: games.length > 0 ? wins / games.length : 0,
-        ladderRank: ranking?.rank ?? null,
-        ladderPoints: ranking?.points ?? 0,
+        scope: 'current-season-ladder',
+        ...seasonStats,
+        ladderRank: hasSeasonLadderGames ? ranking?.rank ?? null : null,
+        ladderPoints: hasSeasonLadderGames ? ranking?.points ?? 0 : 0,
         eloRating: student.elo_rating ?? ranking?.eloRating ?? 1000,
         attendanceCount: attendanceResult.count ?? 0,
+      },
+      careerStats: {
+        scope: 'all-verified-games',
+        ...careerStats,
+        eloRating: student.elo_rating ?? ranking?.eloRating ?? 1000,
       },
       achievements: achievements.map((achievement) => ({
         type: achievement.type,

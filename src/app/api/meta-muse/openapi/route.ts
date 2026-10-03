@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
       title: 'CNLSCC Chess Club Connector',
       version: '1.0.0',
       description:
-        'Private connector for the Central NL Scholastic Chess Club. Use it to find players, read chess progress, record verified club events, and undo connector-recorded events. Never guess between ambiguous player matches.',
+        'Private connector for the Central NL Scholastic Chess Club. Use it to find players, read the authoritative current-season ladder standings, read individual chess progress, record verified club events, and undo connector-recorded events. Never reconstruct ladder standings from player search results or guess between ambiguous player matches.',
     },
     servers: [{ url: origin }],
     security: [{ ApiKeyAuth: [] }],
@@ -53,12 +53,85 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      '/api/meta-muse/ladder-standings': {
+        get: {
+          operationId: 'getLadderStandings',
+          summary: 'Get current-season ladder standings',
+          description:
+            'READ tool. This is the authoritative source for questions such as top players, ladder rank, standings, or leaderboard. Do not reconstruct standings by searching players individually. Before the season begins, or before any current-season ladder games are recorded, standings is empty and players are unranked.',
+          parameters: [
+            {
+              name: 'limit',
+              in: 'query',
+              required: false,
+              schema: { type: 'integer', minimum: 1, maximum: 100, default: 10 },
+              description: 'Maximum number of ranked players to return.',
+            },
+          ],
+          responses: {
+            '200': {
+              description: 'Current-season ladder standings and season status.',
+              content: {
+                'application/json': {
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      season: {
+                        type: 'object',
+                        properties: {
+                          key: { type: 'string' },
+                          label: { type: 'string' },
+                          startDate: { type: 'string', format: 'date' },
+                          status: { type: 'string', enum: ['preseason', 'active'] },
+                        },
+                        required: ['key', 'label', 'startDate', 'status'],
+                      },
+                      totalRankedPlayers: { type: 'integer' },
+                      standings: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            rank: { type: 'integer' },
+                            playerId: { type: 'string' },
+                            name: { type: 'string' },
+                            grade: { type: 'string' },
+                            gamesPlayed: { type: 'integer' },
+                            wins: { type: 'integer' },
+                            draws: { type: 'integer' },
+                            losses: { type: 'integer' },
+                            points: { type: 'number' },
+                            eloRating: { type: 'integer' },
+                          },
+                          required: [
+                            'rank',
+                            'playerId',
+                            'name',
+                            'gamesPlayed',
+                            'wins',
+                            'draws',
+                            'losses',
+                            'points',
+                            'eloRating',
+                          ],
+                        },
+                      },
+                      message: { type: 'string' },
+                    },
+                    required: ['season', 'totalRankedPlayers', 'standings'],
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       '/api/meta-muse/player-summary': {
         get: {
           operationId: 'getPlayerSummary',
           summary: 'Get chess progress for one player',
           description:
-            'READ tool. Returns game stats, ladder position, Elo, attendance count, achievements, and recent chess-development observations. Use a playerId returned by searchPlayers.',
+            'READ tool. Returns current-season ladder stats separately from all-time verified career stats, plus Elo, attendance count, achievements, and recent chess-development observations. Use getLadderStandings for leaderboard/top-player questions and a playerId returned by searchPlayers for individual progress.',
           parameters: [
             {
               name: 'playerId',

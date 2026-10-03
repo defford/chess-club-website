@@ -528,41 +528,23 @@ export class SupabaseService {
 
   async calculateRankingsFromGames(): Promise<PlayerData[]> {
     try {
-      // Get all games and members data in parallel
-      // First check if there are unverified ladder games
-      const { data: allLadderGames } = await this.supabase
-        .from('games')
-        .select('id, is_verified')
-        .eq('game_type', 'ladder')
-        .gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE);
-      
-      const verifiedCount = allLadderGames?.filter(g => g.is_verified).length || 0;
-      const unverifiedCount = allLadderGames?.filter(g => !g.is_verified).length || 0;
-      
-      if (unverifiedCount > 0 && verifiedCount === 0) {
-        console.warn(`[calculateRankingsFromGames] WARNING: All ladder games are unverified! Including unverified games in rankings.`);
-      }
-      
+      // Current-season standings are derived only from verified ladder games.
+      // Never fall back to unverified results: that would make the leaderboard
+      // disagree with player summaries and with the canonical verified record.
       const [gamesResult, membersResult] = await Promise.all([
         this.logPerformance(
-          async () => {
-            let query = this.supabase.from('games').select('*').eq('game_type', 'ladder');
-            
-            // Apply Season Filter
-            query = query.gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE);
-
-            // If no verified games exist, include unverified ones
-            if (verifiedCount === 0 && unverifiedCount > 0) {
-              return query;
-            }
-            // Otherwise, only get verified games
-            return query.eq('is_verified', true);
-          },
+          async () =>
+            this.supabase
+              .from('games')
+              .select('*')
+              .eq('game_type', 'ladder')
+              .gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE)
+              .eq('is_verified', true),
           {
             methodName: 'calculateRankingsFromGames',
             table: 'games',
             operation: 'select',
-            additionalInfo: verifiedCount === 0 && unverifiedCount > 0 ? 'filter: game_type=ladder (including unverified)' : 'filter: game_type=ladder, is_verified=true',
+            additionalInfo: 'filter: current-season ladder, is_verified=true',
           }
         ),
         this.getMembersFromParentsAndStudents(),
@@ -693,17 +675,36 @@ export class SupabaseService {
         }
       });
 
-      // Convert to array and sort by points (descending), then wins (descending)
+      // Rank only players who have actually played a current-season ladder game.
+      // Players with zero season games are unranked; assigning them an index-based
+      // rank leaks Supabase row order into the standings.
       const players = Array.from(playerStats.values()).sort((a, b) => {
+        const aRanked = a.gamesPlayed > 0 ? 1 : 0;
+        const bRanked = b.gamesPlayed > 0 ? 1 : 0;
+
+        if (bRanked !== aRanked) {
+          return bRanked - aRanked;
+        }
         if (b.points !== a.points) {
           return b.points - a.points;
         }
-        return b.wins - a.wins;
+        if (b.wins !== a.wins) {
+          return b.wins - a.wins;
+        }
+
+        // Deterministic final tie-breaker so database return order can never
+        // become a hidden ranking rule.
+        return a.name.localeCompare(b.name);
       });
 
-      // Assign ranks
-      players.forEach((player, index) => {
-        player.rank = index + 1;
+      let nextRank = 1;
+      players.forEach((player) => {
+        if (player.gamesPlayed > 0) {
+          player.rank = nextRank;
+          nextRank += 1;
+        } else {
+          player.rank = undefined;
+        }
       });
 
       // Fetch ELO ratings for all players from students table
