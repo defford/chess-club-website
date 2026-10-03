@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
-import { GameData, GameFormData, AchievementNotification, AchievementType } from '@/lib/types';
+import { GameData, GameFormData, AchievementNotification } from '@/lib/types';
 import { requireAdminAuth } from '@/lib/apiAuth';
 import { KVCacheService } from '@/lib/kv';
 import { QuotaHandler } from '@/lib/quotaHandler';
