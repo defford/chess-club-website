@@ -101,9 +101,20 @@ export function interpretMuseTranscript(rawTranscript: string): MuseIntent {
     };
   }
 
+  // Pull a trailing game-type phrase off first so it cannot be mistaken for part of a name.
+  let gameText = stripTimeWords(transcript);
+  let spokenGameType: string | undefined;
+  const gameTypeSuffix = gameText.match(
+    /\s+(?:in|during)\s+(?:a\s+)?(ladder|friendly|practice|tournament)(?:\s+game)?$/i
+  );
+  if (gameTypeSuffix) {
+    spokenGameType = gameTypeSuffix[1];
+    gameText = gameText.slice(0, gameTypeSuffix.index).trim();
+  }
+
   // Draw: "Ethan drew with Lucas."
-  const drawMatch = transcript.match(
-    /^(.+?)\s+(?:drew|draws?)\s+(?:with|against)\s+(.+?)(?:\s+(?:in|during)\s+(?:a\s+)?(ladder|friendly|practice|tournament)(?:\s+game)?)?$/i
+  const drawMatch = gameText.match(
+    /^(.+?)\s+(?:drew|draws?)\s+(?:with|against)\s+(.+)$/i
   );
   if (drawMatch) {
     return {
@@ -111,14 +122,14 @@ export function interpretMuseTranscript(rawTranscript: string): MuseIntent {
       player1: stripTimeWords(drawMatch[1]),
       player2: stripTimeWords(drawMatch[2]),
       outcome: 'draw',
-      gameType: inferGameType(drawMatch[3]),
+      gameType: inferGameType(spokenGameType),
       notes: rawTranscript.trim(),
     };
   }
 
   // Decisive game: "Lucas beat Ethan in a ladder game."
-  const gameMatch = transcript.match(
-    /^(.+?)\s+(?:beat|beats|defeated|defeats|won against|won over)\s+(.+?)(?:\s+(?:in|during)\s+(?:a\s+)?(ladder|friendly|practice|tournament)(?:\s+game)?)?$/i
+  const gameMatch = gameText.match(
+    /^(.+?)\s+(?:beat|beats|defeated|defeats|won against|won over)\s+(.+)$/i
   );
   if (gameMatch) {
     return {
@@ -126,7 +137,7 @@ export function interpretMuseTranscript(rawTranscript: string): MuseIntent {
       player1: stripTimeWords(gameMatch[1]),
       player2: stripTimeWords(gameMatch[2]),
       outcome: 'player1',
-      gameType: inferGameType(gameMatch[3]),
+      gameType: inferGameType(spokenGameType),
       notes: rawTranscript.trim(),
     };
   }
