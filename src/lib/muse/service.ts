@@ -1,6 +1,7 @@
 import { AchievementService } from '../achievements';
 import {
   ensureHistoricalAchievements,
+  getStoredAchievements,
   persistAchievements,
   replacePlayerAchievements,
 } from '../achievementRepository';
@@ -196,6 +197,125 @@ export class MuseService {
     return { missing: query };
   }
 
+  static async searchPlayers(query: string): Promise<Array<{ id: string; name: string; grade?: string }>> {
+    const students = await this.getStudents();
+    const normalizedQuery = normalizeName(query);
+    if (!normalizedQuery) return [];
+
+    return students
+      .map((student) => {
+        const normalizedName = normalizeName(student.name);
+        let score = 100;
+
+        if (normalizedName === normalizedQuery) score = 0;
+        else if (normalizedName.startsWith(`${normalizedQuery} `)) score = 1;
+        else if (normalizedName.split(' ').includes(normalizedQuery)) score = 2;
+        else if (normalizedName.includes(normalizedQuery)) score = 3;
+        else score = 10 + levenshtein(normalizedQuery, normalizedName);
+
+        return { student, score };
+      })
+      .filter(({ score }) => score <= 10 + Math.max(2, Math.floor(normalizedQuery.length / 4)))
+      .sort((a, b) => a.score - b.score || a.student.name.localeCompare(b.student.name))
+      .slice(0, 10)
+      .map(({ student }) => ({
+        id: student.id,
+        name: student.name,
+        grade: student.grade || undefined,
+      }));
+  }
+
+  static async getPlayerSummary(playerId: string) {
+    const client = getClient();
+    const { data: student, error: studentError } = await client
+      .from('students')
+      .select('id, name, grade, elo_rating')
+      .eq('id', playerId)
+      .single();
+
+    if (studentError || !student) {
+      throw new Error('Player not found.');
+    }
+
+    const [games, allRankings, achievements, developmentResult, attendanceResult] = await Promise.all([
+      dataService.getGames({ playerId, isVerified: true }),
+      dataService.calculateRankingsFromGames(),
+      getStoredAchievements(playerId),
+      client
+        .from('player_events')
+        .select('id, event_type, activity, skill_key, value_numeric, value_text, notes, metadata, recorded_at')
+        .eq('player_id', playerId)
+        .is('reversed_at', null)
+        .order('recorded_at', { ascending: false })
+        .limit(20),
+      client
+        .from('attendance')
+        .select('id', { count: 'exact', head: true })
+        .eq('player_id', playerId),
+    ]);
+
+    if (developmentResult.error) {
+      throw new Error(`Failed to load player development: ${developmentResult.error.message}`);
+    }
+    if (attendanceResult.error) {
+      throw new Error(`Failed to load attendance: ${attendanceResult.error.message}`);
+    }
+
+    let wins = 0;
+    let draws = 0;
+    let losses = 0;
+    for (const game of games) {
+      if (game.result === 'draw') {
+        draws += 1;
+      } else if (
+        (game.player1Id === playerId && game.result === 'player1') ||
+        (game.player2Id === playerId && game.result === 'player2')
+      ) {
+        wins += 1;
+      } else {
+        losses += 1;
+      }
+    }
+
+    const ranking = allRankings.find((player) => player.id === playerId);
+
+    return {
+      player: {
+        id: student.id,
+        name: student.name,
+        grade: student.grade || undefined,
+      },
+      stats: {
+        gamesPlayed: games.length,
+        wins,
+        draws,
+        losses,
+        winRate: games.length > 0 ? wins / games.length : 0,
+        ladderRank: ranking?.rank ?? null,
+        ladderPoints: ranking?.points ?? 0,
+        eloRating: student.elo_rating ?? ranking?.eloRating ?? 1000,
+        attendanceCount: attendanceResult.count ?? 0,
+      },
+      achievements: achievements.map((achievement) => ({
+        type: achievement.type,
+        title: achievement.title,
+        description: achievement.description,
+        earnedAt: achievement.earnedAt,
+      })),
+      recentDevelopment: (developmentResult.data || []).map((event) => ({
+        id: event.id,
+        eventType: event.event_type,
+        activity: event.activity || undefined,
+        skillKey: event.skill_key || undefined,
+        value: event.value_numeric ?? undefined,
+        valueText: event.value_text || undefined,
+        notes: event.notes || undefined,
+        metadata: event.metadata || {},
+        recordedAt: event.recorded_at,
+      })),
+    };
+  }
+
   static async preview(intent: MuseIntent): Promise<MusePreview> {
     const students = await this.getStudents();
     const resolvedPlayers: MusePlayerMatch[] = [];
@@ -235,7 +355,9 @@ export class MuseService {
       if (intent.outcome === 'draw') {
         return `Record a ${intent.gameType} draw between ${p1} and ${p2}.`;
       }
-      return `Record ${p1} defeating ${p2} in a ${intent.gameType} game.`;
+      const winner = intent.outcome === 'player1' ? p1 : p2;
+      const loser = intent.outcome === 'player1' ? p2 : p1;
+      return `Record ${winner} defeating ${loser} in a ${intent.gameType} game.`;
     }
 
     if (intent.type === 'attendance') {
@@ -349,7 +471,7 @@ export class MuseService {
   ): Promise<MuseApplyResult> {
     const preview = await this.preview(intent);
     if (!preview.canApply) {
-      throw new Error('Muse cannot apply this action until every player is unambiguous.');
+      throw new Error('The connector cannot apply this action until every player is unambiguous.');
     }
 
     const actionId = await this.createAction(intent, transcript, recordedBy);
@@ -387,8 +509,8 @@ export class MuseService {
 
         const outcomeFor = (playerId: string) => {
           if (intent.outcome === 'draw') return 'draw';
-          if (playerId === player1.id) return 'win';
-          return 'loss';
+          const winnerId = intent.outcome === 'player1' ? player1.id : player2.id;
+          return playerId === winnerId ? 'win' : 'loss';
         };
 
         const playerEventIds = await this.addPlayerEvents([
@@ -398,7 +520,7 @@ export class MuseService {
             player_name: player1.name,
             event_type: 'game_result',
             game_id: gameId,
-            source: 'muse_voice',
+            source: 'meta_muse_connector',
             metadata: {
               outcome: outcomeFor(player1.id),
               opponentId: player2.id,
@@ -413,7 +535,7 @@ export class MuseService {
             player_name: player2.name,
             event_type: 'game_result',
             game_id: gameId,
-            source: 'muse_voice',
+            source: 'meta_muse_connector',
             metadata: {
               outcome: outcomeFor(player2.id),
               opponentId: player1.id,
@@ -451,7 +573,7 @@ export class MuseService {
             meetId = await dataService.createClubMeet({
               meetDate,
               meetName: 'Club Night',
-              notes: 'Created automatically by Muse',
+              notes: 'Created through Meta Muse connector',
               createdBy: recordedBy,
             });
           }
@@ -466,7 +588,7 @@ export class MuseService {
             player_name: player.name,
             event_type: 'attendance',
             meet_id: meetId,
-            source: 'muse_voice',
+            source: 'meta_muse_connector',
             metadata: { meetDate },
             notes: intent.notes || null,
             recorded_by: recordedBy,
@@ -492,7 +614,7 @@ export class MuseService {
             value_numeric: intent.value ?? null,
             value_text: intent.valueText || null,
             notes: intent.notes || null,
-            source: 'muse_voice',
+            source: 'meta_muse_connector',
             metadata: intent.metadata || {},
             recorded_by: recordedBy,
           },
@@ -547,7 +669,7 @@ export class MuseService {
 
     const { data, error } = actionId ? await query.single() : await query.maybeSingle();
     if (error || !data) {
-      throw new Error(actionId ? 'Muse action not found or already undone.' : 'There is no Muse action to undo.');
+      throw new Error(actionId ? 'Connector action not found or already undone.' : 'There is no connector action to undo.');
     }
 
     const result = (data.result || {}) as Record<string, unknown>;
@@ -578,7 +700,7 @@ export class MuseService {
       .update({
         reversed_at: now,
         reversed_by: recordedBy,
-        reversal_reason: 'Muse undo',
+        reversal_reason: 'Meta Muse connector undo',
       })
       .eq('muse_action_id', data.id)
       .is('reversed_at', null);
@@ -598,7 +720,7 @@ export class MuseService {
 
     return {
       actionId: data.id,
-      summary: 'Undid the Muse action.',
+      summary: 'Undid the connector action.',
       result: { reversedActionId: data.id },
     };
   }
