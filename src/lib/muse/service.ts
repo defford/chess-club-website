@@ -355,7 +355,9 @@ export class MuseService {
       if (intent.outcome === 'draw') {
         return `Record a ${intent.gameType} draw between ${p1} and ${p2}.`;
       }
-      return `Record ${p1} defeating ${p2} in a ${intent.gameType} game.`;
+      const winner = intent.outcome === 'player1' ? p1 : p2;
+      const loser = intent.outcome === 'player1' ? p2 : p1;
+      return `Record ${winner} defeating ${loser} in a ${intent.gameType} game.`;
     }
 
     if (intent.type === 'attendance') {
@@ -507,8 +509,8 @@ export class MuseService {
 
         const outcomeFor = (playerId: string) => {
           if (intent.outcome === 'draw') return 'draw';
-          if (playerId === player1.id) return 'win';
-          return 'loss';
+          const winnerId = intent.outcome === 'player1' ? player1.id : player2.id;
+          return playerId === winnerId ? 'win' : 'loss';
         };
 
         const playerEventIds = await this.addPlayerEvents([
