@@ -5,6 +5,7 @@ import { requireAdminAuth } from '@/lib/apiAuth';
 import { KVCacheService } from '@/lib/kv';
 import { QuotaHandler } from '@/lib/quotaHandler';
 import { AchievementService } from '@/lib/achievements';
+import { getExistingAchievementMap, persistAchievements } from '@/lib/achievementRepository';
 // import { broadcastAchievement } from '@/app/api/achievements/notifications/route';
 
 // Force dynamic behavior
@@ -255,15 +256,19 @@ export async function POST(request: NextRequest) {
       const allGames = await KVCacheService.getGames();
       const allPlayers = await dataService.calculateRankingsFromGames();
       
-      // Check for new achievements
-      // Pass empty Map for existing achievements (can be populated from persistence layer when available)
-      const existingAchievements = new Map<string, Set<AchievementType>>();
+      // Check for new achievements against the durable Supabase record.
+      const existingAchievements = await getExistingAchievementMap([
+        finalGameData.player1Id,
+        finalGameData.player2Id,
+      ]);
       const newAchievements = await AchievementService.checkAchievements(
         finalGameData,
         allGames,
         allPlayers,
         existingAchievements
       );
+
+      await persistAchievements(newAchievements);
 
       // Broadcast achievement notifications
       for (const achievement of newAchievements) {
@@ -276,8 +281,6 @@ export async function POST(request: NextRequest) {
         
         // Broadcast to all connected clients
         // broadcastAchievement(notification);
-        
-        // TODO: Store achievement in Google Sheets or database
         console.log(`Achievement earned: ${achievement.title} by ${achievement.playerName}`);
       }
     } catch (error) {
