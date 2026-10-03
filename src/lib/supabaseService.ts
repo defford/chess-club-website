@@ -528,41 +528,23 @@ export class SupabaseService {
 
   async calculateRankingsFromGames(): Promise<PlayerData[]> {
     try {
-      // Get all games and members data in parallel
-      // First check if there are unverified ladder games
-      const { data: allLadderGames } = await this.supabase
-        .from('games')
-        .select('id, is_verified')
-        .eq('game_type', 'ladder')
-        .gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE);
-      
-      const verifiedCount = allLadderGames?.filter(g => g.is_verified).length || 0;
-      const unverifiedCount = allLadderGames?.filter(g => !g.is_verified).length || 0;
-      
-      if (unverifiedCount > 0 && verifiedCount === 0) {
-        console.warn(`[calculateRankingsFromGames] WARNING: All ladder games are unverified! Including unverified games in rankings.`);
-      }
-      
+      // Current-season standings are derived only from verified ladder games.
+      // Never fall back to unverified results: that would make the leaderboard
+      // disagree with player summaries and with the canonical verified record.
       const [gamesResult, membersResult] = await Promise.all([
         this.logPerformance(
-          async () => {
-            let query = this.supabase.from('games').select('*').eq('game_type', 'ladder');
-            
-            // Apply Season Filter
-            query = query.gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE);
-
-            // If no verified games exist, include unverified ones
-            if (verifiedCount === 0 && unverifiedCount > 0) {
-              return query;
-            }
-            // Otherwise, only get verified games
-            return query.eq('is_verified', true);
-          },
+          async () =>
+            this.supabase
+              .from('games')
+              .select('*')
+              .eq('game_type', 'ladder')
+              .gte('game_date', LADDER_CONFIG.CURRENT_SEASON_START_DATE)
+              .eq('is_verified', true),
           {
             methodName: 'calculateRankingsFromGames',
             table: 'games',
             operation: 'select',
-            additionalInfo: verifiedCount === 0 && unverifiedCount > 0 ? 'filter: game_type=ladder (including unverified)' : 'filter: game_type=ladder, is_verified=true',
+            additionalInfo: 'filter: current-season ladder, is_verified=true',
           }
         ),
         this.getMembersFromParentsAndStudents(),
