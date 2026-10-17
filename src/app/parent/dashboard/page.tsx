@@ -8,6 +8,7 @@ import { Plus, User, Trophy, Calendar, Settings, LogOut, ChevronRight, MapPin, C
 import Link from "next/link"
 import type { EventData } from "@/lib/types"
 import { clientAuthService } from "@/lib/clientAuth"
+import { authFetch, getBrowserAuthClient } from "@/lib/browserAuth"
 
 interface PlayerWithRanking {
   playerId: string
@@ -42,28 +43,28 @@ export default function ParentDashboard() {
   })
 
   useEffect(() => {
-    // Check authentication using the same service as login page
-    if (!clientAuthService.isParentAuthenticated()) {
-      router.push('/parent/login')
-      return
+    const load = async () => {
+      const supabase = await getBrowserAuthClient()
+      const { data } = await supabase.auth.getSession()
+
+      if (!data.session) {
+        router.push('/parent/login')
+        return
+      }
+
+      setParentEmail(data.session.user.email || '')
+      const legacySession = clientAuthService.getCurrentParentSession()
+      setIsSelfRegistered(Boolean(legacySession?.isSelfRegistered))
+      loadPlayers()
+      loadEvents()
     }
 
-    const session = clientAuthService.getCurrentParentSession()
-    if (!session) {
-      router.push('/parent/login')
-      return
-    }
-
-    setParentEmail(session.email)
-    setIsSelfRegistered(session.isSelfRegistered || false)
-    loadPlayers(session.email)
-    loadEvents()
+    void load().catch(() => router.push('/parent/login'))
   }, [router])
 
-  const loadPlayers = async (email: string) => {
+  const loadPlayers = async () => {
     try {
-      // Now pulling directly from students sheet by parent email
-      const response = await fetch(`/api/parent/students?email=${encodeURIComponent(email)}`)
+      const response = await authFetch('/api/parent/students', { cache: 'no-store' })
 
       if (!response.ok) {
         throw new Error('Failed to load students')

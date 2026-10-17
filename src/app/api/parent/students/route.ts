@@ -2,43 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { KVCacheService } from '@/lib/kv';
 import { dataService } from '@/lib/dataService';
 import type { StudentData } from '@/lib/types';
+import { requireLinkedFamily } from '@/lib/serverAuth';
 
 export async function GET(request: NextRequest) {
   try {
-    // Get parent email from query parameters
-    const url = new URL(request.url);
-    const parentEmailParam = url.searchParams.get('email');
-    
-    if (!parentEmailParam) {
-      return NextResponse.json(
-        { error: 'Parent email required in query parameters' },
-        { status: 400 }
-      );
-    }
+    const family = await requireLinkedFamily(request);
+    const parent = await dataService.getParentRegistration(family.primaryParentId);
 
-    // Normalize email (lowercase, trim) for case-insensitive lookup
-    const parentEmail = parentEmailParam.toLowerCase().trim();
-
-    // Get parent information first - using cache with fallback
-    let parent;
-    try {
-      parent = await KVCacheService.getParentByEmail(parentEmail);
-    } catch (parentError: any) {
-      console.error(`[Parent Students API] Error fetching parent:`, {
-        error: parentError?.message || parentError,
-        stack: parentError?.stack
-      });
-      // Try direct dataService as fallback
-      try {
-        parent = await dataService.getParentByEmail(parentEmail);
-      } catch (fallbackError: any) {
-        console.error(`[Parent Students API] Fallback also failed:`, fallbackError?.message || fallbackError);
-        throw new Error(`Failed to fetch parent: ${fallbackError?.message || 'Unknown error'}`);
-      }
-    }
-    
     if (!parent) {
-      console.warn(`[Parent Students API] Parent not found for email: ${parentEmail}`);
       return NextResponse.json(
         { error: 'Parent not found' },
         { status: 404 }
@@ -48,17 +19,17 @@ export async function GET(request: NextRequest) {
     // Get students from the students sheet by parent ID - using cache with fallback
     let students: StudentData[] = [];
     try {
-      const cachedStudents = await KVCacheService.getStudentsByParentId(parent.id);
+      const cachedStudents = await KVCacheService.getStudentsByParentId(family.primaryParentId);
       students = Array.isArray(cachedStudents) ? cachedStudents : [];
     } catch (studentsError: any) {
       console.error(`[Parent Students API] Error fetching students:`, {
         error: studentsError?.message || studentsError,
         stack: studentsError?.stack,
-        parentId: parent.id
+        parentId: family.primaryParentId
       });
       // Try direct dataService as fallback
       try {
-        const fallbackStudents = await dataService.getStudentsByParentId(parent.id);
+        const fallbackStudents = await dataService.getStudentsByParentId(family.primaryParentId);
         students = Array.isArray(fallbackStudents) ? fallbackStudents : [];
       } catch (fallbackError: any) {
         console.error(`[Parent Students API] Fallback also failed:`, fallbackError?.message || fallbackError);
@@ -113,11 +84,21 @@ export async function GET(request: NextRequest) {
         success: true,
         students: studentsWithRankings,
         totalStudents: studentsWithRankings.length,
-        parentEmail
+        parentEmail: family.email
       },
       { status: 200 }
     );
   } catch (error: any) {
+    if (error?.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ success: false, error: 'Sign in is required' }, { status: 401 });
+    }
+    if (error?.message === 'EMAIL_NOT_VERIFIED') {
+      return NextResponse.json({ success: false, error: 'Please verify your email address first' }, { status: 403 });
+    }
+    if (error?.message === 'FAMILY_NOT_FOUND') {
+      return NextResponse.json({ success: false, error: 'Family not found' }, { status: 404 });
+    }
+
     console.error('[Parent Students API] Error:', {
       error: error?.message || error,
       stack: error?.stack,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { dataService } from '@/lib/dataService';
 import { CURRENT_SEASON } from '@/lib/config';
-import { parentAuthService } from '@/lib/parentAuth';
+import { requireLinkedFamily } from '@/lib/serverAuth';
 import {
   enrollStudentForCurrentSeason,
   getSeasonEnrollmentsForParent,
@@ -10,20 +10,15 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
-    const sessionToken = request.cookies.get('cnlscc-session')?.value;
-    const session = sessionToken ? parentAuthService.verifySessionToken(sessionToken) : null;
-    if (!session) {
-      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
-    }
-
-    const parent = await dataService.getParentByEmail(session.email);
+    const family = await requireLinkedFamily(request);
+    const parent = await dataService.getParentRegistration(family.primaryParentId);
     if (!parent) {
       return NextResponse.json({ error: 'Family not found' }, { status: 404 });
     }
 
     const [students, enrollments] = await Promise.all([
-      dataService.getStudentsByParentId(parent.id),
-      getSeasonEnrollmentsForParent(parent.id),
+      dataService.getStudentsByParentId(family.primaryParentId),
+      getSeasonEnrollmentsForParent(family.primaryParentId),
     ]);
 
     const enrollmentByStudent = new Map(enrollments.map((e) => [e.studentId, e]));
@@ -31,7 +26,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       season: CURRENT_SEASON,
       parent: {
-        id: parent.id,
+        id: family.primaryParentId,
         name: parent.name,
         email: parent.email,
         phone: parent.phone,
@@ -44,6 +39,16 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
+    }
+    if (message === 'EMAIL_NOT_VERIFIED') {
+      return NextResponse.json({ error: 'Please verify your email address first' }, { status: 403 });
+    }
+    if (message === 'FAMILY_NOT_FOUND') {
+      return NextResponse.json({ error: 'Family not found' }, { status: 404 });
+    }
     console.error('Season enrollment GET error:', error);
     return NextResponse.json({ error: 'Failed to load season registration' }, { status: 500 });
   }
@@ -52,11 +57,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const sessionToken = request.cookies.get('cnlscc-session')?.value;
-    const session = sessionToken ? parentAuthService.verifySessionToken(sessionToken) : null;
-    if (!session) {
-      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
-    }
+    const family = await requireLinkedFamily(request);
 
     const studentIds = Array.isArray(body.studentIds) ? body.studentIds.map(String) : [];
     const studentUpdates = Array.isArray(body.students) ? body.students : [];
@@ -76,12 +77,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parent = await dataService.getParentByEmail(session.email);
+    const parent = await dataService.getParentRegistration(family.primaryParentId);
     if (!parent) {
       return NextResponse.json({ error: 'Family not found' }, { status: 404 });
     }
 
-    const students = await dataService.getStudentsByParentId(parent.id);
+    const students = await dataService.getStudentsByParentId(family.primaryParentId);
     const validIds = new Set(students.map((student) => student.id));
 
     if (studentIds.some((id: string) => !validIds.has(id))) {
@@ -111,7 +112,7 @@ export async function POST(request: NextRequest) {
       }
 
       await dataService.updateStudentRegistration(studentId, {
-        parentId: parent.id,
+        parentId: family.primaryParentId,
         playerName,
         playerAge,
         playerGrade,
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await dataService.updateParentRegistration(parent.id, {
+    await dataService.updateParentRegistration(family.primaryParentId, {
       parentPhone,
       consent: true,
       photoConsent: Boolean(body.photoConsent),
@@ -129,12 +130,12 @@ export async function POST(request: NextRequest) {
       newsletter: Boolean(body.newsletter),
     });
 
-    const currentlyEnrolled = await getSeasonEnrollmentsForParent(parent.id);
+    const currentlyEnrolled = await getSeasonEnrollmentsForParent(family.primaryParentId);
     const selected = new Set(studentIds);
 
     await Promise.all(studentIds.map((studentId: string) =>
       enrollStudentForCurrentSeason({
-        parentId: parent.id,
+        parentId: family.primaryParentId,
         studentId,
         participationConsent: true,
         photoConsent: Boolean(body.photoConsent),
@@ -155,6 +156,16 @@ export async function POST(request: NextRequest) {
       registeredStudentIds: studentIds,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : '';
+    if (message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Sign in is required' }, { status: 401 });
+    }
+    if (message === 'EMAIL_NOT_VERIFIED') {
+      return NextResponse.json({ error: 'Please verify your email address first' }, { status: 403 });
+    }
+    if (message === 'FAMILY_NOT_FOUND') {
+      return NextResponse.json({ error: 'Family not found' }, { status: 404 });
+    }
     console.error('Season enrollment POST error:', error);
     return NextResponse.json({ error: 'Failed to save season registration' }, { status: 500 });
   }

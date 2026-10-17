@@ -123,28 +123,6 @@ function RegisterPageContent() {
       }
 
       setSubmitted(true)
-
-      // If user opted to create an account, send magic link
-      if (selfRegistrationData.createAccount) {
-        try {
-          const authResponse = await fetch('/api/parent/auth', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: selfRegistrationData.playerEmail,
-              isSelfRegistered: true
-            }),
-          })
-
-          if (!authResponse.ok) {
-            console.error('Failed to create parent account, but registration was successful')
-          }
-        } catch (accountError) {
-          console.error('Account creation error:', accountError)
-        }
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit self-registration')
     } finally {
@@ -174,27 +152,6 @@ function RegisterPageContent() {
 
       setParentId(result.parentId)
       setCurrentStep(3) // Move to student addition step
-
-      // If user opted to create an account, send magic link
-      if (parentData.createAccount) {
-        try {
-          const authResponse = await fetch('/api/parent/auth', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              email: parentData.parentEmail
-            }),
-          })
-
-          if (!authResponse.ok) {
-            console.error('Failed to create parent account, but registration was successful')
-          }
-        } catch (accountError) {
-          console.error('Account creation error:', accountError)
-        }
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit parent registration')
     } finally {
@@ -331,22 +288,22 @@ function RegisterPageContent() {
                 }
               </p>
               
-              {((registrationType === 'parent' && parentData.createAccount) || (registrationType === 'self' && selfRegistrationData.createAccount)) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h3 className="font-medium text-blue-800 mb-2">🔐 Account Created!</h3>
-                  <p className="text-sm text-blue-700">
-                    A login link has been sent to <strong>{registrationType === 'self' ? selfRegistrationData.playerEmail : parentData.parentEmail}</strong>. 
-                    Click the link in your email to access your {registrationType === 'self' ? 'player' : 'parent'} dashboard and track your {registrationType === 'self' ? 'progress' : 'players\' progress'}.
-                  </p>
-                </div>
-              )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h3 className="font-medium text-blue-800 mb-2">Create your member login</h3>
+                <p className="text-sm text-blue-700 mb-3">
+                  Your club registration is saved. Create a normal member account using the same email address to manage this registration online.
+                </p>
+                <Link
+                  href={`/parent/login?mode=signup&email=${encodeURIComponent(registrationType === 'self' ? selfRegistrationData.playerEmail : parentData.parentEmail)}&redirect=/parent/dashboard`}
+                >
+                  <Button type="button" variant="outline">Create Member Account</Button>
+                </Link>
+              </div>
               
               <div className="space-y-2 text-sm text-[--color-text-secondary]">
                 <p>📧 A confirmation email with all the details has been sent to {registrationType === 'self' ? selfRegistrationData.playerEmail : parentData.parentEmail}</p>
                 <p>📋 Your registration has been recorded in our system</p>
-                {((registrationType === 'parent' && parentData.createAccount) || (registrationType === 'self' && selfRegistrationData.createAccount)) && (
-                  <p>🔑 Check your email for the {registrationType === 'self' ? 'player' : 'parent'} account login link</p>
-                )}
+                <p>🔐 Use the Create Member Account button above to set a password or use Google/Facebook.</p>
                 <p>❓ Questions? Contact us at daniel@cnlscc.com</p>
               </div>
               <div className="mt-6">
