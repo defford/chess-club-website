@@ -656,20 +656,23 @@ export class SupabaseService {
           player2Stats.lastActive = game.game_date;
         }
 
+        // K–3 games earn two points per player simply for playing, effective Nov 3.
+        // Use a game-level marker, not registered grade: some students play in the older group.
+        const k3Participation = game.game_date >= '2026-11-03' && (game.notes || '').includes('[K3 participation]');
         // Calculate points and stats based on result
         if (game.result === 'player1') {
           player1Stats.points += 2;
-          player2Stats.points += 1;
+          player2Stats.points += k3Participation ? 2 : 1;
           player1Stats.wins += 1;
           player2Stats.losses += 1;
         } else if (game.result === 'player2') {
           player2Stats.points += 2;
-          player1Stats.points += 1;
+          player1Stats.points += k3Participation ? 2 : 1;
           player2Stats.wins += 1;
           player1Stats.losses += 1;
         } else if (game.result === 'draw') {
-          player1Stats.points += 1.5;
-          player2Stats.points += 1.5;
+          player1Stats.points += k3Participation ? 2 : 1.5;
+          player2Stats.points += k3Participation ? 2 : 1.5;
           player1Stats.draws += 1;
           player2Stats.draws += 1;
         }
