@@ -114,6 +114,7 @@ export async function GET(request: NextRequest) {
       console.log(`[Ladder API] Processing ${allLadderGames.length} ladder games from season ${LADDER_CONFIG.CURRENT_SEASON_START_DATE} for stats calculation`);
       
       allLadderGames.forEach(game => {
+        const k3Participation = game.gameDate >= '2026-11-03' && (game.notes || '').includes('[K3 participation]');
         // Get or create player1 stats
         let player1Stats = memberStats.get(game.player1Id);
         if (!player1Stats) {
@@ -160,17 +161,17 @@ export async function GET(request: NextRequest) {
         
         if (game.result === 'player1') {
           player1Stats.points += 2;
-          player2Stats.points += 1;
+          player2Stats.points += k3Participation ? 2 : 1;
           player1Stats.wins += 1;
           player2Stats.losses += 1;
         } else if (game.result === 'player2') {
           player2Stats.points += 2;
-          player1Stats.points += 1;
+          player1Stats.points += k3Participation ? 2 : 1;
           player2Stats.wins += 1;
           player1Stats.losses += 1;
         } else if (game.result === 'draw') {
-          player1Stats.points += 1.5;
-          player2Stats.points += 1.5;
+          player1Stats.points += k3Participation ? 2 : 1.5;
+          player2Stats.points += k3Participation ? 2 : 1.5;
           player1Stats.draws += 1;
           player2Stats.draws += 1;
         }
@@ -250,6 +251,7 @@ export async function GET(request: NextRequest) {
     
     // Process games from the target date
     games.forEach(game => {
+      const k3Participation = game.gameDate >= '2026-11-03' && (game.notes || '').includes('[K3 participation]');
       const player1Id = game.player1Id || game.player1Name;
       const player2Id = game.player2Id || game.player2Name;
       
@@ -315,10 +317,10 @@ export async function GET(request: NextRequest) {
           player1Stats.points += 2; // 1 for playing + 1 for winning
         } else if (game.result === 'player2') {
           player1Stats.losses++;
-          player1Stats.points += 1; // 1 for playing
+          player1Stats.points += k3Participation ? 2 : 1; // K–3: 2 for playing, regardless of result
         } else if (game.result === 'draw') {
           player1Stats.draws++;
-          player1Stats.points += 1.5; // 1 for playing + 0.5 for drawing
+          player1Stats.points += k3Participation ? 2 : 1.5; // K–3: 2 for playing
         }
       }
       
@@ -331,10 +333,10 @@ export async function GET(request: NextRequest) {
           player2Stats.points += 2; // 1 for playing + 1 for winning
         } else if (game.result === 'player1') {
           player2Stats.losses++;
-          player2Stats.points += 1; // 1 for playing
+          player2Stats.points += k3Participation ? 2 : 1; // K–3: 2 for playing, regardless of result
         } else if (game.result === 'draw') {
           player2Stats.draws++;
-          player2Stats.points += 1.5; // 1 for playing + 0.5 for drawing
+          player2Stats.points += k3Participation ? 2 : 1.5; // K–3: 2 for playing
         }
       }
     });
