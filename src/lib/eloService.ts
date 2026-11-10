@@ -1,4 +1,3 @@
-import { GameData } from './types';
 import { supabaseService } from './supabaseService';
 
 /**
@@ -84,104 +83,10 @@ export class EloService {
    * Processes games in chronological order to maintain rating accuracy
    */
   static async calculateEloForAllGames(): Promise<{ processed: number; errors: number }> {
-    try {
-      // Get all games ordered chronologically
-      const games = await supabaseService.getGames();
-      
-      // Sort games chronologically
-      const sortedGames = games.sort((a, b) => {
-        const dateA = new Date(a.gameDate).getTime();
-        const dateB = new Date(b.gameDate).getTime();
-        if (dateA !== dateB) {
-          return dateA - dateB;
-        }
-        // Secondary sort by created_at if available
-        const createdA = new Date(a.recordedAt || 0).getTime();
-        const createdB = new Date(b.recordedAt || 0).getTime();
-        return createdA - createdB;
-      });
-
-      if (sortedGames.length === 0) {
-        return { processed: 0, errors: 0 };
-      }
-
-      // Maintain a map of current ratings as we process games chronologically
-      const playerRatings = new Map<string, number>();
-
-      let processed = 0;
-      let errors = 0;
-
-      // Initialize all players we encounter with initial rating
-      for (const game of sortedGames) {
-        if (!playerRatings.has(game.player1Id)) {
-          // Try to get from database first, otherwise use initial rating
-          const rating = await this.getPlayerEloRating(game.player1Id);
-          playerRatings.set(game.player1Id, rating);
-        }
-        if (!playerRatings.has(game.player2Id)) {
-          const rating = await this.getPlayerEloRating(game.player2Id);
-          playerRatings.set(game.player2Id, rating);
-        }
-      }
-
-      // Process each game chronologically
-      for (const game of sortedGames) {
-        try {
-          const player1Id = game.player1Id;
-          const player2Id = game.player2Id;
-
-          // Get current ratings
-          const player1Rating = playerRatings.get(player1Id) ?? this.INITIAL_RATING;
-          const player2Rating = playerRatings.get(player2Id) ?? this.INITIAL_RATING;
-
-          // Calculate rating changes
-          const { player1Change, player2Change } = this.calculateRatingChange(
-            player1Rating,
-            player2Rating,
-            game.result
-          );
-
-          // Update ratings in memory
-          const newPlayer1Rating = player1Rating + player1Change;
-          const newPlayer2Rating = player2Rating + player2Change;
-          playerRatings.set(player1Id, newPlayer1Rating);
-          playerRatings.set(player2Id, newPlayer2Rating);
-
-          // Update ratings in database (only if player exists in students table)
-          try {
-            await this.updatePlayerEloRating(player1Id, newPlayer1Rating);
-          } catch (error) {
-            // Player might not exist in students table (e.g., "Unknown Opponent")
-            // Continue processing
-          }
-
-          try {
-            await this.updatePlayerEloRating(player2Id, newPlayer2Rating);
-          } catch (error) {
-            // Player might not exist in students table
-            // Continue processing
-          }
-
-          // Update game's rating_change field
-          const ratingChange = {
-            player1: player1Change,
-            player2: player2Change,
-          };
-
-          await supabaseService.updateGame(game.id, { ratingChange });
-
-          processed++;
-        } catch (error) {
-          console.error(`Error processing game ${game.id}:`, error);
-          errors++;
-        }
-      }
-
-      return { processed, errors };
-    } catch (error) {
-      console.error('Error calculating ELO for all games:', error);
-      throw error;
-    }
+    // The DB replays verified competitive games from a fixed 1000 baseline.
+    // Never seed a retroactive replay with the current stored Elo: that
+    // compounds all previous rating changes every time this runs.
+    return supabaseService.recomputeEloFromVerifiedGames();
   }
 }
 
