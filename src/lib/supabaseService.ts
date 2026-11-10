@@ -1,5 +1,4 @@
 import { getSupabaseClient } from './supabaseClient';
-import { EloService } from './eloService';
 import { LADDER_CONFIG } from './config';
 import type {
   RegistrationData,
@@ -1346,6 +1345,29 @@ export class SupabaseService {
     }
   }
 
+  /**
+   * Rebuild the authoritative all-time Elo ledger from verified competitive games.
+   * The same database routine runs automatically after game insert/update/delete.
+   */
+  async recomputeEloFromVerifiedGames(): Promise<{ processed: number; errors: number }> {
+    const { error } = await this.supabase.rpc('recompute_club_elo');
+    if (error) {
+      console.error('Failed to recompute verified competitive Elo:', error);
+      throw error;
+    }
+
+    const { count, error: countError } = await this.supabase
+      .from('games')
+      .select('id', { count: 'exact', head: true })
+      .in('game_type', ['ladder', 'tournament'])
+      .eq('is_verified', true)
+      .neq('player1_id', 'unknown_opponent')
+      .neq('player2_id', 'unknown_opponent');
+
+    if (countError) throw countError;
+    return { processed: count ?? 0, errors: 0 };
+  }
+
   // ==================== Game Methods ====================
 
   async addGame(gameData: any): Promise<string> {
@@ -1375,51 +1397,9 @@ export class SupabaseService {
       }
     }
 
-    // Calculate ELO rating changes for both players
-    let ratingChange = gameData.ratingChange;
-    if (!ratingChange) {
-      try {
-        // Get current ELO ratings for both players
-        const player1Rating = await this.getPlayerEloRating(gameData.player1Id);
-        const player2Rating = await this.getPlayerEloRating(gameData.player2Id);
-
-        // Calculate rating changes
-        const changes = EloService.calculateRatingChange(
-          player1Rating,
-          player2Rating,
-          gameData.result as 'player1' | 'player2' | 'draw'
-        );
-
-        // Update player ELO ratings in database
-        const newPlayer1Rating = player1Rating + changes.player1Change;
-        const newPlayer2Rating = player2Rating + changes.player2Change;
-
-        try {
-          await this.updatePlayerEloRating(gameData.player1Id, newPlayer1Rating);
-        } catch (error) {
-          // Player might not exist in students table (e.g., "Unknown Opponent")
-          // Continue with game creation
-          console.warn(`Could not update ELO for player ${gameData.player1Id}:`, error);
-        }
-
-        try {
-          await this.updatePlayerEloRating(gameData.player2Id, newPlayer2Rating);
-        } catch (error) {
-          // Player might not exist in students table
-          // Continue with game creation
-          console.warn(`Could not update ELO for player ${gameData.player2Id}:`, error);
-        }
-
-        // Store rating changes in game data
-        ratingChange = {
-          player1: changes.player1Change,
-          player2: changes.player2Change,
-        };
-      } catch (error) {
-        console.error('Error calculating ELO ratings:', error);
-        // Continue with game creation even if ELO calculation fails
-      }
-    }
+    // Elo is recalculated atomically by the database trigger when this game is saved.
+    // Do not mutate player ratings before the insert: this can double-count games
+    // and breaks corrections, deletions, and unverified-game handling.
 
     const { error } = await this.supabase.from('games').insert({
       id: gameId,
@@ -1437,7 +1417,7 @@ export class SupabaseService {
       recorded_at: gameData.recordedAt || new Date().toISOString(),
       opening: gameData.opening || null,
       endgame: gameData.endgame || null,
-      rating_change: ratingChange ? JSON.stringify(ratingChange) : null,
+      rating_change: null, // Authoritative Elo replay trigger will populate eligible games.
       is_verified: gameData.isVerified || false,
       verified_by: gameData.verifiedBy || null,
       verified_at: gameData.verifiedAt || null,
