@@ -529,7 +529,7 @@ export class SupabaseService {
    * Ladder point awards are not games: attendance/teaching bonuses must
    * contribute to standings without affecting games played or Elo.
    */
-  async getLadderBonusEvents(dateFrom = LADDER_CONFIG.CURRENT_SEASON_START_DATE): Promise<
+  async getLadderBonusEvents(dateFrom: string = LADDER_CONFIG.CURRENT_SEASON_START_DATE): Promise<
     Array<{ playerId: string; playerName: string; points: number; meetDate: string }>
   > {
     const { data, error } = await this.supabase
