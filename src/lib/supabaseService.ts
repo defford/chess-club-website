@@ -525,12 +525,46 @@ export class SupabaseService {
     return await this.calculateRankingsFromGames();
   }
 
+  /**
+   * Ladder point awards are not games: attendance/teaching bonuses must
+   * contribute to standings without affecting games played or Elo.
+   */
+  async getLadderBonusEvents(dateFrom = LADDER_CONFIG.CURRENT_SEASON_START_DATE): Promise<
+    Array<{ playerId: string; playerName: string; points: number; meetDate: string }>
+  > {
+    const { data, error } = await this.supabase
+      .from('player_events')
+      .select('player_id, player_name, value_numeric, metadata, recorded_at')
+      .eq('event_type', 'ladder_bonus')
+      .is('reversed_at', null);
+
+    if (error) throw new Error('Failed to retrieve ladder bonus events: ' + error.message);
+
+    const bonuses: Array<{ playerId: string; playerName: string; points: number; meetDate: string }> = [];
+    for (const row of data || []) {
+      const metadata = (row.metadata || {}) as Record<string, unknown>;
+      const meetDate = typeof metadata.meet_date === 'string'
+        ? metadata.meet_date
+        : String(row.recorded_at || '').slice(0, 10);
+      const points = Number(row.value_numeric || 0);
+      if (row.player_id && meetDate >= dateFrom && Number.isFinite(points) && points !== 0) {
+        bonuses.push({
+          playerId: row.player_id,
+          playerName: row.player_name || '',
+          points,
+          meetDate,
+        });
+      }
+    }
+    return bonuses;
+  }
+
   async calculateRankingsFromGames(): Promise<PlayerData[]> {
     try {
       // Current-season standings are derived only from verified ladder games.
       // Never fall back to unverified results: that would make the leaderboard
       // disagree with player summaries and with the canonical verified record.
-      const [gamesResult, membersResult] = await Promise.all([
+      const [gamesResult, membersResult, bonusEvents] = await Promise.all([
         this.logPerformance(
           async () =>
             this.supabase
@@ -547,6 +581,7 @@ export class SupabaseService {
           }
         ),
         this.getMembersFromParentsAndStudents(),
+        this.getLadderBonusEvents(),
       ]);
 
       if (gamesResult.error) {
@@ -677,12 +712,35 @@ export class SupabaseService {
         }
       });
 
-      // Rank only players who have actually played a current-season ladder game.
-      // Players with zero season games are unranked; assigning them an index-based
-      // rank leaks Supabase row order into the standings.
+      // Apply attendance and other ladder awards separately from match records.
+      bonusEvents.forEach((bonus) => {
+        let stats = playerStats.get(bonus.playerId);
+        if (!stats) {
+          stats = {
+            id: bonus.playerId,
+            name: bonus.playerName,
+            grade: 'Unknown',
+            gamesPlayed: 0,
+            wins: 0,
+            draws: 0,
+            losses: 0,
+            points: 0,
+            lastActive: bonus.meetDate,
+            email: '',
+            isSystemPlayer: false,
+            eloRating: 1000,
+          };
+          playerStats.set(bonus.playerId, stats);
+        }
+        stats.points += bonus.points;
+        if (bonus.meetDate > stats.lastActive.slice(0, 10)) stats.lastActive = bonus.meetDate;
+      });
+
+      // Rank players with either recorded games or awarded ladder points.
+      // Bonus-only participation must not fabricate games or Elo changes.
       const players = Array.from(playerStats.values()).sort((a, b) => {
-        const aRanked = a.gamesPlayed > 0 ? 1 : 0;
-        const bRanked = b.gamesPlayed > 0 ? 1 : 0;
+        const aRanked = a.gamesPlayed > 0 || a.points > 0 ? 1 : 0;
+        const bRanked = b.gamesPlayed > 0 || b.points > 0 ? 1 : 0;
 
         if (bRanked !== aRanked) {
           return bRanked - aRanked;
@@ -701,7 +759,7 @@ export class SupabaseService {
 
       let nextRank = 1;
       players.forEach((player) => {
-        if (player.gamesPlayed > 0) {
+        if (player.gamesPlayed > 0 || player.points > 0) {
           player.rank = nextRank;
           nextRank += 1;
         } else {
