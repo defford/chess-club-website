@@ -17,11 +17,14 @@ export async function GET(request: NextRequest) {
     const targetDate = date || new Date().toISOString().split('T')[0];
     
     // Get all games from the specified date
-    const games = await dataService.getGames({
-      dateFrom: targetDate,
-      dateTo: targetDate,
-      gameType: 'ladder'
-    });
+    const [games, dailyBonuses] = await Promise.all([
+      dataService.getGames({
+        dateFrom: targetDate,
+        dateTo: targetDate,
+        gameType: 'ladder'
+      }),
+      dataService.getLadderBonusEvents(targetDate),
+    ]);
     console.log(`[Ladder API] Retrieved ${games.length} ladder games for date ${targetDate}`);
     
     // Get all players to build the ladder
@@ -341,7 +344,38 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // Convert to array and filter players with ladder games, exclude system players
+    // Attendance/teaching awards count toward points, not games or Elo.
+    // Use the dated bonus ledger so the daily view and season ranking agree.
+    dailyBonuses.filter(bonus => bonus.meetDate === targetDate).forEach(bonus => {
+      let stats = playerStats.get(bonus.playerId);
+      if (!stats) {
+        const overall = allPlayers.find(player => player.id === bonus.playerId);
+        stats = {
+          id: bonus.playerId,
+          name: overall?.name || bonus.playerName,
+          grade: overall?.grade || 'Unknown',
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          draws: 0,
+          points: 0,
+          lastActive: bonus.meetDate,
+          email: overall?.email || '',
+          isSystemPlayer: false,
+          eloRating: overall?.eloRating ?? 1000,
+          overallGamesPlayed: overall?.gamesPlayed || 0,
+          overallWins: overall?.wins || 0,
+          overallLosses: overall?.losses || 0,
+          overallDraws: overall?.draws || 0,
+          overallPoints: overall?.points || bonus.points,
+          overallRank: overall?.rank || 999,
+        };
+        playerStats.set(bonus.playerId, stats);
+      }
+      stats.points += bonus.points;
+    });
+
+    // Convert to array and filter ranked players, including bonus-only participation
     const allPlayerStats = Array.from(playerStats.values());
     console.log(`[Ladder API] Total player stats calculated: ${allPlayerStats.length}`);
     
