@@ -264,7 +264,7 @@ export class MuseService {
       .filter(
         (player) =>
           !player.isSystemPlayer &&
-          player.gamesPlayed > 0 &&
+          (player.gamesPlayed > 0 || player.points > 0) &&
           player.rank !== undefined &&
           player.rank > 0
       )
@@ -354,7 +354,7 @@ export class MuseService {
     const careerStats = summarizeGames(careerGames, playerId);
     const ranking = allRankings.find((player) => player.id === playerId);
     const status = currentSeasonStatus();
-    const hasSeasonLadderGames = seasonStats.gamesPlayed > 0;
+    const hasSeasonLadderActivity = seasonStats.gamesPlayed > 0 || (ranking?.points ?? 0) > 0;
 
     return {
       player: {
@@ -373,8 +373,8 @@ export class MuseService {
       stats: {
         scope: 'current-season-ladder',
         ...seasonStats,
-        ladderRank: hasSeasonLadderGames ? ranking?.rank ?? null : null,
-        ladderPoints: hasSeasonLadderGames ? ranking?.points ?? 0 : 0,
+        ladderRank: hasSeasonLadderActivity ? ranking?.rank ?? null : null,
+        ladderPoints: hasSeasonLadderActivity ? ranking?.points ?? 0 : 0,
         eloRating: student.elo_rating ?? ranking?.eloRating ?? 1000,
         attendanceCount: attendanceResult.count ?? 0,
       },
